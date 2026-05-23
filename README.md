@@ -10,11 +10,11 @@ A fan-made Clash Royale platform for Malaysian players.
 
 | Layer | Location | How It Runs |
 |-------|----------|-------------|
-| **Frontend** | `client/` | Deployed on [Vercel](https://vercel.com) |
+| **Frontend** | `client/` | Deployed on [Netlify](https://netlify.com) |
 | **Backend** | `server/` | Runs locally on your machine (port 3001) |
 | **Tunnel** | ngrok | Exposes local backend to the internet |
 
-The frontend talks to the backend via `VITE_API_URL` (set in Vercel dashboard).
+The frontend talks to the backend via `VITE_API_URL` (set in Netlify dashboard).
 
 ---
 
@@ -46,23 +46,24 @@ Health check: http://localhost:3001/api/health
 ngrok http 3001
 ```
 
-Copy the **HTTPS URL** (e.g., `https://abc123.ngrok-free.app`) and set it as `VITE_API_URL` in Vercel:
+Copy the **HTTPS URL** (e.g., `https://abc123.ngrok-free.app`) and set it as `VITE_API_URL` in Netlify:
 
 ```
 VITE_API_URL=https://abc123.ngrok-free.app/api
 ```
 
-> **Tip:** Every time you restart ngrok, the URL changes. Update `VITE_API_URL` in Vercel and redeploy (or use a free ngrok static domain).
+> **Tip:** Every time you restart ngrok, the URL changes. Update `VITE_API_URL` in Netlify and trigger a rebuild (or use a free ngrok static domain).
 
 ---
 
-## Vercel Deployment
+## Netlify Deployment
 
 1. Push your code to GitHub
-2. Import the `client/` folder into [Vercel](https://vercel.com)
-   - Framework preset: **Vite**
-   - Root directory: `client`
-3. Add environment variables in Vercel dashboard:
+2. Create a new site on [Netlify](https://netlify.com) and import your repo
+   - Base directory: `client`
+   - Build command: `npm run build`
+   - Publish directory: `client/dist`
+3. Add environment variables in Netlify dashboard:
    - `VITE_API_URL` = your ngrok HTTPS URL + `/api`
 4. Deploy
 
@@ -72,7 +73,7 @@ The frontend will be built with `VITE_API_URL` baked in at build time.
 
 ## Environment Variables
 
-### Frontend (`client/.env` or Vercel dashboard)
+### Frontend (`client/.env` or Netlify dashboard)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -84,14 +85,14 @@ The frontend will be built with `VITE_API_URL` baked in at build time.
 |----------|----------|-------------|
 | `CR_API_TOKEN` | **Yes** | Your Clash Royale API token from [developer.clashroyale.com](https://developer.clashroyale.com/) |
 | `PORT` | No | Server port (default: `3001`) |
-| `FRONTEND_URL` | **Yes** | Your Vercel deployment URL for CORS. Example: `https://your-app.vercel.app` |
-| `CORS_ORIGINS` | No | Additional allowed origins (comma-separated). Useful for Vercel preview deployments. |
+| `FRONTEND_URL` | **Yes** | Your Netlify deployment URL for CORS. Example: `https://your-site.netlify.app` |
+| `CORS_ORIGINS` | No | Additional allowed origins (comma-separated). Useful for preview deployments. |
 
 ---
 
 ## Local Development (Full Local)
 
-If you want to run everything locally without ngrok or Vercel:
+If you want to run everything locally without ngrok or Netlify:
 
 ```bash
 # Terminal 1: Backend
@@ -111,7 +112,7 @@ The Vite dev server proxies `/api` to `http://localhost:3001` automatically.
 
 ```
 RoyaleMY/
-├── client/           ← Vite + React frontend (deploy to Vercel)
+├── client/           ← Vite + React frontend (deploy to Netlify)
 │   ├── src/
 │   ├── public/
 │   └── package.json
