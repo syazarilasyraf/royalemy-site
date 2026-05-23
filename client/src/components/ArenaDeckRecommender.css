@@ -1,0 +1,897 @@
+.arena-deck-recommender {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Header */
+.arena-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.arena-header h1 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.arena-subtitle {
+  color: #888;
+  font-size: 1.1rem;
+}
+
+
+
+/* ==================== FINDER STEP ==================== */
+.finder-step {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.finder-step-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.finder-step-header h2 {
+  color: white;
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+}
+
+.finder-step-header p {
+  color: #888;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* ==================== PLAYER TAG FORM ==================== */
+.player-tag-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.player-tag-input-wrapper {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0 16px;
+  transition: all 0.3s;
+}
+
+.player-tag-input-wrapper:focus-within {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.player-tag-hash {
+  color: #888;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.player-tag-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  padding: 14px 0;
+  outline: none;
+}
+
+.player-tag-input::placeholder {
+  color: #666;
+}
+
+.player-tag-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.player-tag-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+}
+
+.player-tag-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.player-tag-error {
+  max-width: 600px;
+  margin: 12px auto 0;
+  padding: 12px 16px;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 10px;
+  color: #F44336;
+  font-size: 0.9rem;
+}
+
+/* ==================== PLAYER PROFILE SUMMARY ==================== */
+.player-profile-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px;
+  background: rgba(76, 175, 80, 0.08);
+  border-radius: 12px;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  margin-bottom: 24px;
+}
+
+.player-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.player-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4CAF50, #2E7D32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.player-name {
+  color: white;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.player-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.player-clear-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #888;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.player-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* ==================== CONFIG SECTIONS ==================== */
+.config-section {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.config-section h3 {
+  color: #FFD700;
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.config-subsection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.config-subsection label {
+  display: block;
+  color: #aaa;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+/* Source Grid */
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.source-card {
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.source-card:hover {
+  border-color: rgba(255, 215, 0, 0.3);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.source-card.active {
+  border-color: #FFD700;
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.source-icon {
+  font-size: 2rem;
+}
+
+.source-label {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.source-desc {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+/* Preset Grid */
+.preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  color: #aaa;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-btn:hover {
+  border-color: rgba(255, 215, 0, 0.3);
+  color: white;
+}
+
+.preset-btn.active {
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  color: #1a1a2e;
+  border-color: #FFD700;
+  font-weight: 600;
+}
+
+/* Toggles */
+.toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.config-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.config-toggle.inline {
+  padding: 6px 0;
+}
+
+.config-toggle input {
+  display: none;
+}
+
+.toggle-slider {
+  width: 44px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  position: relative;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.config-toggle input:checked + .toggle-slider {
+  background: #4CAF50;
+}
+
+.config-toggle input:checked + .toggle-slider::after {
+  left: 22px;
+}
+
+.toggle-label {
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+/* ==================== GENERATE SECTION ==================== */
+.generate-section {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  color: #1a1a2e;
+  border: none;
+  padding: 16px 40px;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.generate-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(255, 215, 0, 0.3);
+}
+
+.generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==================== RESULTS TOOLBAR ==================== */
+.results-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.results-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.results-sort {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: white;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.results-sort option {
+  background: #1a1a2e;
+  color: white;
+}
+
+.results-count {
+  color: #888;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.results-count strong {
+  color: #FFD700;
+}
+
+/* ==================== DECK SOURCE META ==================== */
+.deck-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.deck-source-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.source-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: white;
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.source-badge.winrate {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.source-badge.champion-badge {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+/* ==================== SOURCE INFO ==================== */
+.source-info {
+  max-width: 600px;
+  margin: 16px auto 0;
+  padding: 20px;
+  background: rgba(76, 175, 80, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(76, 175, 80, 0.15);
+}
+
+.source-info-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.source-info-icon {
+  font-size: 1.1rem;
+}
+
+.source-info-title {
+  color: #4CAF50;
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.source-info-badge {
+  padding: 3px 10px;
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 20px;
+  color: #81C784;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.source-info-desc {
+  color: #888;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  margin: 0 0 14px 0;
+}
+
+.source-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.player-chip {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  color: #aaa;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.player-chip:hover {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: rgba(255, 215, 0, 0.25);
+  color: #FFD700;
+}
+
+/* ==================== HOW IT WORKS ==================== */
+.how-it-works {
+  max-width: 600px;
+  margin: 30px auto 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.how-it-works h4 {
+  color: #FFD700;
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.how-it-works ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #aaa;
+  font-size: 0.85rem;
+  line-height: 1.8;
+}
+
+.how-it-works li {
+  margin-bottom: 4px;
+}
+
+/* ==================== FALLBACK BANNER ==================== */
+.fallback-banner {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 12px;
+  color: #FF9800;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* ==================== META INFO BAR ==================== */
+.meta-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: rgba(255, 215, 0, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.meta-info-bar span {
+  color: #aaa;
+  font-size: 0.8rem;
+}
+
+/* ==================== DISCLAIMER ==================== */
+.disclaimer {
+  margin-top: 40px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.disclaimer p {
+  color: #888;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 0;
+  text-align: center;
+}
+
+.disclaimer strong {
+  color: #aaa;
+}
+
+
+
+/* ==================== DECKS SECTION ==================== */
+.decks-section { margin-bottom: 30px; }
+.decks-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+}
+.decks-header h2 { color: white; font-size: 1.4rem; margin: 0; }
+.rotate-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none;
+  padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s;
+}
+.rotate-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
+
+.decks-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px;
+}
+
+/* Deck Card */
+.deck-card {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border-radius: 16px; padding: 20px;
+  border: 1px solid rgba(255, 215, 0, 0.1); transition: all 0.3s;
+}
+.deck-card:hover {
+  transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 215, 0, 0.3);
+}
+.deck-card.fully-compatible {
+  border-color: rgba(76, 175, 80, 0.4);
+  box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.2);
+}
+.deck-card.fully-compatible:hover {
+  border-color: rgba(76, 175, 80, 0.6);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(76, 175, 80, 0.3);
+}
+
+.deck-header { margin-bottom: 12px; }
+.deck-title-row {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px;
+}
+.deck-header h3 { color: white; margin: 0; font-size: 1.2rem; flex: 1; }
+
+.compatibility-badge {
+  padding: 4px 10px; border-radius: 20px; font-size: 0.7rem;
+  font-weight: 700; color: white; text-transform: uppercase;
+  letter-spacing: 0.5px; white-space: nowrap;
+}
+
+.deck-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.deck-tag {
+  padding: 4px 10px; border-radius: 20px; font-size: 0.7rem;
+  font-weight: 600; color: white; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.deck-description { color: #aaa; font-size: 0.9rem; margin-bottom: 12px; line-height: 1.5; }
+
+/* Used by */
+.deck-used-by {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  background: rgba(33, 150, 243, 0.08);
+  border-radius: 10px;
+  border: 1px solid rgba(33, 150, 243, 0.15);
+  flex-wrap: wrap;
+}
+
+.used-by-label {
+  color: #2196F3;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.used-by-players {
+  color: #90CAF9;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Missing cards chips */
+.deck-missing-cards {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-bottom: 12px; padding: 8px 12px;
+  background: rgba(244, 67, 54, 0.08); border-radius: 10px;
+  border: 1px solid rgba(244, 67, 54, 0.15);
+}
+.missing-label { color: #F44336; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+.missing-card-chip {
+  padding: 2px 8px; background: rgba(244, 67, 54, 0.15);
+  color: #F44336; border-radius: 12px; font-size: 0.75rem; font-weight: 500;
+}
+
+.deck-cards {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;
+}
+.deck-card-item {
+  position: relative; aspect-ratio: 1; background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.deck-card-item.missing { opacity: 0.4; filter: grayscale(0.7); }
+.deck-card-item.champion-card {
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.5);
+}
+.deck-card-item img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+
+.card-fallback {
+  position: absolute; inset: 0; display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: bold; color: white;
+  padding: 4px; text-align: center;
+}
+.card-fallback .fallback-name {
+  font-size: 0.6rem;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.card-elixir {
+  position: absolute; bottom: 2px; right: 2px; background: rgba(0, 0, 0, 0.8);
+  padding: 2px 6px; border-radius: 10px; font-size: 0.7rem;
+  color: #9C27B0; font-weight: 600; display: flex; align-items: center; gap: 2px;
+}
+.elixir-icon { font-size: 0.6rem; }
+
+.card-level-badge {
+  position: absolute; top: 2px; left: 2px; background: rgba(76, 175, 80, 0.9);
+  padding: 2px 6px; border-radius: 8px; font-size: 0.65rem;
+  color: white; font-weight: 700;
+}
+.card-missing-badge {
+  position: absolute; top: 2px; left: 2px; background: rgba(244, 67, 54, 0.9);
+  padding: 2px 6px; border-radius: 8px; font-size: 0.65rem;
+  color: white; font-weight: 700;
+}
+.card-champion-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 1px 3px;
+  border-radius: 4px;
+}
+
+.deck-footer {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+}
+.deck-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.avg-elixir {
+  background: rgba(156, 39, 176, 0.2); padding: 6px 12px; border-radius: 20px;
+  font-size: 0.85rem; color: #BA68C8; font-weight: 600; display: flex; align-items: center; gap: 4px;
+}
+.avg-level {
+  background: rgba(76, 175, 80, 0.15); padding: 6px 12px; border-radius: 20px;
+  font-size: 0.85rem; color: #81C784; font-weight: 600; display: flex; align-items: center; gap: 4px;
+}
+.level-icon { font-size: 0.7rem; }
+
+.deck-actions { display: flex; gap: 8px; }
+.action-btn {
+  padding: 8px 16px; border-radius: 20px; font-size: 0.8rem;
+  font-weight: 600; cursor: pointer; transition: all 0.3s; text-decoration: none; border: none;
+}
+.open-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049); color: white;
+}
+.open-btn:hover { background: linear-gradient(135deg, #45a049, #3d8b40); transform: translateY(-2px); }
+.copy-btn {
+  background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.copy-btn.copied { background: #4CAF50; border-color: #4CAF50; }
+
+/* No decks found */
+.no-decks-found {
+  text-align: center; padding: 60px 20px; color: #888;
+}
+.no-decks-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+.no-decks-found h3 { color: white; margin: 0 0 8px 0; font-size: 1.2rem; }
+.no-decks-found p { margin: 0; font-size: 0.9rem; }
+
+/* Coming Soon Section */
+.coming-soon-section { margin-top: 40px; }
+.coming-soon-section h2 { color: white; font-size: 1.4rem; margin-bottom: 20px; }
+.coming-soon-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;
+}
+.coming-soon-card {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border-radius: 16px; padding: 24px; text-align: center;
+  border: 1px dashed rgba(255, 215, 0, 0.3); position: relative; opacity: 0.8;
+}
+.coming-soon-icon { font-size: 3rem; margin-bottom: 12px; }
+.coming-soon-card h3 { color: white; margin: 0 0 8px 0; font-size: 1.1rem; }
+.coming-soon-card p { color: #888; font-size: 0.9rem; margin: 0; }
+.coming-soon-badge {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(255, 215, 0, 0.2); color: #FFD700;
+  padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+}
+
+/* Loading State */
+.loading-decks { text-align: center; padding: 60px 20px; color: #888; }
+.spinner {
+  width: 50px; height: 50px;
+  border: 4px solid rgba(255, 215, 0, 0.2); border-top-color: #FFD700;
+  border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== MOBILE OPTIMIZATIONS ===== */
+@media (max-width: 768px) {
+  .arena-deck-recommender { padding: 12px; }
+  .arena-header h1 { font-size: 1.5rem; }
+
+  .config-section { padding: 16px; }
+
+  .decks-grid { grid-template-columns: 1fr; }
+  .deck-cards { gap: 8px; }
+  .deck-footer { flex-direction: column; align-items: stretch; }
+  .deck-actions { justify-content: stretch; }
+  .action-btn { flex: 1; text-align: center; }
+
+  .player-tag-form { flex-direction: column; }
+  .player-tag-input-wrapper { min-width: unset; }
+
+  .source-grid { grid-template-columns: 1fr; }
+  .preset-grid { gap: 6px; }
+  .preset-btn { padding: 6px 12px; font-size: 0.8rem; }
+
+  .toggle-row { flex-direction: column; gap: 12px; }
+
+  .results-toolbar { flex-direction: column; align-items: stretch; }
+  .results-filters { justify-content: space-between; }
+
+  .generate-btn { width: 100%; }
+
+  .player-profile-summary { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 480px) {
+  .deck-cards { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .deck-title-row { flex-direction: column; gap: 8px; }
+  .compatibility-badge { align-self: flex-start; }
+  .deck-meta-row { flex-direction: column; align-items: flex-start; }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) {
+  .rotate-btn:active, .action-btn:active { transform: scale(0.95); }
+  .source-card:active { transform: scale(0.98); }
+  .preset-btn:active { transform: scale(0.95); }
+}
+
+
