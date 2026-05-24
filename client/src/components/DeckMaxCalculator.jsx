@@ -15,6 +15,17 @@ const UPGRADE_REQUIREMENTS = {
 };
 
 const MAX_LEVEL = 16;
+
+// The Clash Royale API returns relative levels (starting at 1 for each rarity).
+// We must convert to display levels before looking up upgrade costs.
+const DISPLAY_BASE_LEVELS = {
+  common: 1,
+  rare: 3,
+  epic: 6,
+  legendary: 9,
+  champion: 11
+};
+
 const WEEKLY_GAIN = {
   common: 720,
   rare: 72,
@@ -48,15 +59,22 @@ function normalizeRarity(rarity) {
   return 'common';
 }
 
-function getCardsToNextLevel(rarity, level, count) {
-  const req = UPGRADE_REQUIREMENTS[rarity]?.[level];
+function getDisplayLevel(rarity, relativeLevel) {
+  const base = DISPLAY_BASE_LEVELS[rarity] || 1;
+  return base + relativeLevel - 1;
+}
+
+function getCardsToNextLevel(rarity, relativeLevel, count) {
+  const displayLevel = getDisplayLevel(rarity, relativeLevel);
+  const req = UPGRADE_REQUIREMENTS[rarity]?.[displayLevel];
   if (req === undefined) return 0;
   return Math.max(0, req - (count || 0));
 }
 
-function getCardsToMax(rarity, level, count) {
-  let cards = getCardsToNextLevel(rarity, level, count);
-  for (let l = level + 1; l < MAX_LEVEL; l++) {
+function getCardsToMax(rarity, relativeLevel, count) {
+  const displayLevel = getDisplayLevel(rarity, relativeLevel);
+  let cards = getCardsToNextLevel(rarity, relativeLevel, count);
+  for (let l = displayLevel + 1; l < MAX_LEVEL; l++) {
     const req = UPGRADE_REQUIREMENTS[rarity]?.[l];
     if (req !== undefined) cards += req;
   }
@@ -73,12 +91,13 @@ function getWeeksToMax(rarity, level, count) {
 function analyzeDeck(currentDeck) {
   const cards = currentDeck.map((card) => {
     const rarity = normalizeRarity(card.rarity);
-    const level = card.level || 1;
+    const relativeLevel = card.level || 1;
+    const displayLevel = getDisplayLevel(rarity, relativeLevel);
     const count = card.count || 0;
-    const cardsToNext = getCardsToNextLevel(rarity, level, count);
-    const cardsToMax = getCardsToMax(rarity, level, count);
-    const weeks = getWeeksToMax(rarity, level, count);
-    const req = UPGRADE_REQUIREMENTS[rarity]?.[level] || 1;
+    const cardsToNext = getCardsToNextLevel(rarity, relativeLevel, count);
+    const cardsToMax = getCardsToMax(rarity, relativeLevel, count);
+    const weeks = getWeeksToMax(rarity, relativeLevel, count);
+    const req = UPGRADE_REQUIREMENTS[rarity]?.[displayLevel] || 1;
     const progressPct = Math.min(100, Math.round(((count || 0) / req) * 100));
 
     return {
