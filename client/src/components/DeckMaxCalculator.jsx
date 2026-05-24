@@ -103,7 +103,7 @@ function analyzeDeck(currentDeck) {
     return {
       name: card.name,
       rarity,
-      level,
+      level: displayLevel,
       count,
       cardsToNext,
       cardsToMax,
