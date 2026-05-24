@@ -26,12 +26,35 @@ const DISPLAY_BASE_LEVELS = {
   champion: 11
 };
 
+// Gold cost to upgrade FROM display level TO next level
+// Source: Official Supercell Nov 2025 update
+const GOLD_REQUIREMENTS = {
+  1: 0, 2: 5, 3: 20, 4: 50, 5: 150, 6: 400, 7: 1000, 8: 2000,
+  9: 4000, 10: 8000, 11: 15000, 12: 25000, 13: 40000, 14: 60000, 15: 90000, 16: 120000
+};
+
 const WEEKLY_GAIN = {
   common: 720,
   rare: 72,
   epic: 4,
   legendary: 0,
   champion: 0
+};
+
+// Trade token values (cards per token)
+const TRADE_TOKENS = {
+  common: 250,
+  rare: 50,
+  epic: 10,
+  legendary: 1
+};
+
+// How many cards a Wild Card of each rarity gives
+const WILD_CARDS = {
+  common: 50,
+  rare: 10,
+  epic: 5,
+  legendary: 1
 };
 
 const RARITY_COLORS = {
@@ -81,6 +104,14 @@ function getCardsToMax(rarity, relativeLevel, count) {
   return cards;
 }
 
+function getGoldToMax(displayLevel) {
+  let gold = 0;
+  for (let l = displayLevel + 1; l <= MAX_LEVEL; l++) {
+    gold += GOLD_REQUIREMENTS[l] || 0;
+  }
+  return gold;
+}
+
 function getWeeksToMax(rarity, level, count) {
   const weekly = WEEKLY_GAIN[rarity];
   if (weekly === 0) return Infinity;
@@ -97,6 +128,7 @@ function analyzeDeck(currentDeck) {
     const cardsToNext = getCardsToNextLevel(rarity, relativeLevel, count);
     const cardsToMax = getCardsToMax(rarity, relativeLevel, count);
     const weeks = getWeeksToMax(rarity, relativeLevel, count);
+    const goldToMax = getGoldToMax(displayLevel);
     const req = UPGRADE_REQUIREMENTS[rarity]?.[displayLevel] || 1;
     const progressPct = Math.min(100, Math.round(((count || 0) / req) * 100));
 
@@ -108,6 +140,7 @@ function analyzeDeck(currentDeck) {
       cardsToNext,
       cardsToMax,
       weeks,
+      goldToMax,
       progressPct,
       maxLevel: card.maxLevel || MAX_LEVEL
     };
@@ -121,41 +154,79 @@ function analyzeDeck(currentDeck) {
 
   const bottleneck = sorted[0];
   const totalCards = cards.reduce((sum, c) => sum + c.cardsToMax, 0);
+  const totalGold = cards.reduce((sum, c) => sum + c.goldToMax, 0);
   const maxWeeks = bottleneck?.weeks ?? 0;
   const fullDeckMaxTime = maxWeeks === Infinity ? '∞' : Math.ceil(maxWeeks);
 
-  // Strategy
-  const epics = cards.filter((c) => c.rarity === 'epic').sort((a, b) => a.cardsToNext - b.cardsToNext);
+  // Group by rarity
   const commons = cards.filter((c) => c.rarity === 'common');
   const rares = cards.filter((c) => c.rarity === 'rare');
+  const epics = cards.filter((c) => c.rarity === 'epic');
   const legendaries = cards.filter((c) => c.rarity === 'legendary');
   const champions = cards.filter((c) => c.rarity === 'champion');
 
-  // Mon-Sat split logic
-  const commonBottleneckWeeks = commons.length > 0 ? Math.max(...commons.map((c) => c.weeks)) : 0;
-  const rareBottleneckWeeks = rares.length > 0 ? Math.max(...rares.map((c) => c.weeks)) : 0;
-  const rareDominates = rareBottleneckWeeks > commonBottleneckWeeks * 2;
+  // Targets: the card with the most cards remaining in each rarity
+  const commonTarget = commons.sort((a, b) => b.cardsToMax - a.cardsToMax)[0];
+  const rareTarget = rares.sort((a, b) => b.cardsToMax - a.cardsToMax)[0];
+  const epicTarget = epics.sort((a, b) => b.cardsToMax - a.cardsToMax)[0];
 
-  const commonDays = rareDominates ? 2 : 4;
-  const rareDays = rareDominates ? 4 : 2;
+  // Request strategy: prioritize the rarity of the overall bottleneck
+  // unless it's legendary/champion (can't be requested)
+  const requestable = cards.filter((c) => c.weeks !== Infinity);
+  const requestBottleneck = requestable.sort((a, b) => b.weeks - a.weeks)[0];
+  const primaryRarity = requestBottleneck?.rarity || 'common';
 
-  const commonTarget = commons.sort((a, b) => b.weeks - a.weeks)[0];
-  const rareTarget = rares.sort((a, b) => b.weeks - a.weeks)[0];
-  const epicTarget = epics[0];
+  // Days split: if bottleneck is common, request it 5 days; otherwise split evenly
+  const isCommonBottleneck = primaryRarity === 'common';
+  const primaryDays = isCommonBottleneck ? 5 : 3;
+  const secondaryDays = isCommonBottleneck ? 1 : 3;
+  const secondaryRarity = isCommonBottleneck ? 'rare' : 'common';
+
+  // Trade token recommendations
+  const tokenRecs = [];
+  if (legendaries.length > 0) {
+    const legCards = legendaries.reduce((sum, c) => sum + c.cardsToMax, 0);
+    tokenRecs.push({ rarity: 'legendary', cards: legCards, tokens: legCards });
+  }
+  if (rares.length > 0) {
+    const rareCards = rares.reduce((sum, c) => sum + c.cardsToMax, 0);
+    tokenRecs.push({ rarity: 'rare', cards: rareCards, tokens: Math.ceil(rareCards / TRADE_TOKENS.rare) });
+  }
+  if (epics.length > 0) {
+    const epicCards = epics.reduce((sum, c) => sum + c.cardsToMax, 0);
+    tokenRecs.push({ rarity: 'epic', cards: epicCards, tokens: Math.ceil(epicCards / TRADE_TOKENS.epic) });
+  }
+
+  // Wild Card recommendation: which rarity saves the most time?
+  const wildRecs = ['common', 'rare', 'epic', 'legendary']
+    .map((r) => {
+      const rarityCards = cards.filter((c) => c.rarity === r);
+      const totalCards = rarityCards.reduce((sum, c) => sum + c.cardsToMax, 0);
+      const weeksSaved = rarityCards.length > 0 ? WILD_CARDS[r] / (WEEKLY_GAIN[r] || 1) : 0;
+      return { rarity: r, cards: totalCards, weeksSaved };
+    })
+    .filter((r) => r.cards > 0)
+    .sort((a, b) => b.weeksSaved - a.weeksSaved);
 
   return {
     cards: cardsWithRank,
     totalCards,
+    totalGold,
     fullDeckMaxTime,
     bottleneck,
     strategy: {
-      commonDays,
-      rareDays,
+      primaryRarity,
+      primaryDays,
+      secondaryRarity,
+      secondaryDays,
       commonTarget,
       rareTarget,
       epicTarget,
+      requestBottleneck,
       hasLegendary: legendaries.length > 0,
       hasChampion: champions.length > 0,
+      tokenRecs,
+      wildRecs,
       legendaries,
       champions
     }
@@ -167,10 +238,11 @@ function buildStrategyText(result, playerTag) {
   let text = `Deck Max Strategy for #${playerTag}\n`;
   text += `Full Deck Max Time: ${result.fullDeckMaxTime === '∞' ? '∞' : result.fullDeckMaxTime + ' weeks'}\n`;
   text += `Total Cards Needed: ${result.totalCards.toLocaleString()}\n`;
+  text += `Total Gold Needed: ${result.totalGold.toLocaleString()}\n`;
   text += `Biggest Bottleneck: ${result.bottleneck.name} (${result.bottleneck.rarity})\n\n`;
 
   text += `Weekly Request Strategy:\n`;
-  text += `Mon–Sat: Request ${s.commonTarget?.name || 'Common'} ${s.commonDays} days, ${s.rareTarget?.name || 'Rare'} ${s.rareDays} days\n`;
+  text += `Mon–Sat: Request ${s[`${s.primaryRarity}Target`]?.name || s.primaryRarity} ${s.primaryDays} days, ${s[`${s.secondaryRarity}Target`]?.name || s.secondaryRarity} ${s.secondaryDays} days\n`;
   if (s.epicTarget) {
     text += `Sunday: Request ${s.epicTarget.name} (Epic)\n`;
   }
@@ -181,9 +253,16 @@ function buildStrategyText(result, playerTag) {
     text += `Champion: Use shop, trade tokens, and chests\n`;
   }
 
+  if (s.tokenRecs.length > 0) {
+    text += `\nTrade Token Plan:\n`;
+    s.tokenRecs.forEach((t) => {
+      text += `- ${t.rarity.charAt(0).toUpperCase() + t.rarity.slice(1)}: ${t.tokens.toLocaleString()} tokens (${t.cards.toLocaleString()} cards)\n`;
+    });
+  }
+
   text += `\nCard Breakdown:\n`;
   result.cards.forEach((c) => {
-    text += `- ${c.name} [${c.rarity}] Lv${c.level} → ${c.cardsToMax.toLocaleString()} cards (${c.weeks === Infinity ? '∞' : Math.ceil(c.weeks) + ' wks'})\n`;
+    text += `- ${c.name} [${c.rarity}] Lv${c.level} → ${c.cardsToMax.toLocaleString()} cards, ${c.goldToMax.toLocaleString()} gold (${c.weeks === Infinity ? '∞' : Math.ceil(c.weeks) + ' wks'})\n`;
   });
 
   return text;
@@ -352,6 +431,10 @@ function DeckMaxCalculator() {
                 </span>
               </span>
             </div>
+            <div className="summary-card">
+              <span className="sc-label">Gold Needed</span>
+              <span className="sc-value">{result.totalGold.toLocaleString()}</span>
+            </div>
           </div>
 
           {/* Copy Strategy */}
@@ -363,21 +446,23 @@ function DeckMaxCalculator() {
 
           {/* Strategy Panel */}
           <div className="strategy-panel">
-            <h3 className="panel-title">📋 Request Strategy</h3>
+            <h3 className="panel-title">📋 Smart Request Strategy</h3>
             <div className="strategy-grid">
               <div className="strategy-block">
-                <div className="sb-header">Mon – Sat</div>
+                <div className="sb-header">Mon – Sat Priority</div>
                 <div className="sb-body">
                   <div className="sb-line">
-                    <span className="sb-dot" style={{ background: RARITY_COLORS.common }} />
-                    <span>Request <strong>{result.strategy.commonTarget?.name || 'Common'}</strong></span>
-                    <span className="sb-days">{result.strategy.commonDays} days</span>
+                    <span className="sb-dot" style={{ background: RARITY_COLORS[result.strategy.primaryRarity] }} />
+                    <span>Request <strong>{result.strategy[`${result.strategy.primaryRarity}Target`]?.name || result.strategy.primaryRarity}</strong></span>
+                    <span className="sb-days">{result.strategy.primaryDays} days</span>
                   </div>
-                  <div className="sb-line">
-                    <span className="sb-dot" style={{ background: RARITY_COLORS.rare }} />
-                    <span>Request <strong>{result.strategy.rareTarget?.name || 'Rare'}</strong></span>
-                    <span className="sb-days">{result.strategy.rareDays} days</span>
-                  </div>
+                  {result.strategy.secondaryDays > 0 && (
+                    <div className="sb-line">
+                      <span className="sb-dot" style={{ background: RARITY_COLORS[result.strategy.secondaryRarity] }} />
+                      <span>Request <strong>{result.strategy[`${result.strategy.secondaryRarity}Target`]?.name || result.strategy.secondaryRarity}</strong></span>
+                      <span className="sb-days">{result.strategy.secondaryDays} day{result.strategy.secondaryDays > 1 ? 's' : ''}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -398,18 +483,18 @@ function DeckMaxCalculator() {
 
               {(result.strategy.hasLegendary || result.strategy.hasChampion) && (
                 <div className="strategy-block special">
-                  <div className="sb-header">Special Cards</div>
+                  <div className="sb-header">Cannot Request</div>
                   <div className="sb-body">
                     {result.strategy.hasLegendary && (
                       <div className="sb-line">
                         <span className="sb-dot" style={{ background: RARITY_COLORS.legendary }} />
-                        <span>Legendary: use shop, trade tokens & chests</span>
+                        <span>Legendary: shop, chests, trade tokens</span>
                       </div>
                     )}
                     {result.strategy.hasChampion && (
                       <div className="sb-line">
                         <span className="sb-dot" style={{ background: RARITY_COLORS.champion }} />
-                        <span>Champion: use shop, trade tokens & chests</span>
+                        <span>Champion: shop, chests, wild cards</span>
                       </div>
                     )}
                   </div>
@@ -422,11 +507,11 @@ function DeckMaxCalculator() {
               <div className="ws-label">Weekly Schedule</div>
               <div className="ws-days">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => {
-                  const isCommon = i < result.strategy.commonDays;
+                  const isPrimary = i < result.strategy.primaryDays;
                   return (
-                    <div key={day} className={`ws-day ${isCommon ? 'common' : 'rare'}`}>
+                    <div key={day} className={`ws-day ${isPrimary ? result.strategy.primaryRarity : result.strategy.secondaryRarity}`}>
                       <span className="ws-day-name">{day}</span>
-                      <span className="ws-day-type">{isCommon ? 'Common' : 'Rare'}</span>
+                      <span className="ws-day-type">{isPrimary ? result.strategy.primaryRarity.charAt(0).toUpperCase() + result.strategy.primaryRarity.slice(1) : result.strategy.secondaryRarity.charAt(0).toUpperCase() + result.strategy.secondaryRarity.slice(1)}</span>
                     </div>
                   );
                 })}
@@ -436,6 +521,48 @@ function DeckMaxCalculator() {
                 </div>
               </div>
             </div>
+
+            {/* Trade Tokens */}
+            {result.strategy.tokenRecs.length > 0 && (
+              <div className="token-panel">
+                <div className="panel-subtitle">🔁 Trade Token Plan</div>
+                <div className="token-list">
+                  {result.strategy.tokenRecs.map((rec) => (
+                    <div key={rec.rarity} className="token-line">
+                      <span className="sb-dot" style={{ background: RARITY_COLORS[rec.rarity] }} />
+                      <span className="token-rarity">{rec.rarity.charAt(0).toUpperCase() + rec.rarity.slice(1)}</span>
+                      <span className="token-amount">{rec.tokens.toLocaleString()} tokens</span>
+                      <span className="token-detail">({rec.cards.toLocaleString()} cards)</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="token-note">Trade tokens at King Level 16+. 1 Rare trade ≈ 4 days of requests. 1 Epic trade ≈ 10 days.</p>
+              </div>
+            )}
+
+            {/* Wild Cards */}
+            {result.strategy.wildRecs.length > 0 && (
+              <div className="wild-panel">
+                <div className="panel-subtitle">🃏 Wild Card Priority</div>
+                <div className="wild-list">
+                  {result.strategy.wildRecs.map((rec) => (
+                    <div key={rec.rarity} className="wild-line">
+                      <span className="sb-dot" style={{ background: RARITY_COLORS[rec.rarity] }} />
+                      <span className="wild-rarity">{rec.rarity.charAt(0).toUpperCase() + rec.rarity.slice(1)}</span>
+                      <span className="wild-time">≈ {rec.weeksSaved.toFixed(1)} weeks saved each</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Gold bottleneck warning */}
+            {result.totalGold > 1000000 && (
+              <div className="gold-warning">
+                <span className="gold-icon">⚠️</span>
+                <span>Your deck needs <strong>{result.totalGold.toLocaleString()}</strong> gold to max. Consider playing Gold Rush events, Clan War rewards, and maxing out daily gold from battles.</span>
+              </div>
+            )}
           </div>
 
           {/* Detailed Table */}
@@ -450,6 +577,7 @@ function DeckMaxCalculator() {
                     <th>Level</th>
                     <th>To Next</th>
                     <th>To Max (16)</th>
+                    <th>Gold</th>
                     <th>Time</th>
                     <th>Progress</th>
                   </tr>
@@ -478,6 +606,7 @@ function DeckMaxCalculator() {
                       <td>{card.level}</td>
                       <td>{card.cardsToNext.toLocaleString()}</td>
                       <td>{card.cardsToMax.toLocaleString()}</td>
+                      <td>{card.goldToMax.toLocaleString()}</td>
                       <td className={card.weeks === Infinity ? 'time-infinity' : ''}>
                         {formatWeeks(card.weeks)}
                       </td>
@@ -771,16 +900,6 @@ function DeckMaxCalculator() {
           border: 1px solid var(--bg-tertiary);
         }
 
-        .ws-day.common {
-          border-color: rgba(184, 184, 184, 0.3);
-          background: rgba(184, 184, 184, 0.08);
-        }
-
-        .ws-day.rare {
-          border-color: rgba(255, 159, 28, 0.3);
-          background: rgba(255, 159, 28, 0.08);
-        }
-
         .ws-day.sunday {
           border-color: rgba(168, 85, 247, 0.3);
           background: rgba(168, 85, 247, 0.08);
@@ -923,6 +1042,92 @@ function DeckMaxCalculator() {
           color: var(--text-primary);
           text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
+
+        /* Token & Wild Panels */
+        .token-panel,
+        .wild-panel {
+          margin-top: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: var(--bg-secondary);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--bg-tertiary);
+        }
+
+        .panel-subtitle {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .token-list,
+        .wild-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .token-line,
+        .wild-line {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          font-size: 0.8125rem;
+        }
+
+        .token-rarity,
+        .wild-rarity {
+          font-weight: 600;
+          min-width: 80px;
+          text-transform: capitalize;
+        }
+
+        .token-amount {
+          font-weight: 700;
+          color: var(--accent-primary);
+        }
+
+        .token-detail {
+          color: var(--text-muted);
+        }
+
+        .wild-time {
+          color: var(--text-secondary);
+        }
+
+        .token-note {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-top: var(--spacing-sm);
+          font-style: italic;
+        }
+
+        /* Gold Warning */
+        .gold-warning {
+          display: flex;
+          gap: var(--spacing-sm);
+          align-items: flex-start;
+          margin-top: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          border-radius: var(--radius-lg);
+          font-size: 0.8125rem;
+          color: var(--text-primary);
+          line-height: 1.5;
+        }
+
+        .gold-icon {
+          font-size: 1.125rem;
+          flex-shrink: 0;
+        }
+
+        /* Rarity-colored schedule days */
+        .ws-day.common { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3); }
+        .ws-day.rare { background: rgba(168, 85, 247, 0.08); border-color: rgba(168, 85, 247, 0.3); }
+        .ws-day.epic { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); }
+        .ws-day.legendary { background: rgba(234, 179, 8, 0.08); border-color: rgba(234, 179, 8, 0.3); }
+        .ws-day.champion { background: rgba(6, 182, 212, 0.08); border-color: rgba(6, 182, 212, 0.3); }
 
         /* Animations */
         .animate-fadeIn {
