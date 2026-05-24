@@ -20,24 +20,10 @@ function InfoPopup({ title, description, onClose }) {
 }
 
 const SAMPLE_DECKS = [
-  { name: 'Log Bait', url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000010;26000000;28000011;26000032;26000026;28000012;26000005;26000013&tt=159000000&l=Royals', archetype: 'Control' },
-  { name: 'Golem Beatdown', url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000009;26000025;26000003;28000004;26000038;26000019;28000014;26000011&tt=159000000&l=Royals', archetype: 'Beatdown' },
-  { name: '2.6 Hog Cycle', url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000021;26000030;28000008;26000010;26000000;26000020;28000012;26000004&tt=159000000&l=Royals', archetype: 'Fast Cycle' },
-];
-
-const TRENDING_DECKS = [
-  { 
-    name: 'Goblin Giant Sparky', 
-    url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000060;26000033;26000010;26000019;26000000;28000008;26000013;28000000&tt=159000000&l=Royals',
-    tag: 'Meta 🔥',
-    desc: 'Strong in current meta'
-  },
-  { 
-    name: 'Monk Control', 
-    url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000077;26000010;26000019;26000000;28000008;26000013;26000005;28000012&tt=159000000&l=Royals',
-    tag: 'Champion 🏆',
-    desc: 'Arena 21+ deck'
-  },
+  { name: '2.6 Hog Cycle', url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000021;26000014;26000030;26000010;27000000;28000000;28000011;26000038&tt=159000000&l=Royals', archetype: 'Fast Cycle' },
+  { name: 'Log Bait', url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000026;28000004;28000003;26000000;27000003;28000011;26000041;26000040&tt=159000000&l=Royals', archetype: 'Control' },
+  { name: 'PEKKA Bridge Spam', url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000004;26000036;26000046;26000042;28000009;28000008;26000050;26000005&tt=159000000&l=Royals', archetype: 'Bridge Spam' },
+  { name: 'Golem Beatdown', url: 'https://link.clashroyale.com/en?clashroyale://copyDeck?deck=26000009;26000015;26000039;28000007;28000012;28000011;26000035;26000030&tt=159000000&l=Royals', archetype: 'Beatdown' },
 ];
 
 function DeckStats() {
@@ -212,25 +198,6 @@ function DeckStats() {
               <button key={d.name} onClick={() => handleSample(d)} className="sample-deck-card" disabled={loading}>
                 <span className="sd-name">{d.name}</span>
                 <span className="sd-archetype">{d.archetype}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Trending / Featured */}
-        <div className="trending-section">
-          <div className="trending-header">
-            <h4 className="section-title">🔥 Trending Now</h4>
-            <span className="trending-badge">Live</span>
-          </div>
-          <div className="trending-decks">
-            {TRENDING_DECKS.map(d => (
-              <button key={d.name} onClick={() => handleSample(d)} className="trending-deck-card" disabled={loading}>
-                <div className="td-info">
-                  <span className="td-name">{d.name}</span>
-                  <span className="td-desc">{d.desc}</span>
-                </div>
-                <span className="td-tag">{d.tag}</span>
               </button>
             ))}
           </div>
@@ -672,95 +639,6 @@ function DeckStats() {
           color: var(--text-muted);
           text-transform: uppercase;
           letter-spacing: 0.5px;
-        }
-
-        /* Trending Section */
-        .trending-section {
-          margin-top: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), var(--bg-secondary));
-          border: 1px solid rgba(245, 158, 11, 0.3);
-          border-radius: var(--radius-xl);
-        }
-
-        .trending-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: var(--spacing-sm);
-        }
-
-        .trending-section .section-title {
-          margin: 0;
-          color: #f59e0b;
-        }
-
-        .trending-badge {
-          font-size: 0.65rem;
-          padding: 2px 8px;
-          background: rgba(245, 158, 11, 0.2);
-          color: #f59e0b;
-          border-radius: var(--radius-full);
-          font-weight: 600;
-          text-transform: uppercase;
-          animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
-        }
-
-        .trending-decks {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-        }
-
-        .trending-deck-card {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: var(--spacing-sm);
-          padding: var(--spacing-sm) var(--spacing-md);
-          background: var(--bg-primary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-lg);
-          cursor: pointer;
-          transition: all 0.2s;
-          text-align: left;
-        }
-
-        .trending-deck-card:hover:not(:disabled) {
-          border-color: #f59e0b;
-          transform: translateX(4px);
-        }
-
-        .td-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .td-name {
-          font-weight: 600;
-          color: var(--text-primary);
-          font-size: 0.9rem;
-        }
-
-        .td-desc {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
-        .td-tag {
-          font-size: 0.7rem;
-          padding: 4px 8px;
-          background: rgba(245, 158, 11, 0.2);
-          color: #f59e0b;
-          border-radius: var(--radius-md);
-          font-weight: 600;
-          white-space: nowrap;
         }
 
         /* Arena CTA */
@@ -1402,7 +1280,6 @@ function DeckStats() {
             max-width: 120px;
           }
 
-          .trending-section,
           .arena-cta,
           .community-teaser {
             margin-left: var(--spacing-xs);
