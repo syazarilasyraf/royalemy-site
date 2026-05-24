@@ -8,16 +8,14 @@ import TournamentFinder from './components/TournamentFinder';
 import ArenaDeckRecommender from './components/ArenaDeckRecommender';
 import MYRankings from './components/MYRankings';
 import DeckMaxCalculator from './components/DeckMaxCalculator';
-import About from './components/About';
+import More from './components/More';
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
-  { id: 'rankings', label: 'Rankings', icon: '🏆' },
-  { id: 'tournaments', label: 'Tourney', icon: '🎯' },
+  { id: 'player', label: 'Players', icon: '👤' },
   { id: 'arenadecks', label: 'Decks', icon: '🃏' },
-  { id: 'deck', label: 'Deck', icon: '🎴' },
-  { id: 'player', label: 'Player', icon: '👤' },
-  { id: 'clan', label: 'Clan', icon: '🏰' },
+  { id: 'tools/deck-max-calculator', label: 'Calc', icon: '⏱️' },
+  { id: 'more', label: 'More', icon: '⋮' },
 ];
 
 function Navigation() {
@@ -44,6 +42,13 @@ function Footer() {
   return (
     <footer className="app-footer">
       <div className="footer-content">
+        <div className="footer-links">
+          <a href="https://discord.gg/gWXeAqjSYH" target="_blank" rel="noopener noreferrer" className="footer-link">Discord</a>
+          <span className="footer-dot">·</span>
+          <a href="https://discord.gg/gWXeAqjSYH" target="_blank" rel="noopener noreferrer" className="footer-link">Feature Requests</a>
+          <span className="footer-dot">·</span>
+          <span className="footer-link">Changelog</span>
+        </div>
         <div className="footer-main">
           <span className="footer-brand">RoyaleMY</span>
           <span className="footer-divider">|</span>
@@ -61,27 +66,9 @@ function Footer() {
   );
 }
 
-function DevBanner() {
-  return (
-    <div className="dev-banner">
-      <div className="dev-banner-content">
-        <span className="dev-icon">🚧</span>
-        <div className="dev-text">
-          <strong>Website in Progress</strong>
-          <span className="dev-divider">|</span>
-          <span>API served from development server</span>
-          <span className="dev-divider">|</span>
-          <span>Request features or report issues: <a href="https://www.tiktok.com/@wandfk" target="_blank" rel="noopener noreferrer">@wandfk</a></span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   return (
     <div className="app">
-      <DevBanner />
       <Header />
       
       <main className="main-content">
@@ -94,7 +81,7 @@ function App() {
           <Route path="/arenadecks" element={<ArenaDeckRecommender />} />
           <Route path="/rankings" element={<MYRankings />} />
           <Route path="/tools/deck-max-calculator" element={<DeckMaxCalculator />} />
-          <Route path="/about" element={<About />} />
+          <Route path="/more" element={<More />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -115,65 +102,6 @@ function App() {
           padding: var(--spacing-md);
         }
 
-        /* Development Banner */
-        .dev-banner {
-          background: linear-gradient(135deg, #f59e0b, #d97706);
-          color: white;
-          padding: 8px var(--spacing-md);
-          font-size: 0.8rem;
-          text-align: center;
-        }
-
-        .dev-banner-content {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: var(--spacing-sm);
-          flex-wrap: wrap;
-        }
-
-        .dev-icon {
-          font-size: 1rem;
-        }
-
-        .dev-text {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-
-        .dev-banner a {
-          color: white;
-          text-decoration: underline;
-          font-weight: 600;
-        }
-
-        .dev-banner a:hover {
-          opacity: 0.8;
-        }
-
-        .dev-divider {
-          opacity: 0.5;
-        }
-
-        @media (max-width: 640px) {
-          .dev-banner {
-            font-size: 0.7rem;
-            padding: 6px var(--spacing-sm);
-          }
-          
-          .dev-divider {
-            display: none;
-          }
-          
-          .dev-text {
-            flex-direction: column;
-            gap: 2px;
-          }
-        }
-
         /* Bottom Navigation - MOBILE ONLY */
         .bottom-nav {
           display: none; /* Hidden by default (desktop) */
@@ -190,6 +118,21 @@ function App() {
           max-width: 900px;
           margin: 0 auto;
           text-align: center;
+        }
+
+        .footer-links {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-sm);
+          flex-wrap: wrap;
+          margin-bottom: var(--spacing-md);
+          font-size: 0.8125rem;
+        }
+
+        .footer-dot {
+          color: var(--text-muted);
+          opacity: 0.5;
         }
 
         .footer-main {

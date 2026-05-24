@@ -1,13 +1,33 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const FEATURES = [
+const FEATURED_TOOLS = [
+  {
+    id: 'player',
+    icon: '👤',
+    title: 'Player Lookup',
+    desc: 'Search player profiles, trophies, battle logs, and current decks by player tag.',
+    color: '#3b82f6',
+  },
+  {
+    id: 'deck',
+    icon: '🎴',
+    title: 'Deck Stats',
+    desc: 'Paste any Clash Royale deck link to analyze elixir cost, archetype, strengths, and weaknesses.',
+    color: '#a855f7',
+  },
+  {
+    id: 'clan',
+    icon: '🏰',
+    title: 'Clan Finder',
+    desc: 'Search and explore Malaysian clans. Find active clans to join based on trophies and members.',
+    color: '#f59e0b',
+  },
+];
+
+const ALL_TOOLS = [
   { id: 'rankings', icon: '🏆', title: 'MY Rankings', desc: 'Malaysian leaderboards' },
   { id: 'tournaments', icon: '🎯', title: 'Tournaments', desc: 'Find & join tournaments' },
   { id: 'arenadecks', icon: '🃏', title: 'Arena Decks', desc: 'Best decks by arena' },
-  { id: 'deck', icon: '🎴', title: 'Deck Stats', desc: 'Analyze from share links' },
-  { id: 'player', icon: '👤', title: 'Player Lookup', desc: 'Profiles & battle logs' },
-  { id: 'clan', icon: '🏰', title: 'Clan Finder', desc: 'Find Malaysian clans' },
   { id: 'tools/deck-max-calculator', icon: '⏱️', title: 'Deck Max Calc', desc: 'Time to max your deck' },
 ];
 
@@ -17,24 +37,22 @@ const COMING_SOON = [
   { icon: '📰', title: 'Malaysian Deck Feed', desc: 'Community decks' },
 ];
 
+const CHANGELOG = [
+  { label: 'Tournament Explorer added', icon: '🎯' },
+  { label: 'UI improvements across all tools', icon: '✨' },
+  { label: 'Mobile optimizations & navigation', icon: '📱' },
+];
+
 function Home() {
   const navigate = useNavigate();
-  const [deckLink, setDeckLink] = useState('');
 
-  const handleDeckSubmit = (e) => {
-    e.preventDefault();
-    if (deckLink.trim()) {
-      navigate(`/deck?link=${encodeURIComponent(deckLink)}`);
-    }
-  };
-
-  const handleFeatureClick = (id) => {
+  const handleNavigate = (id) => {
     navigate(`/${id}`);
   };
 
   return (
     <div className="home">
-      {/* Hero Section */}
+      {/* ========== HERO ========== */}
       <section className="hero">
         <div className="hero-content">
           <h1 className="hero-title">
@@ -43,81 +61,104 @@ function Home() {
           <p className="hero-subtitle">
             Clash Royale tools for Malaysian players
           </p>
-          <div className="hero-features">
-            {FEATURES.map(f => (
-              <span key={f.id} className="hero-feature">
-                <span className="hf-icon">{f.icon}</span>
-                <span className="hf-text">{f.title}</span>
-              </span>
-            ))}
-          </div>
+          <button
+            className="hero-cta"
+            onClick={() => navigate('/arenadecks')}
+          >
+            <span className="cta-icon">🏟️</span>
+            <span className="cta-text">Browse Arena Decks</span>
+            <span className="cta-arrow">→</span>
+          </button>
+          <p className="hero-hint">
+            Live meta decks from top-ranked pro battles
+          </p>
         </div>
       </section>
 
-      {/* Primary Action - Deck Input */}
-      <section className="primary-action">
-        <div className="action-card">
-          <h2 className="action-title">Analyze Your Deck</h2>
-          <form onSubmit={handleDeckSubmit} className="deck-form">
-            <div className="input-group">
-              <input
-                type="text"
-                value={deckLink}
-                onChange={(e) => setDeckLink(e.target.value)}
-                placeholder="Paste Clash Royale Deck Link"
-                className="deck-input"
-              />
-              <button type="submit" className="analyze-btn" disabled={!deckLink.trim()}>
-                Analyze Deck
-              </button>
-            </div>
-            <p className="input-hint">
-              Share your deck from the Clash Royale app and paste the link here
-            </p>
-          </form>
-        </div>
-      </section>
-
-      {/* Featured: MY Rankings */}
-      <section className="rankings-featured">
-        <div className="rf-card" onClick={() => navigate('/rankings')}>
-          <div className="rf-header">
-            <span className="rf-icon">🏆</span>
-            <div className="rf-text">
-              <h3 className="rf-title">Malaysia Rankings</h3>
-              <p className="rf-desc">Top clans & ranked players</p>
-            </div>
-            <span className="rf-arrow">→</span>
-          </div>
-          <div className="rf-categories">
-            <span className="rf-badge">🏆 Ranked Mode</span>
-            <span className="rf-badge">🏰 Top Clans</span>
-            <span className="rf-badge">⚔️ Clan Wars</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Grid */}
-      <section className="features-section">
-        <h3 className="section-title">Tools</h3>
-        <div className="features-grid">
-          {FEATURES.map(feature => (
+      {/* ========== FEATURED TOOLS ========== */}
+      <section className="featured-section">
+        <h2 className="section-label">Featured Tools</h2>
+        <div className="featured-grid">
+          {FEATURED_TOOLS.map((tool) => (
             <button
-              key={feature.id}
-              onClick={() => handleFeatureClick(feature.id)}
-              className="feature-card"
+              key={tool.id}
+              className="featured-card"
+              onClick={() => handleNavigate(tool.id)}
+              style={{ '--tool-color': tool.color }}
             >
-              <span className="fc-icon">{feature.icon}</span>
-              <span className="fc-title">{feature.title}</span>
-              <span className="fc-desc">{feature.desc}</span>
+              <div className="featured-icon-wrap">
+                <span className="featured-icon">{tool.icon}</span>
+              </div>
+              <div className="featured-content">
+                <h3 className="featured-title">{tool.title}</h3>
+                <p className="featured-desc">{tool.desc}</p>
+              </div>
+              <span className="featured-arrow">→</span>
             </button>
           ))}
         </div>
       </section>
 
-      {/* Coming Soon */}
+      {/* ========== ALL TOOLS ========== */}
+      <section className="alltools-section">
+        <h2 className="section-label">All Tools</h2>
+        <div className="alltools-grid">
+          {ALL_TOOLS.map((tool) => (
+            <button
+              key={tool.id}
+              className="alltools-card"
+              onClick={() => handleNavigate(tool.id)}
+            >
+              <span className="alltools-icon">{tool.icon}</span>
+              <div className="alltools-text">
+                <span className="alltools-title">{tool.title}</span>
+                <span className="alltools-desc">{tool.desc}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* ========== COMMUNITY ========== */}
+      <section className="community-section">
+        <div className="community-card">
+          <div className="community-header">
+            <span className="community-icon">🤝</span>
+            <h2 className="community-title">Help Shape RoyaleMY</h2>
+          </div>
+          <p className="community-desc">
+            Join the community to suggest features, report bugs, vote on future ideas, and participate in beta testing.
+          </p>
+          <div className="community-actions">
+            <a
+              href="https://discord.gg/gWXeAqjSYH"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="discord-btn"
+            >
+              <span>💬</span>
+              <span>Join Discord</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ========== LATEST UPDATES ========== */}
+      <section className="changelog-section">
+        <h2 className="section-label">Latest Updates</h2>
+        <div className="changelog-list">
+          {CHANGELOG.map((item, idx) => (
+            <div key={idx} className="changelog-item">
+              <span className="changelog-icon">{item.icon}</span>
+              <span className="changelog-label">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ========== COMING SOON ========== */}
       <section className="coming-soon">
-        <h3 className="section-title">Coming Soon</h3>
+        <h2 className="section-label">Coming Soon</h2>
         <div className="cs-grid">
           {COMING_SOON.map((item, idx) => (
             <div key={idx} className="cs-card">
@@ -137,17 +178,18 @@ function Home() {
           padding: var(--spacing-md);
         }
 
-        /* Hero */
+        /* ========== HERO ========== */
         .hero {
           text-align: center;
-          padding: var(--spacing-xl) 0;
+          padding: var(--spacing-xl) 0 var(--spacing-xl);
         }
 
         .hero-title {
-          font-size: 2.5rem;
+          font-size: 2.75rem;
           font-weight: 800;
           margin: 0 0 var(--spacing-sm);
           color: var(--text-primary);
+          line-height: 1.1;
         }
 
         .hero-title .flag {
@@ -160,227 +202,277 @@ function Home() {
           margin: 0 0 var(--spacing-lg);
         }
 
-        .hero-features {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-          gap: var(--spacing-sm);
-        }
-
-        .hero-feature {
-          display: flex;
+        .hero-cta {
+          display: inline-flex;
           align-items: center;
-          gap: 4px;
-          padding: var(--spacing-xs) var(--spacing-sm);
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-full);
+          gap: var(--spacing-sm);
+          padding: var(--spacing-md) var(--spacing-xl);
+          background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+          color: white;
+          font-size: 1.125rem;
+          font-weight: 700;
+          border: none;
+          border-radius: var(--radius-xl);
+          cursor: pointer;
+          box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
+          transition: all 0.2s ease;
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .hero-cta:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
+        }
+
+        .cta-icon {
+          font-size: 1.25rem;
+        }
+
+        .cta-arrow {
+          opacity: 0.8;
+          transition: transform 0.2s;
+        }
+
+        .hero-cta:hover .cta-arrow {
+          transform: translateX(3px);
+        }
+
+        .hero-hint {
           font-size: 0.875rem;
-          color: var(--text-secondary);
+          color: var(--text-muted);
+          margin: 0;
         }
 
-        .hf-icon {
+        /* ========== SECTION LABEL ========== */
+        .section-label {
           font-size: 1rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0 0 var(--spacing-md);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
-        /* Primary Action */
-        .primary-action {
+        /* ========== FEATURED TOOLS ========== */
+        .featured-section {
           margin-bottom: var(--spacing-xl);
         }
 
-        .action-card {
-          background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+        .featured-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: var(--spacing-md);
+        }
+
+        .featured-card {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          padding: var(--spacing-lg);
+          background: var(--bg-secondary);
           border: 2px solid var(--bg-tertiary);
           border-radius: var(--radius-xl);
-          padding: var(--spacing-lg);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: left;
+          width: 100%;
         }
 
-        .action-title {
-          font-size: 1.25rem;
-          font-weight: 700;
-          margin: 0 0 var(--spacing-md);
-          text-align: center;
+        .featured-card:hover {
+          border-color: var(--tool-color);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         }
 
-        .deck-form {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-        }
-
-        .input-group {
-          display: flex;
-          gap: var(--spacing-sm);
-        }
-
-        .deck-input {
-          flex: 1;
-          padding: var(--spacing-md);
-          font-size: 1rem;
-          background: var(--bg-primary);
-          border: 2px solid var(--bg-tertiary);
+        .featured-icon-wrap {
+          width: 56px;
+          height: 56px;
           border-radius: var(--radius-lg);
-          color: var(--text-primary);
+          background: linear-gradient(135deg, var(--tool-color) 0%, rgba(0,0,0,0.3) 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          font-size: 1.75rem;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .featured-content {
+          flex: 1;
           min-width: 0;
         }
 
-        .deck-input:focus {
-          outline: none;
-          border-color: var(--accent-primary);
-        }
-
-        .deck-input::placeholder {
-          color: var(--text-muted);
-        }
-
-        .analyze-btn {
-          padding: var(--spacing-md) var(--spacing-lg);
-          background: var(--accent-primary);
-          color: white;
+        .featured-title {
+          font-size: 1.125rem;
           font-weight: 700;
-          border: none;
-          border-radius: var(--radius-lg);
-          cursor: pointer;
-          white-space: nowrap;
-          transition: opacity 0.2s;
+          color: var(--text-primary);
+          margin: 0 0 var(--spacing-xs);
         }
 
-        .analyze-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .analyze-btn:hover:not(:disabled) {
-          background: var(--accent-secondary);
-        }
-
-        .input-hint {
-          text-align: center;
+        .featured-desc {
           font-size: 0.875rem;
-          color: var(--text-muted);
+          color: var(--text-secondary);
+          line-height: 1.5;
           margin: 0;
         }
 
-        /* Rankings Featured */
-        .rankings-featured {
+        .featured-arrow {
+          font-size: 1.25rem;
+          color: var(--text-muted);
+          flex-shrink: 0;
+          transition: color 0.2s;
+        }
+
+        .featured-card:hover .featured-arrow {
+          color: var(--tool-color);
+        }
+
+        /* ========== ALL TOOLS ========== */
+        .alltools-section {
           margin-bottom: var(--spacing-xl);
         }
 
-        .rf-card {
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.1));
-          border: 2px solid rgba(245, 158, 11, 0.4);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-lg);
-          cursor: pointer;
-          transition: all 0.2s;
+        .alltools-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: var(--spacing-sm);
         }
 
-        .rf-card:hover {
-          transform: translateY(-2px);
-          border-color: rgba(245, 158, 11, 0.6);
-          box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
-        }
-
-        .rf-header {
+        .alltools-card {
           display: flex;
           align-items: center;
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-md);
+          gap: var(--spacing-sm);
+          padding: var(--spacing-md);
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-lg);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: left;
+          width: 100%;
         }
 
-        .rf-icon {
-          font-size: 2.5rem;
+        .alltools-card:hover {
+          border-color: var(--accent-primary);
+          background: var(--bg-hover);
         }
 
-        .rf-text {
-          flex: 1;
+        .alltools-icon {
+          font-size: 1.5rem;
+          flex-shrink: 0;
         }
 
-        .rf-title {
+        .alltools-text {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+
+        .alltools-title {
+          font-size: 0.9375rem;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .alltools-desc {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+
+        /* ========== COMMUNITY ========== */
+        .community-section {
+          margin-bottom: var(--spacing-xl);
+        }
+
+        .community-card {
+          background: linear-gradient(135deg, rgba(88, 101, 242, 0.15), var(--bg-secondary));
+          border: 2px solid rgba(88, 101, 242, 0.35);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+          text-align: center;
+        }
+
+        .community-header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .community-icon {
+          font-size: 1.5rem;
+        }
+
+        .community-title {
           font-size: 1.25rem;
           font-weight: 700;
           color: var(--text-primary);
           margin: 0;
         }
 
-        .rf-desc {
-          font-size: 0.875rem;
+        .community-desc {
+          font-size: 0.9375rem;
           color: var(--text-secondary);
-          margin: 0;
+          line-height: 1.6;
+          margin: 0 0 var(--spacing-md);
+          max-width: 480px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
-        .rf-arrow {
-          font-size: 1.5rem;
-          color: var(--text-muted);
+        .discord-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) var(--spacing-lg);
+          background: #5865f2;
+          color: white;
+          font-size: 0.9375rem;
+          font-weight: 700;
+          border-radius: var(--radius-lg);
+          text-decoration: none;
+          transition: all 0.2s ease;
         }
 
-        .rf-categories {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--spacing-xs);
+        .discord-btn:hover {
+          background: #4752c4;
+          transform: translateY(-1px);
         }
 
-        .rf-badge {
-          padding: var(--spacing-xs) var(--spacing-sm);
-          background: rgba(0, 0, 0, 0.3);
-          border-radius: var(--radius-full);
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-        }
-
-        /* Features Section */
-        .features-section {
+        /* ========== CHANGELOG ========== */
+        .changelog-section {
           margin-bottom: var(--spacing-xl);
         }
 
-        .section-title {
-          font-size: 1.125rem;
-          font-weight: 700;
-          margin: 0 0 var(--spacing-md);
-          color: var(--text-primary);
-        }
-
-        .features-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-          gap: var(--spacing-md);
-        }
-
-        .feature-card {
+        .changelog-list {
           display: flex;
           flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .changelog-item {
+          display: flex;
           align-items: center;
-          text-align: center;
-          padding: var(--spacing-md);
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) var(--spacing-md);
           background: var(--bg-secondary);
           border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-lg);
-          cursor: pointer;
-          transition: all 0.2s;
+          border-radius: var(--radius-md);
+          font-size: 0.9375rem;
+          color: var(--text-secondary);
         }
 
-        .feature-card:hover {
-          border-color: var(--accent-primary);
-          transform: translateY(-2px);
+        .changelog-icon {
+          font-size: 1rem;
+          flex-shrink: 0;
         }
 
-        .fc-icon {
-          font-size: 2rem;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .fc-title {
-          font-weight: 700;
+        .changelog-label {
           color: var(--text-primary);
-          margin-bottom: 2px;
         }
 
-        .fc-desc {
-          font-size: 0.875rem;
-          color: var(--text-muted);
-        }
-
-        /* Coming Soon */
+        /* ========== COMING SOON ========== */
         .coming-soon {
           margin-bottom: var(--spacing-xl);
         }
@@ -430,52 +522,71 @@ function Home() {
           color: var(--text-muted);
         }
 
-        /* Mobile */
+        /* ========== RESPONSIVE ========== */
+        @media (min-width: 640px) {
+          .featured-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+
+          .featured-card {
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+          }
+
+          .featured-icon-wrap {
+            margin-bottom: var(--spacing-sm);
+          }
+
+          .featured-arrow {
+            margin-top: auto;
+            align-self: flex-end;
+          }
+
+          .alltools-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+
         @media (max-width: 640px) {
           .home {
             padding: var(--spacing-sm);
           }
 
+          .hero {
+            padding: var(--spacing-lg) 0 var(--spacing-lg);
+          }
+
           .hero-title {
-            font-size: 2rem;
+            font-size: 2.25rem;
           }
 
-          .hero-features {
-            gap: var(--spacing-xs);
+          .hero-subtitle {
+            font-size: 1rem;
           }
 
-          .hero-feature {
-            font-size: 0.75rem;
-            padding: 4px 8px;
-          }
-
-          .input-group {
-            flex-direction: column;
-          }
-
-          .analyze-btn {
+          .hero-cta {
             width: 100%;
+            justify-content: center;
+            font-size: 1rem;
           }
 
-          .features-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: var(--spacing-sm);
+          .featured-card {
+            padding: var(--spacing-md);
           }
 
-          .feature-card {
-            padding: var(--spacing-sm);
-          }
-
-          .fc-icon {
+          .featured-icon-wrap {
+            width: 48px;
+            height: 48px;
             font-size: 1.5rem;
           }
 
-          .fc-title {
-            font-size: 0.875rem;
+          .featured-title {
+            font-size: 1rem;
           }
 
-          .fc-desc {
-            font-size: 0.75rem;
+          .featured-desc {
+            font-size: 0.8125rem;
           }
 
           .cs-grid {
