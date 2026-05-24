@@ -65,7 +65,7 @@ const RARITY_COLORS = {
   champion: '#22c55e'
 };
 
-const CACHE_KEY = 'deckMaxCalculator:lastResult';
+const CACHE_KEY = 'deckMaxCalculator:lastResult:v2';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const SAMPLE_TAGS = ['L88RC989', '2P0JJQ0Y', '8L9L9GL', '9CQ2U8QJ'];
@@ -238,7 +238,7 @@ function buildStrategyText(result, playerTag) {
   let text = `Deck Max Strategy for #${playerTag}\n`;
   text += `Full Deck Max Time: ${result.fullDeckMaxTime === '∞' ? '∞' : result.fullDeckMaxTime + ' weeks'}\n`;
   text += `Total Cards Needed: ${result.totalCards.toLocaleString()}\n`;
-  text += `Total Gold Needed: ${result.totalGold.toLocaleString()}\n`;
+  text += `Total Gold Needed: ${(result.totalGold ?? 0).toLocaleString()}\n`;
   text += `Biggest Bottleneck: ${result.bottleneck.name} (${result.bottleneck.rarity})\n\n`;
 
   text += `Weekly Request Strategy:\n`;
@@ -262,7 +262,7 @@ function buildStrategyText(result, playerTag) {
 
   text += `\nCard Breakdown:\n`;
   result.cards.forEach((c) => {
-    text += `- ${c.name} [${c.rarity}] Lv${c.level} → ${c.cardsToMax.toLocaleString()} cards, ${c.goldToMax.toLocaleString()} gold (${c.weeks === Infinity ? '∞' : Math.ceil(c.weeks) + ' wks'})\n`;
+    text += `- ${c.name} [${c.rarity}] Lv${c.level} → ${c.cardsToMax.toLocaleString()} cards, ${(c.goldToMax ?? 0).toLocaleString()} gold (${c.weeks === Infinity ? '∞' : Math.ceil(c.weeks) + ' wks'})\n`;
   });
 
   return text;
@@ -433,7 +433,7 @@ function DeckMaxCalculator() {
             </div>
             <div className="summary-card">
               <span className="sc-label">Gold Needed</span>
-              <span className="sc-value">{result.totalGold.toLocaleString()}</span>
+              <span className="sc-value">{(result.totalGold ?? 0).toLocaleString()}</span>
             </div>
           </div>
 
@@ -606,7 +606,7 @@ function DeckMaxCalculator() {
                       <td>{card.level}</td>
                       <td>{card.cardsToNext.toLocaleString()}</td>
                       <td>{card.cardsToMax.toLocaleString()}</td>
-                      <td>{card.goldToMax.toLocaleString()}</td>
+                      <td>{(card.goldToMax ?? 0).toLocaleString()}</td>
                       <td className={card.weeks === Infinity ? 'time-infinity' : ''}>
                         {formatWeeks(card.weeks)}
                       </td>
