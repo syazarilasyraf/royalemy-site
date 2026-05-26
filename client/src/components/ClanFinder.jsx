@@ -55,8 +55,6 @@ function ClanFinder() {
     setLoading(true);
     setWarLoading(true);
     setActiveDetailTab('members');
-    setClanWarData(null);
-    setClanWarLog([]);
     setRiverRaceData(null);
     setRiverRaceLog([]);
 
