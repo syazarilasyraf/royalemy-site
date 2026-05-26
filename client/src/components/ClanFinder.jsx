@@ -92,8 +92,24 @@ function ClanFinder() {
   };
 
   const formatNumber = (num) => {
-    if (!num && num !== 0) return '-';
-    return num.toLocaleString();
+    if (num === null || num === undefined) return '-';
+    if (typeof num === 'object') return '-';
+    const n = Number(num);
+    if (Number.isNaN(n)) return '-';
+    return n.toLocaleString();
+  };
+
+  const safeString = (val, fallback = '-') => {
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return String(val);
+    return fallback;
+  };
+
+  const safeNumber = (val) => {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'object') return 0;
+    const n = Number(val);
+    return Number.isNaN(n) ? 0 : n;
   };
 
   const formatDate = (dateStr) => {
@@ -377,16 +393,26 @@ function ClanFinder() {
                               <span className="war-stat-label">Rank</span>
                             </div>
                           </div>
-                          {riverRaceData.clan.participantsList && riverRaceData.clan.participantsList.length > 0 && (
-                            <div className="war-participants">
+
+                          {Array.isArray(riverRaceData.clan.participantsList) && riverRaceData.clan.participantsList.length > 0 && (
+                            <div className="war-participants-table">
                               <h5 className="war-subtitle">Top Participants</h5>
+                              <div className="war-table-header">
+                                <span className="war-table-cell name">Player</span>
+                                <span className="war-table-cell score">Fame</span>
+                                <span className="war-table-cell score">Repair</span>
+                                <span className="war-table-cell score">Decks</span>
+                              </div>
                               {riverRaceData.clan.participantsList
-                                .sort((a, b) => (b.fame || 0) - (a.fame || 0))
-                                .slice(0, 10)
+                                .slice()
+                                .sort((a, b) => safeNumber(b.fame) - safeNumber(a.fame))
+                                .slice(0, 15)
                                 .map((p, i) => (
-                                  <div key={p.tag || i} className="war-participant-row">
-                                    <span className="war-participant-name">{p.name}</span>
-                                    <span className="war-participant-score">⭐ {formatNumber(p.fame)}</span>
+                                  <div key={safeString(p.tag, i)} className="war-table-row">
+                                    <span className="war-table-cell name">{safeString(p.name)}</span>
+                                    <span className="war-table-cell score">{formatNumber(p.fame)}</span>
+                                    <span className="war-table-cell score">{formatNumber(p.repairPoints)}</span>
+                                    <span className="war-table-cell score">{formatNumber(p.decksUsed)}</span>
                                   </div>
                                 ))}
                             </div>
@@ -403,13 +429,13 @@ function ClanFinder() {
                               <div key={index} className="war-log-item">
                                 <div className="war-log-header">
                                   <span className="war-log-date">{formatDate(entry.createdDate)}</span>
-                                  <span className="war-log-season">Season {entry.seasonId}</span>
+                                  <span className="war-log-season">Season {safeNumber(entry.seasonId)}</span>
                                 </div>
-                                {entry.standings && entry.standings.map((standing, sIdx) => (
+                                {Array.isArray(entry.standings) && entry.standings.slice(0, 4).map((standing, sIdx) => (
                                   <div key={sIdx} className="war-standing-row">
-                                    <span className="war-standing-rank">#{standing.rank}</span>
-                                    <span className="war-standing-name">{standing.clan.name}</span>
-                                    <span className="war-standing-score">{formatNumber(standing.clan.fame)} fame</span>
+                                    <span className="war-standing-rank">#{safeNumber(standing.rank)}</span>
+                                    <span className="war-standing-name">{safeString(standing.clan?.name)}</span>
+                                    <span className="war-standing-score">{formatNumber(standing.clan?.fame)} fame</span>
                                   </div>
                                 ))}
                               </div>
@@ -1096,6 +1122,57 @@ function ClanFinder() {
           color: #f59e0b;
         }
 
+        .war-participants-table {
+          margin-top: var(--spacing-md);
+        }
+
+        .war-table-header,
+        .war-table-row {
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr 1fr;
+          gap: var(--spacing-sm);
+          align-items: center;
+          padding: var(--spacing-sm) var(--spacing-md);
+        }
+
+        .war-table-header {
+          font-size: 0.6875rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          border-bottom: 1px solid var(--bg-tertiary);
+          padding-bottom: var(--spacing-sm);
+          margin-bottom: var(--spacing-xs);
+        }
+
+        .war-table-row {
+          font-size: 0.875rem;
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .war-table-row:last-child {
+          border-bottom: none;
+        }
+
+        .war-table-row:nth-child(even) {
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: var(--radius-sm);
+        }
+
+        .war-table-cell.name {
+          color: var(--text-primary);
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .war-table-cell.score {
+          color: var(--text-secondary);
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+        }
+
         .war-log-list {
           display: flex;
           flex-direction: column;
@@ -1193,6 +1270,21 @@ function ClanFinder() {
 
           .war-stats-row {
             grid-template-columns: repeat(2, 1fr);
+          }
+
+          .war-table-header,
+          .war-table-row {
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            gap: var(--spacing-xs);
+          }
+
+          .war-table-header {
+            font-size: 0.625rem;
+          }
+
+          .war-table-row {
+            font-size: 0.8125rem;
           }
 
           .war-log-header {
