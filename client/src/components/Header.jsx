@@ -8,6 +8,15 @@ function Header() {
           <span className="logo-icon">👑</span>
           <span className="logo-text">RoyaleMY</span>
         </Link>
+        <a
+          href="https://discord.gg/gWXeAqjSYH"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="header-discord-btn"
+        >
+          <span>💬</span>
+          <span>Discord</span>
+        </a>
       </div>
 
       <style>{`
@@ -23,6 +32,9 @@ function Header() {
           max-width: 900px;
           margin: 0 auto;
           padding: var(--spacing-md);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
         }
 
         .logo {
@@ -42,6 +54,25 @@ function Header() {
           background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
+        }
+
+        .header-discord-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: #5865f2;
+          color: white;
+          font-size: 0.875rem;
+          font-weight: 700;
+          border-radius: var(--radius-lg);
+          text-decoration: none;
+          transition: all 0.2s ease;
+        }
+
+        .header-discord-btn:hover {
+          background: #4752c4;
+          transform: translateY(-1px);
         }
       `}</style>
     </header>

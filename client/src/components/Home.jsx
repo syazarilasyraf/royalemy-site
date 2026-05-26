@@ -31,18 +31,6 @@ const ALL_TOOLS = [
   { id: 'tools/deck-max-calculator', icon: '⏱️', title: 'Deck Max Calc', desc: 'Time to max your deck' },
 ];
 
-const COMING_SOON = [
-  { icon: '📊', title: 'Card Win Rates', desc: 'Performance analytics' },
-  { icon: '🔥', title: 'Deck Popularity', desc: 'Trending builds' },
-  { icon: '📰', title: 'Malaysian Deck Feed', desc: 'Community decks' },
-];
-
-const CHANGELOG = [
-  { label: 'Tournament Explorer added', icon: '🎯' },
-  { label: 'UI improvements across all tools', icon: '✨' },
-  { label: 'Mobile optimizations & navigation', icon: '📱' },
-];
-
 function Home() {
   const navigate = useNavigate();
 
@@ -140,34 +128,6 @@ function Home() {
               <span>Join Discord</span>
             </a>
           </div>
-        </div>
-      </section>
-
-      {/* ========== LATEST UPDATES ========== */}
-      <section className="changelog-section">
-        <h2 className="section-label">Latest Updates</h2>
-        <div className="changelog-list">
-          {CHANGELOG.map((item, idx) => (
-            <div key={idx} className="changelog-item">
-              <span className="changelog-icon">{item.icon}</span>
-              <span className="changelog-label">{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ========== COMING SOON ========== */}
-      <section className="coming-soon">
-        <h2 className="section-label">Coming Soon</h2>
-        <div className="cs-grid">
-          {COMING_SOON.map((item, idx) => (
-            <div key={idx} className="cs-card">
-              <span className="cs-lock">🔒</span>
-              <span className="cs-icon">{item.icon}</span>
-              <span className="cs-title">{item.title}</span>
-              <span className="cs-desc">{item.desc}</span>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -440,88 +400,6 @@ function Home() {
           transform: translateY(-1px);
         }
 
-        /* ========== CHANGELOG ========== */
-        .changelog-section {
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .changelog-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-        }
-
-        .changelog-item {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          padding: var(--spacing-sm) var(--spacing-md);
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-md);
-          font-size: 0.9375rem;
-          color: var(--text-secondary);
-        }
-
-        .changelog-icon {
-          font-size: 1rem;
-          flex-shrink: 0;
-        }
-
-        .changelog-label {
-          color: var(--text-primary);
-        }
-
-        /* ========== COMING SOON ========== */
-        .coming-soon {
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .cs-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: var(--spacing-md);
-        }
-
-        .cs-card {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          padding: var(--spacing-md);
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-lg);
-          opacity: 0.7;
-        }
-
-        .cs-lock {
-          position: absolute;
-          top: var(--spacing-xs);
-          right: var(--spacing-xs);
-          font-size: 0.75rem;
-          opacity: 0.5;
-        }
-
-        .cs-icon {
-          font-size: 1.5rem;
-          margin-bottom: var(--spacing-xs);
-          filter: grayscale(0.3);
-        }
-
-        .cs-title {
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-          margin-bottom: 2px;
-        }
-
-        .cs-desc {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
         /* ========== RESPONSIVE ========== */
         @media (min-width: 640px) {
           .featured-grid {
@@ -587,28 +465,6 @@ function Home() {
 
           .featured-desc {
             font-size: 0.8125rem;
-          }
-
-          .cs-grid {
-            grid-template-columns: 1fr;
-            gap: var(--spacing-sm);
-          }
-
-          .cs-card {
-            flex-direction: row;
-            text-align: left;
-            align-items: center;
-            gap: var(--spacing-sm);
-          }
-
-          .cs-icon {
-            margin-bottom: 0;
-            font-size: 1.25rem;
-          }
-
-          .cs-lock {
-            position: static;
-            margin-left: auto;
           }
         }
       `}</style>
