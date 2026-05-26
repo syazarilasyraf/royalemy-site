@@ -406,6 +406,98 @@ app.get('/api/clans/:clanTag/members', async (req, res) => {
   }
 });
 
+app.get('/api/clans/:clanTag/currentwar', async (req, res) => {
+  try {
+    logRequest(req);
+    
+    const { clanTag } = req.params;
+    const validation = validateClanTag(clanTag);
+    
+    if (!validation.valid) {
+      log('warn', `Invalid clan tag rejected: ${clanTag}`);
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    const cleanTag = validation.tag;
+    const cacheKey = getCacheKey('clanCurrentWar', cleanTag);
+    
+    const data = await fetchFromCR(`/clans/%23${cleanTag}/currentwar`, cacheKey, CACHE_TTL.clanDetails);
+    res.json(data);
+  } catch (error) {
+    logError(req, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/clans/:clanTag/warlog', async (req, res) => {
+  try {
+    logRequest(req);
+    
+    const { clanTag } = req.params;
+    const validation = validateClanTag(clanTag);
+    
+    if (!validation.valid) {
+      log('warn', `Invalid clan tag rejected: ${clanTag}`);
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    const cleanTag = validation.tag;
+    const cacheKey = getCacheKey('clanWarLog', cleanTag);
+    
+    const data = await fetchFromCR(`/clans/%23${cleanTag}/warlog`, cacheKey, CACHE_TTL.clanDetails);
+    res.json(data);
+  } catch (error) {
+    logError(req, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/clans/:clanTag/currentriverrace', async (req, res) => {
+  try {
+    logRequest(req);
+    
+    const { clanTag } = req.params;
+    const validation = validateClanTag(clanTag);
+    
+    if (!validation.valid) {
+      log('warn', `Invalid clan tag rejected: ${clanTag}`);
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    const cleanTag = validation.tag;
+    const cacheKey = getCacheKey('clanCurrentRiverRace', cleanTag);
+    
+    const data = await fetchFromCR(`/clans/%23${cleanTag}/currentriverrace`, cacheKey, CACHE_TTL.clanDetails);
+    res.json(data);
+  } catch (error) {
+    logError(req, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/clans/:clanTag/riverracelog', async (req, res) => {
+  try {
+    logRequest(req);
+    
+    const { clanTag } = req.params;
+    const validation = validateClanTag(clanTag);
+    
+    if (!validation.valid) {
+      log('warn', `Invalid clan tag rejected: ${clanTag}`);
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    const cleanTag = validation.tag;
+    const cacheKey = getCacheKey('clanRiverRaceLog', cleanTag);
+    
+    const data = await fetchFromCR(`/clans/%23${cleanTag}/riverracelog`, cacheKey, CACHE_TTL.clanDetails);
+    res.json(data);
+  } catch (error) {
+    logError(req, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== TOURNAMENTS ====================
 
 app.get('/api/globaltournaments', async (req, res) => {

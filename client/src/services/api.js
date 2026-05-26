@@ -63,6 +63,22 @@ export function getClanMembers(clanTag) {
   return fetchAPI(`/clans/${encodeURIComponent(clanTag)}/members`);
 }
 
+export function getClanCurrentWar(clanTag) {
+  return fetchAPI(`/clans/${encodeURIComponent(clanTag)}/currentwar`);
+}
+
+export function getClanWarLog(clanTag) {
+  return fetchAPI(`/clans/${encodeURIComponent(clanTag)}/warlog`);
+}
+
+export function getClanCurrentRiverRace(clanTag) {
+  return fetchAPI(`/clans/${encodeURIComponent(clanTag)}/currentriverrace`);
+}
+
+export function getClanRiverRaceLog(clanTag) {
+  return fetchAPI(`/clans/${encodeURIComponent(clanTag)}/riverracelog`);
+}
+
 // ==================== LOCATIONS / RANKINGS ====================
 
 export function getLocations() {
