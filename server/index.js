@@ -211,6 +211,9 @@ async function fetchFromCR(endpoint, cacheKey, ttl) {
         case 404:
           message = 'Not found. Please check the tag and try again.';
           break;
+        case 410:
+          message = 'Gone. This data is no longer available from the Clash Royale API.';
+          break;
         case 429:
           message = 'Rate limited by Clash Royale API. Please try again in a moment.';
           break;

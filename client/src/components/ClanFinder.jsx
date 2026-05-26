@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { searchClans, getClan, getClanMembers, getClanCurrentWar, getClanWarLog, getClanCurrentRiverRace, getClanRiverRaceLog } from '../services/api';
+import { searchClans, getClan, getClanMembers, getClanCurrentRiverRace, getClanRiverRaceLog } from '../services/api';
 
 // Top Malaysian clans - featured recommendations
 const FEATURED_MALAYSIA_CLANS = [
@@ -24,8 +24,6 @@ function ClanFinder() {
   const [featuredClans, setFeaturedClans] = useState([]);
   const [loadingFeatured, setLoadingFeatured] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState('members');
-  const [clanWarData, setClanWarData] = useState(null);
-  const [clanWarLog, setClanWarLog] = useState([]);
   const [riverRaceData, setRiverRaceData] = useState(null);
   const [riverRaceLog, setRiverRaceLog] = useState([]);
   const [warLoading, setWarLoading] = useState(false);
@@ -82,14 +80,10 @@ function ClanFinder() {
 
     // Fetch war data in parallel (non-blocking for main view)
     try {
-      const [war, warLog, riverRace, riverRaceLog] = await Promise.all([
-        getClanCurrentWar(clan.tag).catch(() => null),
-        getClanWarLog(clan.tag).catch(() => ({ items: [] })),
+      const [riverRace, riverRaceLog] = await Promise.all([
         getClanCurrentRiverRace(clan.tag).catch(() => null),
         getClanRiverRaceLog(clan.tag).catch(() => ({ items: [] }))
       ]);
-      setClanWarData(war);
-      setClanWarLog(warLog?.items || []);
       setRiverRaceData(riverRace);
       setRiverRaceLog(riverRaceLog?.items || []);
     } catch (err) {
@@ -402,30 +396,6 @@ function ClanFinder() {
                         </div>
                       )}
 
-                      {/* Current War (legacy fallback) */}
-                      {!riverRaceData && clanWarData && clanWarData.state && clanWarData.state !== 'notInWar' && (
-                        <div className="war-card">
-                          <h4 className="war-card-title">⚔️ Current Clan War</h4>
-                          <div className="war-status">
-                            <span className={`war-state-badge ${clanWarData.state}`}>{clanWarData.state}</span>
-                          </div>
-                          {clanWarData.participants && clanWarData.participants.length > 0 && (
-                            <div className="war-participants">
-                              <h5 className="war-subtitle">Participants</h5>
-                              {clanWarData.participants
-                                .sort((a, b) => (b.cardsEarned || 0) - (a.cardsEarned || 0))
-                                .slice(0, 10)
-                                .map((p, i) => (
-                                  <div key={p.tag || i} className="war-participant-row">
-                                    <span className="war-participant-name">{p.name}</span>
-                                    <span className="war-participant-score">🃏 {formatNumber(p.cardsEarned)}</span>
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       {/* River Race Log */}
                       {riverRaceLog.length > 0 && (
                         <div className="war-card">
@@ -450,34 +420,8 @@ function ClanFinder() {
                         </div>
                       )}
 
-                      {/* War Log (legacy fallback) */}
-                      {riverRaceLog.length === 0 && clanWarLog.length > 0 && (
-                        <div className="war-card">
-                          <h4 className="war-card-title">📜 Recent Wars</h4>
-                          <div className="war-log-list">
-                            {clanWarLog.slice(0, 5).map((entry, index) => (
-                              <div key={index} className="war-log-item">
-                                <div className="war-log-header">
-                                  <span className="war-log-date">{formatDate(entry.createdDate)}</span>
-                                  <span className={`war-result ${entry.standings?.[0]?.clan?.tag === selectedClan.tag ? 'win' : 'loss'}`}>
-                                    {entry.standings?.[0]?.clan?.tag === selectedClan.tag ? 'Participated' : 'Participated'}
-                                  </span>
-                                </div>
-                                {entry.standings && entry.standings.slice(0, 3).map((standing, sIdx) => (
-                                  <div key={sIdx} className="war-standing-row">
-                                    <span className="war-standing-rank">#{standing.rank}</span>
-                                    <span className="war-standing-name">{standing.clan.name}</span>
-                                    <span className="war-standing-score">{formatNumber(standing.clan.clanScore)} pts</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Empty state */}
-                      {!riverRaceData && (!clanWarData || clanWarData.state === 'notInWar') && riverRaceLog.length === 0 && clanWarLog.length === 0 && (
+                      {!riverRaceData && riverRaceLog.length === 0 && (
                         <div className="war-empty">
                           <span className="war-empty-icon">⚔️</span>
                           <p>No war data available for this clan.</p>
