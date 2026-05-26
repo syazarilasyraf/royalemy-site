@@ -112,9 +112,21 @@ function ClanFinder() {
     return Number.isNaN(n) ? 0 : n;
   };
 
-  const formatDate = (dateStr) => {
+  const formatDate = (raw) => {
+    const dateStr = safeString(raw, '');
     if (!dateStr) return '-';
-    const d = new Date(dateStr);
+
+    // Supercell API dates come as 20231015T143000.000Z — convert to ISO 8601
+    let iso = dateStr;
+    if (/^\d{8}T\d{6}/.test(dateStr)) {
+      iso = dateStr.replace(
+        /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\.\d+)?Z?$/,
+        '$1-$2-$3T$4:$5:$6$7Z'
+      );
+    }
+
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return dateStr; // fallback: show raw string
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
