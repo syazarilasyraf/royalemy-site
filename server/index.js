@@ -5,6 +5,7 @@ import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import roadmapRouter from './routes/roadmap.js';
 
 dotenv.config();
 
@@ -855,6 +856,10 @@ app.post('/api/meta-decks/refresh', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ==================== ROADMAP ====================
+
+app.use('/api/roadmap', roadmapRouter);
 
 // ==================== STATIC FILE SERVING (SPA) ====================
 

@@ -5,6 +5,7 @@ const MORE_TOOLS = [
   { id: 'rankings', icon: '🏆', title: 'MY Rankings', desc: 'Malaysian leaderboards' },
   { id: 'tournaments', icon: '🎯', title: 'Tournaments', desc: 'Find & join tournaments' },
   { id: 'clan', icon: '🏰', title: 'Clan Finder', desc: 'Find Malaysian clans' },
+  { id: 'roadmap', icon: '🗺️', title: 'Roadmap', desc: 'Vote & suggest features' },
 ];
 
 const LINKS = [

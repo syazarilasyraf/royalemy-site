@@ -131,6 +131,61 @@ export function getMetaDecks() {
   return fetchAPI('/meta-decks');
 }
 
+// ==================== ROADMAP ====================
+
+export function getRoadmapFeatures() {
+  return fetchAPI('/roadmap/features');
+}
+
+export function submitFeature(name, description) {
+  return fetchAPI('/roadmap/features', {
+    method: 'POST',
+    body: JSON.stringify({ name, description })
+  });
+}
+
+export function voteFeature(featureId, voterId) {
+  return fetchAPI('/roadmap/vote', {
+    method: 'POST',
+    body: JSON.stringify({ featureId, voterId })
+  });
+}
+
+export function unvoteFeature(featureId, voterId) {
+  return fetchAPI('/roadmap/vote', {
+    method: 'DELETE',
+    body: JSON.stringify({ featureId, voterId })
+  });
+}
+
+export function getUserVotes(voterId) {
+  return fetchAPI(`/roadmap/votes/${encodeURIComponent(voterId)}`);
+}
+
+// Admin
+export function getAdminFeatures(key) {
+  return fetchAPI(`/roadmap/admin/features?key=${encodeURIComponent(key)}`);
+}
+
+export function approveFeature(id, key) {
+  return fetchAPI(`/roadmap/admin/features/${id}/approve?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function rejectFeature(id, key) {
+  return fetchAPI(`/roadmap/admin/features/${id}/reject?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function updateFeatureStatus(id, status, key) {
+  return fetchAPI(`/roadmap/admin/features/${id}/status?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify({ status })
+  });
+}
+
 // ==================== UTILS ====================
 
 export function checkHealth() {
