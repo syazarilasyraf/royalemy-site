@@ -204,9 +204,9 @@ function PlayerLookup() {
                     return (
                       <div key={index} className="deck-card-small">
                         <img 
-                          src={card.iconUrls?.medium || `/cards/${cardId}.png`}
+                          src={card.iconUrls?.medium || `/cards/${cardId}.webp`}
                           alt={card.name}
-                          onError={(e) => { e.target.src = '/cards/placeholder.png'; }}
+                          onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
                         />
                         <span className="card-level">Lvl {card.level}</span>
                       </div>
@@ -324,9 +324,9 @@ function PlayerLookup() {
                                 {opponentDeck.map((card, cardIndex) => (
                                   <div key={cardIndex} className="battle-deck-card">
                                     <img 
-                                      src={card.iconUrls?.medium || `/cards/${card.id}.png`}
+                                      src={card.iconUrls?.medium || `/cards/${card.id}.webp`}
                                       alt={card.name}
-                                      onError={(e) => { e.target.src = '/cards/placeholder.png'; }}
+                                      onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
                                     />
                                   </div>
                                 ))}

@@ -1,10 +1,12 @@
 # Clash Royale Card Downloader for Windows PowerShell
-# Downloads card images and generates cards.json from official CR API
+# Downloads card images (base, evolution, hero) and generates cards.json from official CR API
+# Converts PNG images to WebP for faster loading
 #
 # Prerequisites:
 #   - Windows PowerShell 5.0 or later
 #   - Internet connection
 #   - Clash Royale API token from https://developer.clashroyale.com/
+#   - Python with Pillow (pip install Pillow)
 #
 # Usage:
 #   $env:CR_TOKEN = "your_token_here"
@@ -20,7 +22,7 @@ $API_URL = "https://api.clashroyale.com/v1/cards"
 $CARDS_DIR = "public/cards"
 $DATA_DIR = "src/data"
 $CARDS_JSON = "$DATA_DIR/cards.json"
-$PLACEHOLDER_IMAGE = "$CARDS_DIR/placeholder.png"
+$PLACEHOLDER_IMAGE = "$CARDS_DIR/placeholder.webp"
 
 # Ensure we're in the project root
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -29,6 +31,7 @@ Set-Location $projectRoot
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Clash Royale Card Downloader" -ForegroundColor Cyan
+Write-Host "  (WebP + Evo/Hero Edition)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -75,10 +78,28 @@ Write-Host ""
 # Create placeholder image if it doesn't exist
 if (-not (Test-Path $PLACEHOLDER_IMAGE)) {
     Write-Host "Creating placeholder image..." -ForegroundColor Yellow
-    # Create a simple 1x1 transparent PNG as base64
-    $placeholderBase64 = "iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAAA8AXHiAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABZ0RVh0Q3JlYXRpb24gVGltZQAxMS8xMi8xMqJYsQoAAAAcdEVYdFNvZnR3YXJlAEFkb2JlIEZpcmV3b3JrcyBDUzVxteM2AAABHklEQVR4nO3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgx7cOAAEMRMJAAAAAElFTkSuQmCC"
-    [Convert]::FromBase64String($placeholderBase64) | Set-Content $PLACEHOLDER_IMAGE -Encoding Byte
-    Write-Host "  OK - Placeholder created" -ForegroundColor Green
+    $pythonCmd = "python"
+    if (Get-Command python3 -ErrorAction SilentlyContinue) {
+        $pythonCmd = "python3"
+    }
+    
+    $pyScript = @"
+from PIL import Image
+img = Image.new('RGBA', (1, 1), (0, 0, 0, 0))
+img.save('$PLACEHOLDER_IMAGE', 'WEBP')
+print('OK')
+"@
+    
+    try {
+        $result = $pyScript | & $pythonCmd - 2>&1
+        if ($result -eq "OK") {
+            Write-Host "  OK - Placeholder created" -ForegroundColor Green
+        } else {
+            Write-Host "  WARNING - Could not create placeholder, continuing..." -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  WARNING - Could not create placeholder, continuing..." -ForegroundColor Yellow
+    }
 }
 
 # Fetch cards from API
@@ -144,11 +165,36 @@ try {
     
     foreach ($card in $response.items) {
         $card_id = [string]$card.id
-        $cards_map[$card_id] = @{
+        $urls = $card.iconUrls
+        
+        # Determine card type
+        $type = "troop"
+        if ($card_id -match "^27") {
+            $type = "building"
+        } elseif ($card.maxLevel -le 11) {
+            $type = "spell"
+        }
+        
+        $entry = @{
             id = $card.id
             name = $card.name
-            image = "/cards/$card_id.png"
+            image = "/cards/$card_id.webp"
+            elixir = $card.elixirCost
+            rarity = $card.rarity.ToLower()
+            type = $type
         }
+        
+        # Add evolution image if available
+        if ($urls.evolutionMedium) {
+            $entry.evolutionImage = "/cards/${card_id}_evo.webp"
+        }
+        
+        # Add hero image if available
+        if ($urls.heroMedium) {
+            $entry.heroImage = "/cards/${card_id}_hero.webp"
+        }
+        
+        $cards_map[$card_id] = $entry
     }
     
     # Convert to ordered hashtable for consistent JSON output
@@ -185,42 +231,119 @@ $failedCards = @()
 foreach ($card in $response.items | Sort-Object id) {
     $total++
     $card_id = [string]$card.id
-    $icon_url = $card.iconUrls.medium
-    $output_file = "$CARDS_DIR/$card_id.png"
+    $urls = $card.iconUrls
     
-    # Check if already exists
-    if (Test-Path $output_file) {
-        $fileSize = (Get-Item $output_file).Length
-        if ($fileSize -gt 100) {
-            Write-Host "  [$total/$CARD_COUNT] $card_id.png - Already exists (skipping)" -ForegroundColor DarkGray
-            $skipped++
-            continue
-        } else {
-            Write-Host "  [$total/$CARD_COUNT] $card_id.png - File corrupt, re-downloading..." -ForegroundColor Yellow
-            Remove-Item $output_file -ErrorAction SilentlyContinue
-        }
-    }
+    # Download base image
+    $base_png = "$CARDS_DIR/$card_id.png"
+    $base_webp = "$CARDS_DIR/$card_id.webp"
     
-    # Download the image
-    try {
-        Invoke-WebRequest -Uri $icon_url -OutFile $output_file -MaximumRedirection 5 -TimeoutSec 30 -UseBasicParsing
-        
-        # Verify the download
-        if ((Test-Path $output_file) -and (Get-Item $output_file).Length -gt 100) {
-            Write-Host "  [$total/$CARD_COUNT] $card_id.png - $($card.name) - OK" -ForegroundColor Green
-            $success++
-        } else {
-            Write-Host "  [$total/$CARD_COUNT] $card_id.png - FAILED (invalid file)" -ForegroundColor Red
-            Remove-Item $output_file -ErrorAction SilentlyContinue
+    if (-not (Test-Path $base_webp)) {
+        try {
+            Invoke-WebRequest -Uri $urls.medium -OutFile $base_png -MaximumRedirection 5 -TimeoutSec 30 -UseBasicParsing
+            if ((Test-Path $base_png) -and (Get-Item $base_png).Length -gt 100) {
+                $success++
+            } else {
+                Remove-Item $base_png -ErrorAction SilentlyContinue
+                $failed++
+                $failedCards += "$card_id (base)"
+            }
+        } catch {
+            Remove-Item $base_png -ErrorAction SilentlyContinue
             $failed++
-            $failedCards += $card_id
+            $failedCards += "$card_id (base)"
         }
-    } catch {
-        Write-Host "  [$total/$CARD_COUNT] $card_id.png - FAILED ($($_.Exception.Message))" -ForegroundColor Red
-        Remove-Item $output_file -ErrorAction SilentlyContinue
-        $failed++
-        $failedCards += $card_id
+    } else {
+        $skipped++
     }
+    
+    # Download evolution image if available
+    if ($urls.evolutionMedium) {
+        $evo_png = "$CARDS_DIR/${card_id}_evo.png"
+        $evo_webp = "$CARDS_DIR/${card_id}_evo.webp"
+        
+        if (-not (Test-Path $evo_webp)) {
+            try {
+                Invoke-WebRequest -Uri $urls.evolutionMedium -OutFile $evo_png -MaximumRedirection 5 -TimeoutSec 30 -UseBasicParsing
+                if (-not ((Test-Path $evo_png) -and (Get-Item $evo_png).Length -gt 100)) {
+                    Remove-Item $evo_png -ErrorAction SilentlyContinue
+                    $failed++
+                    $failedCards += "$card_id (evo)"
+                }
+            } catch {
+                Remove-Item $evo_png -ErrorAction SilentlyContinue
+                $failed++
+                $failedCards += "$card_id (evo)"
+            }
+        }
+    }
+    
+    # Download hero image if available
+    if ($urls.heroMedium) {
+        $hero_png = "$CARDS_DIR/${card_id}_hero.png"
+        $hero_webp = "$CARDS_DIR/${card_id}_hero.webp"
+        
+        if (-not (Test-Path $hero_webp)) {
+            try {
+                Invoke-WebRequest -Uri $urls.heroMedium -OutFile $hero_png -MaximumRedirection 5 -TimeoutSec 30 -UseBasicParsing
+                if (-not ((Test-Path $hero_png) -and (Get-Item $hero_png).Length -gt 100)) {
+                    Remove-Item $hero_png -ErrorAction SilentlyContinue
+                    $failed++
+                    $failedCards += "$card_id (hero)"
+                }
+            } catch {
+                Remove-Item $hero_png -ErrorAction SilentlyContinue
+                $failed++
+                $failedCards += "$card_id (hero)"
+            }
+        }
+    }
+    
+    Write-Host "  [$total/$CARD_COUNT] $card_id - $($card.name)" -ForegroundColor Green
+}
+
+Write-Host ""
+
+# Convert PNGs to WebP
+Write-Host "Converting PNG images to WebP..." -ForegroundColor Yellow
+
+$pythonCmd = "python"
+if (Get-Command python3 -ErrorAction SilentlyContinue) {
+    $pythonCmd = "python3"
+}
+
+$pyScript = @"
+from PIL import Image
+import os, glob
+
+cards_dir = '$CARDS_DIR'
+png_files = glob.glob(os.path.join(cards_dir, '*.png'))
+converted = 0
+errors = 0
+
+for png_path in png_files:
+    try:
+        webp_path = png_path.replace('.png', '.webp')
+        img = Image.open(png_path)
+        if img.mode == 'P':
+            img = img.convert('RGBA')
+        img.save(webp_path, 'WEBP', quality=85, method=0)
+        os.remove(png_path)
+        converted += 1
+    except Exception as e:
+        errors += 1
+        print(f'Error: {os.path.basename(png_path)}: {e}')
+
+print(f'Converted {converted} images to WebP')
+if errors:
+    print(f'Errors: {errors}')
+"@
+
+try {
+    $conversionResult = $pyScript | & $pythonCmd - 2>&1
+    Write-Host "  $conversionResult" -ForegroundColor Green
+} catch {
+    Write-Host "  WARNING: PNG to WebP conversion failed. Images remain as PNG." -ForegroundColor Yellow
+    Write-Host "  Make sure Python and Pillow are installed: pip install Pillow" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -239,7 +362,7 @@ Write-Host ""
 
 if ($failed -gt 0) {
     Write-Host "WARNING: Some cards failed to download." -ForegroundColor Yellow
-    Write-Host "Failed cards: $($failedCards -join ', ')" -ForegroundColor Yellow
+    Write-Host "Failed: $($failedCards -join ', ')" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "You can re-run this script to retry failed downloads." -ForegroundColor Cyan
     Write-Host ""

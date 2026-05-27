@@ -2,47 +2,53 @@
   "26000000": {
     "name": "Knight",
     "id": 26000000,
-    "image": "/cards/26000000.png",
+    "image": "/cards/26000000.webp",
     "elixir": 3,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000000_evo.webp",
+    "heroImage": "/cards/26000000_hero.webp"
   },
   "26000001": {
     "name": "Archers",
     "id": 26000001,
-    "image": "/cards/26000001.png",
+    "image": "/cards/26000001.webp",
     "elixir": 3,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000001_evo.webp"
   },
   "26000002": {
     "name": "Goblins",
     "id": 26000002,
-    "image": "/cards/26000002.png",
+    "image": "/cards/26000002.webp",
     "elixir": 2,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "heroImage": "/cards/26000002_hero.webp"
   },
   "26000003": {
     "name": "Giant",
     "id": 26000003,
-    "image": "/cards/26000003.png",
+    "image": "/cards/26000003.webp",
     "elixir": 5,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "heroImage": "/cards/26000003_hero.webp"
   },
   "26000004": {
     "name": "P.E.K.K.A",
     "id": 26000004,
-    "image": "/cards/26000004.png",
+    "image": "/cards/26000004.webp",
     "elixir": 7,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000004_evo.webp"
   },
   "26000005": {
     "name": "Minions",
     "id": 26000005,
-    "image": "/cards/26000005.png",
+    "image": "/cards/26000005.webp",
     "elixir": 3,
     "rarity": "common",
     "type": "troop"
@@ -50,111 +56,124 @@
   "26000006": {
     "name": "Balloon",
     "id": 26000006,
-    "image": "/cards/26000006.png",
+    "image": "/cards/26000006.webp",
     "elixir": 5,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "heroImage": "/cards/26000006_hero.webp"
   },
   "26000007": {
     "name": "Witch",
     "id": 26000007,
-    "image": "/cards/26000007.png",
+    "image": "/cards/26000007.webp",
     "elixir": 5,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000007_evo.webp"
   },
   "26000008": {
     "name": "Barbarians",
     "id": 26000008,
-    "image": "/cards/26000008.png",
+    "image": "/cards/26000008.webp",
     "elixir": 5,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000008_evo.webp"
   },
   "26000009": {
     "name": "Golem",
     "id": 26000009,
-    "image": "/cards/26000009.png",
+    "image": "/cards/26000009.webp",
     "elixir": 8,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell"
   },
   "26000010": {
     "name": "Skeletons",
     "id": 26000010,
-    "image": "/cards/26000010.png",
+    "image": "/cards/26000010.webp",
     "elixir": 1,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000010_evo.webp"
   },
   "26000011": {
     "name": "Valkyrie",
     "id": 26000011,
-    "image": "/cards/26000011.png",
+    "image": "/cards/26000011.webp",
     "elixir": 4,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000011_evo.webp"
   },
   "26000012": {
     "name": "Skeleton Army",
     "id": 26000012,
-    "image": "/cards/26000012.png",
+    "image": "/cards/26000012.webp",
     "elixir": 3,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000012_evo.webp"
   },
   "26000013": {
     "name": "Bomber",
     "id": 26000013,
-    "image": "/cards/26000013.png",
+    "image": "/cards/26000013.webp",
     "elixir": 2,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000013_evo.webp"
   },
   "26000014": {
     "name": "Musketeer",
     "id": 26000014,
-    "image": "/cards/26000014.png",
+    "image": "/cards/26000014.webp",
     "elixir": 4,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000014_evo.webp",
+    "heroImage": "/cards/26000014_hero.webp"
   },
   "26000015": {
     "name": "Baby Dragon",
     "id": 26000015,
-    "image": "/cards/26000015.png",
+    "image": "/cards/26000015.webp",
     "elixir": 4,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000015_evo.webp"
   },
   "26000016": {
     "name": "Prince",
     "id": 26000016,
-    "image": "/cards/26000016.png",
+    "image": "/cards/26000016.webp",
     "elixir": 5,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell"
   },
   "26000017": {
     "name": "Wizard",
     "id": 26000017,
-    "image": "/cards/26000017.png",
+    "image": "/cards/26000017.webp",
     "elixir": 5,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000017_evo.webp",
+    "heroImage": "/cards/26000017_hero.webp"
   },
   "26000018": {
     "name": "Mini P.E.K.K.A",
     "id": 26000018,
-    "image": "/cards/26000018.png",
+    "image": "/cards/26000018.webp",
     "elixir": 4,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "heroImage": "/cards/26000018_hero.webp"
   },
   "26000019": {
     "name": "Spear Goblins",
     "id": 26000019,
-    "image": "/cards/26000019.png",
+    "image": "/cards/26000019.webp",
     "elixir": 2,
     "rarity": "common",
     "type": "troop"
@@ -162,15 +181,15 @@
   "26000020": {
     "name": "Giant Skeleton",
     "id": 26000020,
-    "image": "/cards/26000020.png",
+    "image": "/cards/26000020.webp",
     "elixir": 6,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell"
   },
   "26000021": {
     "name": "Hog Rider",
     "id": 26000021,
-    "image": "/cards/26000021.png",
+    "image": "/cards/26000021.webp",
     "elixir": 4,
     "rarity": "rare",
     "type": "troop"
@@ -178,55 +197,58 @@
   "26000022": {
     "name": "Minion Horde",
     "id": 26000022,
-    "image": "/cards/26000022.png",
+    "image": "/cards/26000022.webp",
     "elixir": 5,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000022_evo.webp"
   },
   "26000023": {
     "name": "Ice Wizard",
     "id": 26000023,
-    "image": "/cards/26000023.png",
+    "image": "/cards/26000023.webp",
     "elixir": 3,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000024": {
     "name": "Royal Giant",
     "id": 26000024,
-    "image": "/cards/26000024.png",
+    "image": "/cards/26000024.webp",
     "elixir": 6,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000024_evo.webp"
   },
   "26000025": {
     "name": "Guards",
     "id": 26000025,
-    "image": "/cards/26000025.png",
+    "image": "/cards/26000025.webp",
     "elixir": 3,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell"
   },
   "26000026": {
     "name": "Princess",
     "id": 26000026,
-    "image": "/cards/26000026.png",
+    "image": "/cards/26000026.webp",
     "elixir": 3,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000027": {
     "name": "Dark Prince",
     "id": 26000027,
-    "image": "/cards/26000027.png",
+    "image": "/cards/26000027.webp",
     "elixir": 4,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "heroImage": "/cards/26000027_hero.webp"
   },
   "26000028": {
     "name": "Three Musketeers",
     "id": 26000028,
-    "image": "/cards/26000028.png",
+    "image": "/cards/26000028.webp",
     "elixir": 9,
     "rarity": "rare",
     "type": "troop"
@@ -234,23 +256,24 @@
   "26000029": {
     "name": "Lava Hound",
     "id": 26000029,
-    "image": "/cards/26000029.png",
+    "image": "/cards/26000029.webp",
     "elixir": 7,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000030": {
     "name": "Ice Spirit",
     "id": 26000030,
-    "image": "/cards/26000030.png",
+    "image": "/cards/26000030.webp",
     "elixir": 1,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000030_evo.webp"
   },
   "26000031": {
     "name": "Fire Spirit",
     "id": 26000031,
-    "image": "/cards/26000031.png",
+    "image": "/cards/26000031.webp",
     "elixir": 1,
     "rarity": "common",
     "type": "troop"
@@ -258,79 +281,86 @@
   "26000032": {
     "name": "Miner",
     "id": 26000032,
-    "image": "/cards/26000032.png",
+    "image": "/cards/26000032.webp",
     "elixir": 3,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000033": {
     "name": "Sparky",
     "id": 26000033,
-    "image": "/cards/26000033.png",
+    "image": "/cards/26000033.webp",
     "elixir": 6,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000034": {
     "name": "Bowler",
     "id": 26000034,
-    "image": "/cards/26000034.png",
+    "image": "/cards/26000034.webp",
     "elixir": 5,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "heroImage": "/cards/26000034_hero.webp"
   },
   "26000035": {
     "name": "Lumberjack",
     "id": 26000035,
-    "image": "/cards/26000035.png",
+    "image": "/cards/26000035.webp",
     "elixir": 4,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000035_evo.webp"
   },
   "26000036": {
     "name": "Battle Ram",
     "id": 26000036,
-    "image": "/cards/26000036.png",
+    "image": "/cards/26000036.webp",
     "elixir": 4,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000036_evo.webp"
   },
   "26000037": {
     "name": "Inferno Dragon",
     "id": 26000037,
-    "image": "/cards/26000037.png",
+    "image": "/cards/26000037.webp",
     "elixir": 4,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000037_evo.webp"
   },
   "26000038": {
     "name": "Ice Golem",
     "id": 26000038,
-    "image": "/cards/26000038.png",
-    "elixir": 3,
+    "image": "/cards/26000038.webp",
+    "elixir": 2,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "heroImage": "/cards/26000038_hero.webp"
   },
   "26000039": {
     "name": "Mega Minion",
     "id": 26000039,
-    "image": "/cards/26000039.png",
+    "image": "/cards/26000039.webp",
     "elixir": 3,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "heroImage": "/cards/26000039_hero.webp"
   },
   "26000040": {
     "name": "Dart Goblin",
     "id": 26000040,
-    "image": "/cards/26000040.png",
+    "image": "/cards/26000040.webp",
     "elixir": 3,
-    "rarity": "common",
-    "type": "troop"
+    "rarity": "rare",
+    "type": "troop",
+    "evolutionImage": "/cards/26000040_evo.webp"
   },
   "26000041": {
     "name": "Goblin Gang",
     "id": 26000041,
-    "image": "/cards/26000041.png",
+    "image": "/cards/26000041.webp",
     "elixir": 3,
     "rarity": "common",
     "type": "troop"
@@ -338,87 +368,92 @@
   "26000042": {
     "name": "Electro Wizard",
     "id": 26000042,
-    "image": "/cards/26000042.png",
+    "image": "/cards/26000042.webp",
     "elixir": 4,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000043": {
     "name": "Elite Barbarians",
     "id": 26000043,
-    "image": "/cards/26000043.png",
-    "elixir": 4,
-    "rarity": "rare",
+    "image": "/cards/26000043.webp",
+    "elixir": 6,
+    "rarity": "common",
     "type": "troop"
   },
   "26000044": {
     "name": "Hunter",
     "id": 26000044,
-    "image": "/cards/26000044.png",
-    "elixir": 5,
+    "image": "/cards/26000044.webp",
+    "elixir": 4,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000044_evo.webp"
   },
   "26000045": {
     "name": "Executioner",
     "id": 26000045,
-    "image": "/cards/26000045.png",
+    "image": "/cards/26000045.webp",
     "elixir": 5,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000045_evo.webp"
   },
   "26000046": {
     "name": "Bandit",
     "id": 26000046,
-    "image": "/cards/26000046.png",
+    "image": "/cards/26000046.webp",
     "elixir": 3,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000047": {
     "name": "Royal Recruits",
     "id": 26000047,
-    "image": "/cards/26000047.png",
+    "image": "/cards/26000047.webp",
     "elixir": 7,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000047_evo.webp"
   },
   "26000048": {
     "name": "Night Witch",
     "id": 26000048,
-    "image": "/cards/26000048.png",
+    "image": "/cards/26000048.webp",
     "elixir": 4,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000049": {
     "name": "Bats",
     "id": 26000049,
-    "image": "/cards/26000049.png",
+    "image": "/cards/26000049.webp",
     "elixir": 2,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000049_evo.webp"
   },
   "26000050": {
     "name": "Royal Ghost",
     "id": 26000050,
-    "image": "/cards/26000050.png",
+    "image": "/cards/26000050.webp",
     "elixir": 3,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000050_evo.webp"
   },
   "26000051": {
     "name": "Ram Rider",
     "id": 26000051,
-    "image": "/cards/26000051.png",
-    "elixir": 4,
-    "rarity": "rare",
-    "type": "troop"
+    "image": "/cards/26000051.webp",
+    "elixir": 5,
+    "rarity": "legendary",
+    "type": "spell"
   },
   "26000052": {
     "name": "Zappies",
     "id": 26000052,
-    "image": "/cards/26000052.png",
+    "image": "/cards/26000052.webp",
     "elixir": 4,
     "rarity": "rare",
     "type": "troop"
@@ -426,7 +461,7 @@
   "26000053": {
     "name": "Rascals",
     "id": 26000053,
-    "image": "/cards/26000053.png",
+    "image": "/cards/26000053.webp",
     "elixir": 5,
     "rarity": "common",
     "type": "troop"
@@ -434,31 +469,33 @@
   "26000054": {
     "name": "Cannon Cart",
     "id": 26000054,
-    "image": "/cards/26000054.png",
+    "image": "/cards/26000054.webp",
     "elixir": 5,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell"
   },
   "26000055": {
     "name": "Mega Knight",
     "id": 26000055,
-    "image": "/cards/26000055.png",
+    "image": "/cards/26000055.webp",
     "elixir": 7,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000055_evo.webp"
   },
   "26000056": {
     "name": "Skeleton Barrel",
     "id": 26000056,
-    "image": "/cards/26000056.png",
+    "image": "/cards/26000056.webp",
     "elixir": 3,
     "rarity": "common",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000056_evo.webp"
   },
   "26000057": {
     "name": "Flying Machine",
     "id": 26000057,
-    "image": "/cards/26000057.png",
+    "image": "/cards/26000057.webp",
     "elixir": 4,
     "rarity": "rare",
     "type": "troop"
@@ -466,71 +503,77 @@
   "26000058": {
     "name": "Wall Breakers",
     "id": 26000058,
-    "image": "/cards/26000058.png",
+    "image": "/cards/26000058.webp",
     "elixir": 2,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000058_evo.webp"
   },
   "26000059": {
     "name": "Royal Hogs",
     "id": 26000059,
-    "image": "/cards/26000059.png",
+    "image": "/cards/26000059.webp",
     "elixir": 5,
     "rarity": "rare",
-    "type": "troop"
+    "type": "troop",
+    "evolutionImage": "/cards/26000059_evo.webp"
   },
   "26000060": {
     "name": "Goblin Giant",
     "id": 26000060,
-    "image": "/cards/26000060.png",
+    "image": "/cards/26000060.webp",
     "elixir": 6,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000060_evo.webp"
   },
   "26000061": {
     "name": "Fisherman",
     "id": 26000061,
-    "image": "/cards/26000061.png",
-    "elixir": 4,
+    "image": "/cards/26000061.webp",
+    "elixir": 3,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000062": {
     "name": "Magic Archer",
     "id": 26000062,
-    "image": "/cards/26000062.png",
+    "image": "/cards/26000062.webp",
     "elixir": 4,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell",
+    "heroImage": "/cards/26000062_hero.webp"
   },
   "26000063": {
     "name": "Electro Dragon",
     "id": 26000063,
-    "image": "/cards/26000063.png",
+    "image": "/cards/26000063.webp",
     "elixir": 5,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell",
+    "evolutionImage": "/cards/26000063_evo.webp"
   },
   "26000064": {
     "name": "Firecracker",
     "id": 26000064,
-    "image": "/cards/26000064.png",
+    "image": "/cards/26000064.webp",
     "elixir": 3,
-    "rarity": "rare",
-    "type": "troop"
+    "rarity": "common",
+    "type": "troop",
+    "evolutionImage": "/cards/26000064_evo.webp"
   },
   "26000065": {
     "name": "Mighty Miner",
     "id": 26000065,
-    "image": "/cards/26000065.png",
+    "image": "/cards/26000065.webp",
     "elixir": 4,
-    "rarity": "rare",
-    "type": "troop"
+    "rarity": "champion",
+    "type": "spell"
   },
   "26000067": {
     "name": "Elixir Golem",
     "id": 26000067,
-    "image": "/cards/26000067.png",
+    "image": "/cards/26000067.webp",
     "elixir": 3,
     "rarity": "rare",
     "type": "troop"
@@ -538,7 +581,7 @@
   "26000068": {
     "name": "Battle Healer",
     "id": 26000068,
-    "image": "/cards/26000068.png",
+    "image": "/cards/26000068.webp",
     "elixir": 4,
     "rarity": "rare",
     "type": "troop"
@@ -546,55 +589,55 @@
   "26000069": {
     "name": "Skeleton King",
     "id": 26000069,
-    "image": "/cards/26000069.png",
+    "image": "/cards/26000069.webp",
     "elixir": 4,
     "rarity": "champion",
-    "type": "troop"
+    "type": "spell"
   },
   "26000072": {
     "name": "Archer Queen",
     "id": 26000072,
-    "image": "/cards/26000072.png",
-    "elixir": 4,
+    "image": "/cards/26000072.webp",
+    "elixir": 5,
     "rarity": "champion",
-    "type": "troop"
+    "type": "spell"
   },
   "26000074": {
     "name": "Golden Knight",
     "id": 26000074,
-    "image": "/cards/26000074.png",
+    "image": "/cards/26000074.webp",
     "elixir": 4,
     "rarity": "champion",
-    "type": "troop"
+    "type": "spell"
   },
   "26000077": {
     "name": "Monk",
     "id": 26000077,
-    "image": "/cards/26000077.png",
+    "image": "/cards/26000077.webp",
     "elixir": 5,
     "rarity": "champion",
-    "type": "troop"
+    "type": "spell"
   },
   "26000080": {
     "name": "Skeleton Dragons",
     "id": 26000080,
-    "image": "/cards/26000080.png",
+    "image": "/cards/26000080.webp",
     "elixir": 4,
-    "rarity": "epic",
+    "rarity": "common",
     "type": "troop"
   },
   "26000083": {
     "name": "Mother Witch",
     "id": 26000083,
-    "image": "/cards/26000083.png",
+    "image": "/cards/26000083.webp",
     "elixir": 4,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000084": {
     "name": "Electro Spirit",
     "id": 26000084,
-    "image": "/cards/26000084.png",
+    "image": "/cards/26000084.webp",
     "elixir": 1,
     "rarity": "common",
     "type": "troop"
@@ -602,31 +645,31 @@
   "26000085": {
     "name": "Electro Giant",
     "id": 26000085,
-    "image": "/cards/26000085.png",
-    "elixir": 5,
+    "image": "/cards/26000085.webp",
+    "elixir": 7,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell"
   },
   "26000087": {
     "name": "Phoenix",
     "id": 26000087,
-    "image": "/cards/26000087.png",
+    "image": "/cards/26000087.webp",
     "elixir": 4,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "26000093": {
     "name": "Little Prince",
     "id": 26000093,
-    "image": "/cards/26000093.png",
+    "image": "/cards/26000093.webp",
     "elixir": 3,
     "rarity": "champion",
-    "type": "troop"
+    "type": "spell"
   },
   "26000095": {
     "name": "Goblin Demolisher",
     "id": 26000095,
-    "image": "/cards/26000095.png",
+    "image": "/cards/26000095.webp",
     "elixir": 4,
     "rarity": "rare",
     "type": "troop"
@@ -634,79 +677,81 @@
   "26000096": {
     "name": "Goblin Machine",
     "id": 26000096,
-    "image": "/cards/26000096.png",
+    "image": "/cards/26000096.webp",
     "elixir": 5,
-    "rarity": "epic",
-    "type": "troop"
+    "rarity": "legendary",
+    "type": "spell"
   },
   "26000097": {
     "name": "Suspicious Bush",
     "id": 26000097,
-    "image": "/cards/26000097.png",
+    "image": "/cards/26000097.webp",
     "elixir": 2,
-    "rarity": "epic",
+    "rarity": "rare",
     "type": "troop"
   },
   "26000099": {
     "name": "Goblinstein",
     "id": 26000099,
-    "image": "/cards/26000099.png",
+    "image": "/cards/26000099.webp",
     "elixir": 5,
-    "rarity": "legendary",
-    "type": "troop"
+    "rarity": "champion",
+    "type": "spell"
   },
   "26000101": {
     "name": "Rune Giant",
     "id": 26000101,
-    "image": "/cards/26000101.png",
-    "elixir": 5,
+    "image": "/cards/26000101.webp",
+    "elixir": 4,
     "rarity": "epic",
-    "type": "troop"
+    "type": "spell"
   },
   "26000102": {
     "name": "Berserker",
     "id": 26000102,
-    "image": "/cards/26000102.png",
-    "elixir": 3,
+    "image": "/cards/26000102.webp",
+    "elixir": 2,
     "rarity": "common",
     "type": "troop"
   },
   "26000103": {
     "name": "Boss Bandit",
     "id": 26000103,
-    "image": "/cards/26000103.png",
-    "elixir": 3,
-    "rarity": "epic",
-    "type": "troop"
+    "image": "/cards/26000103.webp",
+    "elixir": 6,
+    "rarity": "champion",
+    "type": "spell"
   },
   "27000000": {
     "name": "Cannon",
     "id": 27000000,
-    "image": "/cards/27000000.png",
+    "image": "/cards/27000000.webp",
     "elixir": 3,
     "rarity": "common",
-    "type": "building"
+    "type": "building",
+    "evolutionImage": "/cards/27000000_evo.webp"
   },
   "27000001": {
     "name": "Goblin Hut",
     "id": 27000001,
-    "image": "/cards/27000001.png",
-    "elixir": 5,
+    "image": "/cards/27000001.webp",
+    "elixir": 4,
     "rarity": "rare",
     "type": "building"
   },
   "27000002": {
     "name": "Mortar",
     "id": 27000002,
-    "image": "/cards/27000002.png",
+    "image": "/cards/27000002.webp",
     "elixir": 4,
     "rarity": "common",
-    "type": "building"
+    "type": "building",
+    "evolutionImage": "/cards/27000002_evo.webp"
   },
   "27000003": {
     "name": "Inferno Tower",
     "id": 27000003,
-    "image": "/cards/27000003.png",
+    "image": "/cards/27000003.webp",
     "elixir": 5,
     "rarity": "rare",
     "type": "building"
@@ -714,7 +759,7 @@
   "27000004": {
     "name": "Bomb Tower",
     "id": 27000004,
-    "image": "/cards/27000004.png",
+    "image": "/cards/27000004.webp",
     "elixir": 4,
     "rarity": "rare",
     "type": "building"
@@ -722,7 +767,7 @@
   "27000005": {
     "name": "Barbarian Hut",
     "id": 27000005,
-    "image": "/cards/27000005.png",
+    "image": "/cards/27000005.webp",
     "elixir": 6,
     "rarity": "rare",
     "type": "building"
@@ -730,15 +775,16 @@
   "27000006": {
     "name": "Tesla",
     "id": 27000006,
-    "image": "/cards/27000006.png",
+    "image": "/cards/27000006.webp",
     "elixir": 4,
     "rarity": "common",
-    "type": "building"
+    "type": "building",
+    "evolutionImage": "/cards/27000006_evo.webp"
   },
   "27000007": {
     "name": "Elixir Collector",
     "id": 27000007,
-    "image": "/cards/27000007.png",
+    "image": "/cards/27000007.webp",
     "elixir": 6,
     "rarity": "rare",
     "type": "building"
@@ -746,7 +792,7 @@
   "27000008": {
     "name": "X-Bow",
     "id": 27000008,
-    "image": "/cards/27000008.png",
+    "image": "/cards/27000008.webp",
     "elixir": 6,
     "rarity": "epic",
     "type": "building"
@@ -754,7 +800,7 @@
   "27000009": {
     "name": "Tombstone",
     "id": 27000009,
-    "image": "/cards/27000009.png",
+    "image": "/cards/27000009.webp",
     "elixir": 3,
     "rarity": "rare",
     "type": "building"
@@ -762,47 +808,50 @@
   "27000010": {
     "name": "Furnace",
     "id": 27000010,
-    "image": "/cards/27000010.png",
+    "image": "/cards/27000010.webp",
     "elixir": 4,
     "rarity": "rare",
-    "type": "troop"
+    "type": "building",
+    "evolutionImage": "/cards/27000010_evo.webp"
   },
   "27000012": {
     "name": "Goblin Cage",
     "id": 27000012,
-    "image": "/cards/27000012.png",
+    "image": "/cards/27000012.webp",
     "elixir": 4,
-    "rarity": "epic",
-    "type": "building"
+    "rarity": "rare",
+    "type": "building",
+    "evolutionImage": "/cards/27000012_evo.webp"
   },
   "27000013": {
     "name": "Goblin Drill",
     "id": 27000013,
-    "image": "/cards/27000013.png",
-    "elixir": 5,
+    "image": "/cards/27000013.webp",
+    "elixir": 4,
     "rarity": "epic",
-    "type": "building"
+    "type": "building",
+    "evolutionImage": "/cards/27000013_evo.webp"
   },
   "28000000": {
     "name": "Fireball",
     "id": 28000000,
-    "image": "/cards/28000000.png",
+    "image": "/cards/28000000.webp",
     "elixir": 4,
     "rarity": "rare",
-    "type": "spell"
+    "type": "troop"
   },
   "28000001": {
     "name": "Arrows",
     "id": 28000001,
-    "image": "/cards/28000001.png",
+    "image": "/cards/28000001.webp",
     "elixir": 3,
     "rarity": "common",
-    "type": "spell"
+    "type": "troop"
   },
   "28000002": {
     "name": "Rage",
     "id": 28000002,
-    "image": "/cards/28000002.png",
+    "image": "/cards/28000002.webp",
     "elixir": 2,
     "rarity": "epic",
     "type": "spell"
@@ -810,23 +859,24 @@
   "28000003": {
     "name": "Rocket",
     "id": 28000003,
-    "image": "/cards/28000003.png",
+    "image": "/cards/28000003.webp",
     "elixir": 6,
     "rarity": "rare",
-    "type": "spell"
+    "type": "troop"
   },
   "28000004": {
     "name": "Goblin Barrel",
     "id": 28000004,
-    "image": "/cards/28000004.png",
+    "image": "/cards/28000004.webp",
     "elixir": 3,
     "rarity": "epic",
-    "type": "spell"
+    "type": "spell",
+    "evolutionImage": "/cards/28000004_evo.webp"
   },
   "28000005": {
     "name": "Freeze",
     "id": 28000005,
-    "image": "/cards/28000005.png",
+    "image": "/cards/28000005.webp",
     "elixir": 4,
     "rarity": "epic",
     "type": "spell"
@@ -834,15 +884,15 @@
   "28000006": {
     "name": "Mirror",
     "id": 28000006,
-    "image": "/cards/28000006.png",
-    "elixir": 1,
+    "image": "/cards/28000006.webp",
+    "elixir": 0,
     "rarity": "epic",
     "type": "spell"
   },
   "28000007": {
     "name": "Lightning",
     "id": 28000007,
-    "image": "/cards/28000007.png",
+    "image": "/cards/28000007.webp",
     "elixir": 6,
     "rarity": "epic",
     "type": "spell"
@@ -850,15 +900,16 @@
   "28000008": {
     "name": "Zap",
     "id": 28000008,
-    "image": "/cards/28000008.png",
+    "image": "/cards/28000008.webp",
     "elixir": 2,
     "rarity": "common",
-    "type": "spell"
+    "type": "troop",
+    "evolutionImage": "/cards/28000008_evo.webp"
   },
   "28000009": {
     "name": "Poison",
     "id": 28000009,
-    "image": "/cards/28000009.png",
+    "image": "/cards/28000009.webp",
     "elixir": 4,
     "rarity": "epic",
     "type": "spell"
@@ -866,7 +917,7 @@
   "28000010": {
     "name": "Graveyard",
     "id": 28000010,
-    "image": "/cards/28000010.png",
+    "image": "/cards/28000010.webp",
     "elixir": 5,
     "rarity": "legendary",
     "type": "spell"
@@ -874,7 +925,7 @@
   "28000011": {
     "name": "The Log",
     "id": 28000011,
-    "image": "/cards/28000011.png",
+    "image": "/cards/28000011.webp",
     "elixir": 2,
     "rarity": "legendary",
     "type": "spell"
@@ -882,7 +933,7 @@
   "28000012": {
     "name": "Tornado",
     "id": 28000012,
-    "image": "/cards/28000012.png",
+    "image": "/cards/28000012.webp",
     "elixir": 3,
     "rarity": "epic",
     "type": "spell"
@@ -890,7 +941,7 @@
   "28000013": {
     "name": "Clone",
     "id": 28000013,
-    "image": "/cards/28000013.png",
+    "image": "/cards/28000013.webp",
     "elixir": 3,
     "rarity": "epic",
     "type": "spell"
@@ -898,47 +949,49 @@
   "28000014": {
     "name": "Earthquake",
     "id": 28000014,
-    "image": "/cards/28000014.png",
+    "image": "/cards/28000014.webp",
     "elixir": 3,
     "rarity": "rare",
-    "type": "spell"
+    "type": "troop"
   },
   "28000015": {
     "name": "Barbarian Barrel",
     "id": 28000015,
-    "image": "/cards/28000015.png",
+    "image": "/cards/28000015.webp",
     "elixir": 2,
     "rarity": "epic",
-    "type": "spell"
+    "type": "spell",
+    "heroImage": "/cards/28000015_hero.webp"
   },
   "28000016": {
     "name": "Heal Spirit",
     "id": 28000016,
-    "image": "/cards/28000016.png",
+    "image": "/cards/28000016.webp",
     "elixir": 1,
     "rarity": "rare",
-    "type": "spell"
+    "type": "troop"
   },
   "28000017": {
     "name": "Giant Snowball",
     "id": 28000017,
-    "image": "/cards/28000017.png",
+    "image": "/cards/28000017.webp",
     "elixir": 2,
     "rarity": "common",
-    "type": "spell"
+    "type": "troop",
+    "evolutionImage": "/cards/28000017_evo.webp"
   },
   "28000018": {
     "name": "Royal Delivery",
     "id": 28000018,
-    "image": "/cards/28000018.png",
+    "image": "/cards/28000018.webp",
     "elixir": 3,
     "rarity": "common",
-    "type": "spell"
+    "type": "troop"
   },
   "28000023": {
     "name": "Void",
     "id": 28000023,
-    "image": "/cards/28000023.png",
+    "image": "/cards/28000023.webp",
     "elixir": 3,
     "rarity": "epic",
     "type": "spell"
@@ -946,23 +999,23 @@
   "28000024": {
     "name": "Goblin Curse",
     "id": 28000024,
-    "image": "/cards/28000024.png",
-    "elixir": 3,
+    "image": "/cards/28000024.webp",
+    "elixir": 2,
     "rarity": "epic",
     "type": "spell"
   },
   "28000025": {
     "name": "Spirit Empress",
     "id": 28000025,
-    "image": "/cards/28000025.png",
-    "elixir": 3,
+    "image": "/cards/28000025.webp",
+    "elixir": 6,
     "rarity": "legendary",
-    "type": "troop"
+    "type": "spell"
   },
   "28000026": {
     "name": "Vines",
     "id": 28000026,
-    "image": "/cards/28000026.png",
+    "image": "/cards/28000026.webp",
     "elixir": 3,
     "rarity": "epic",
     "type": "spell"

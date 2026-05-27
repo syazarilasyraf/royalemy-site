@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { getCardById, getCardImageUrl, getPlaceholderImageUrl, rarityColors } from '../utils/cardMapping';
+import { getCardById, getCardImageUrl, getEvolutionImageUrl, getHeroImageUrl, getPlaceholderImageUrl, hasEvolution, hasHero, rarityColors } from '../utils/cardMapping';
 
-function DeckPreview({ cardIds, showElixir = true, compact = false }) {
+function DeckPreview({ cardIds, showElixir = true, compact = false, variant = 'base' }) {
   const [failedImages, setFailedImages] = useState(new Set());
 
   if (!cardIds || cardIds.length === 0) {
@@ -12,8 +12,6 @@ function DeckPreview({ cardIds, showElixir = true, compact = false }) {
     );
   }
 
-  // Note: Elixir calculation requires elixir data in cards.json
-  // For now, we show a placeholder or calculate if available
   const avgElixir = cardIds.length > 0 ? 
     (cardIds.reduce((sum, id) => {
       const card = getCardById(id);
@@ -25,15 +23,26 @@ function DeckPreview({ cardIds, showElixir = true, compact = false }) {
     setFailedImages(prev => new Set([...prev, cardId]));
   };
 
+  const resolveImageUrl = (cardId) => {
+    if (failedImages.has(cardId)) return getPlaceholderImageUrl();
+    if (variant === 'evo') {
+      return getEvolutionImageUrl(cardId) || getCardImageUrl(cardId);
+    }
+    if (variant === 'hero') {
+      return getHeroImageUrl(cardId) || getCardImageUrl(cardId);
+    }
+    return getCardImageUrl(cardId);
+  };
+
   return (
     <div className={`deck-preview ${compact ? 'deck-preview--compact' : ''}`}>
       <div className="deck-preview__grid">
         {cardIds.map((cardId, index) => {
           const card = getCardById(cardId);
-          const imageUrl = failedImages.has(cardId) 
-            ? getPlaceholderImageUrl() 
-            : getCardImageUrl(cardId);
+          const imageUrl = resolveImageUrl(cardId);
           const elixirCost = card.elixir || 0;
+          const cardHasEvo = hasEvolution(cardId);
+          const cardHasHero = hasHero(cardId);
           
           return (
             <div
@@ -54,6 +63,12 @@ function DeckPreview({ cardIds, showElixir = true, compact = false }) {
                 />
                 {elixirCost > 0 && (
                   <span className="deck-preview__card-elixir">{elixirCost}</span>
+                )}
+                {(cardHasEvo || cardHasHero) && (
+                  <div className="deck-preview__card-badges">
+                    {cardHasEvo && <span className="card-badge card-badge--evo">Evo</span>}
+                    {cardHasHero && <span className="card-badge card-badge--hero">Hero</span>}
+                  </div>
                 )}
               </div>
             </div>
@@ -140,6 +155,41 @@ function DeckPreview({ cardIds, showElixir = true, compact = false }) {
 
         .deck-preview--compact .deck-preview__card-elixir {
           font-size: 0.5rem;
+          padding: 0 2px;
+        }
+
+        .deck-preview__card-badges {
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          align-items: flex-end;
+        }
+
+        .card-badge {
+          font-size: 0.5rem;
+          font-weight: 800;
+          padding: 1px 3px;
+          border-radius: 3px;
+          line-height: 1;
+          text-transform: uppercase;
+          letter-spacing: 0.02em;
+        }
+
+        .card-badge--evo {
+          background: linear-gradient(135deg, #a855f7, #7c3aed);
+          color: white;
+        }
+
+        .card-badge--hero {
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
+        }
+
+        .deck-preview--compact .card-badge {
+          font-size: 0.4rem;
           padding: 0 2px;
         }
 

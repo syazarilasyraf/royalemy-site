@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 // Arena browse feature removed — focusing on Smart Deck Finder only
-import { getCardById, getCardImageUrl } from '../utils/cardMapping';
+import { getCardById, getCardImageUrl, hasEvolution, hasHero } from '../utils/cardMapping';
 import { buildDeckLink } from '../utils/deckParser';
 import { getPlayer, getMetaDecks } from '../services/api';
 import { getPlayerCardMap, calculateDeckScore, sortDecks, getCompatibilityColor } from '../utils/deckSuggestions';
@@ -338,6 +338,10 @@ function SmartDeckFinder() {
                           {playerCard && <span className="card-level-badge">Lv.{playerCard.level}</span>}
                           {isMissing && <span className="card-missing-badge">❌</span>}
                           {isChampion && <span className="card-champion-badge">👑</span>}
+                          <div className="deck-card-badges">
+                            {hasEvolution(cardId) && <span className="deck-card-badge deck-card-badge--evo">Evo</span>}
+                            {hasHero(cardId) && <span className="deck-card-badge deck-card-badge--hero">Hero</span>}
+                          </div>
                         </div>
                       );
                     })}

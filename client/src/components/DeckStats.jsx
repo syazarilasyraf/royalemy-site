@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
-import { getCardById, calculateAverageElixir } from '../utils/cardMapping';
+import { getCardById, calculateAverageElixir, hasEvolution, hasHero } from '../utils/cardMapping';
 import { canHitAir, hasSplash, isWinCondition, isMelee, isDefensiveBuilding, isTank, isSmallSpell, isBigSpell } from '../utils/cardAttributes';
 import SkeletonLoader from './SkeletonLoader';
 
@@ -285,9 +285,9 @@ function DeckStats() {
                 <div key={`${card.id}-${i}`} className="dcard">
                   <div className="dcard-img-wrap" style={{ borderColor: getRarityColor(card.rarity) }}>
                     <img 
-                      src={card.image || `/cards/${card.id}.png`}
+                      src={card.image || `/cards/${card.id}.webp`}
                       alt={card.name}
-                      onError={(e) => { e.target.src = '/cards/placeholder.png'; }}
+                      onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
                     />
                     <span className="dcard-elixir">{card.elixir || '?'}</span>
                   </div>
@@ -295,6 +295,10 @@ function DeckStats() {
                   <span className="dcard-rarity" style={{ color: getRarityColor(card.rarity) }}>
                     {card.rarity}
                   </span>
+                  <div className="dcard-badges">
+                    {hasEvolution(card.id) && <span className="dcard-badge dcard-badge--evo">Evo</span>}
+                    {hasHero(card.id) && <span className="dcard-badge dcard-badge--hero">Hero</span>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1035,6 +1039,32 @@ function DeckStats() {
         .dcard-rarity {
           font-size: 0.625rem;
           text-transform: uppercase;
+        }
+
+        .dcard-badges {
+          display: flex;
+          gap: 4px;
+          justify-content: center;
+          margin-top: 2px;
+        }
+
+        .dcard-badge {
+          font-size: 0.5rem;
+          font-weight: 800;
+          padding: 1px 4px;
+          border-radius: 3px;
+          line-height: 1;
+          text-transform: uppercase;
+        }
+
+        .dcard-badge--evo {
+          background: linear-gradient(135deg, #a855f7, #7c3aed);
+          color: white;
+        }
+
+        .dcard-badge--hero {
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
         }
 
         .breakdown-section {

@@ -895,3 +895,36 @@
 }
 
 
+
+/* ===== EVOLUTION / HERO BADGES ===== */
+.deck-card-badges {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-end;
+  z-index: 2;
+}
+
+.deck-card-badge {
+  font-size: 0.5rem;
+  font-weight: 800;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.deck-card-badge--evo {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: white;
+}
+
+.deck-card-badge--hero {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
