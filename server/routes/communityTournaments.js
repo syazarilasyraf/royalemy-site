@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 
 const router = express.Router();
@@ -12,6 +13,39 @@ function log(level, message, data = null) {
     console.log(`${prefix} [${timestamp}] ${message}`);
   }
 }
+
+function getAdminKey() {
+  return process.env.ROADMAP_ADMIN_KEY;
+}
+
+function validateAdminKey(req, res, next) {
+  const key = req.query.key;
+  const adminKey = getAdminKey();
+  if (!adminKey) {
+    return res.status(500).json({ error: 'Admin key not configured on server' });
+  }
+  if (key !== adminKey) {
+    log('warn', `Invalid admin key attempt from ${req.ip}`);
+    return res.status(403).json({ error: 'Invalid admin key' });
+  }
+  next();
+}
+
+// Stricter rate limit for tournament submissions: 3 per hour per IP
+const submitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: {
+    error: 'You can only submit 3 tournaments per hour. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    log('warn', `Tournament submit rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json(options.message);
+  }
+});
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -40,8 +74,8 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// Submit a new tournament (auto-approved)
-router.post('/', (req, res) => {
+// Submit a new tournament (auto-approved, rate limited)
+router.post('/', submitLimiter, (req, res) => {
   try {
     const {
       name,
@@ -89,6 +123,37 @@ router.post('/', (req, res) => {
   } catch (error) {
     log('error', `Failed to submit tournament: ${error.message}`);
     res.status(500).json({ error: 'Failed to submit tournament' });
+  }
+});
+
+// ==================== ADMIN ROUTES ====================
+
+// List all tournaments (admin)
+router.get('/admin', validateAdminKey, (req, res) => {
+  try {
+    const tournaments = statements.getAllTournaments.all();
+    res.json({ tournaments });
+  } catch (error) {
+    log('error', `Admin failed to fetch tournaments: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch tournaments' });
+  }
+});
+
+// Delete tournament (admin)
+router.delete('/:id', validateAdminKey, (req, res) => {
+  try {
+    const { id } = req.params;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    statements.deleteTournament.run(id);
+    log('success', `Tournament ${id} deleted by admin`);
+    res.json({ message: 'Tournament deleted', id });
+  } catch (error) {
+    log('error', `Failed to delete tournament: ${error.message}`);
+    res.status(500).json({ error: 'Failed to delete tournament' });
   }
 });
 

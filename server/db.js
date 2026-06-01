@@ -111,7 +111,7 @@ const statements = {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ),
   getApprovedTournaments: db.prepare(
-    `SELECT * FROM community_tournaments WHERE status = 'approved' AND start_date > datetime('now', '-1 day') ORDER BY start_date ASC`
+    `SELECT * FROM community_tournaments WHERE status = 'approved' AND (end_date > datetime('now') OR (end_date IS NULL AND start_date > datetime('now', '-6 hours'))) ORDER BY start_date ASC`
   ),
   getAllTournaments: db.prepare(
     `SELECT * FROM community_tournaments ORDER BY created_at DESC`
@@ -124,6 +124,9 @@ const statements = {
   ),
   updateTournamentNotified: db.prepare(
     `UPDATE community_tournaments SET notified_24h = ?, notified_1h = ? WHERE id = ?`
+  ),
+  deleteTournament: db.prepare(
+    `DELETE FROM community_tournaments WHERE id = ?`
   ),
 
 };

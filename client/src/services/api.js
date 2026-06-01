@@ -205,6 +205,16 @@ export function submitCommunityTournament(data) {
   });
 }
 
+export function getAdminTournaments(key) {
+  return fetchAPI(`/community-tournaments/admin?key=${encodeURIComponent(key)}`);
+}
+
+export function deleteTournament(id, key) {
+  return fetchAPI(`/community-tournaments/${id}?key=${encodeURIComponent(key)}`, {
+    method: 'DELETE'
+  });
+}
+
 // ==================== UTILS ====================
 
 export function checkHealth() {
