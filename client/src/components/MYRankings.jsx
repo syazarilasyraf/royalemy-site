@@ -180,7 +180,7 @@ function MYRankings() {
 
       <div className="info-box">
         {activeTab === 'pol' && (
-          <p>🏆 <strong>Ranked Mode</strong> — Click any player to view their profile</p>
+          <p>🏆 <strong>Ranked Mode</strong> — Rankings reset at the start of each new season. Check back again soon!</p>
         )}
         {activeTab === 'clans' && (
           <p>🏰 <strong>Top Clans</strong> — Click any clan to view details</p>
@@ -208,7 +208,9 @@ function MYRankings() {
           {rankings.length === 0 ? (
             <div className="empty-state">
               <p>No rankings data available for Malaysia</p>
-              <p className="empty-hint">This data may not be provided by Supercell for Malaysia</p>
+              <p className="empty-hint">
+                Rankings reset when a new season starts. Please check back again later!
+              </p>
             </div>
           ) : (
             <div className="rankings-list">
