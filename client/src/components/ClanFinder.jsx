@@ -195,8 +195,6 @@ function ClanFinder() {
   const [warLoading, setWarLoading] = useState(false);
 
   // Community clans
-  const [communityClans, setCommunityClans] = useState([]);
-  const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
@@ -213,19 +211,6 @@ function ClanFinder() {
 
   const [urlSearchParams] = useSearchParams();
   const adminKey = urlSearchParams.get('admin');
-
-  const loadCommunityClans = async () => {
-    setLoadingCommunity(true);
-    try {
-      const data = await getCommunityClans();
-      setCommunityClans(data.clans || []);
-    } catch (err) {
-      console.error('Failed to load community clans:', err);
-      setCommunityClans([]);
-    } finally {
-      setLoadingCommunity(false);
-    }
-  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -333,7 +318,7 @@ function ClanFinder() {
       setTimeout(() => {
         setSubmitSuccess('');
         setShowSubmitModal(false);
-        loadCommunityClans();
+        loadFeaturedClans();
       }, 1500);
     } catch (err) {
       alert('Failed to submit clan. Please try again.');
@@ -360,30 +345,50 @@ function ClanFinder() {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Load featured Malaysian clans and community clans on mount
-  useEffect(() => {
-    const loadFeaturedClans = async () => {
-      setLoadingFeatured(true);
+  const loadFeaturedClans = async () => {
+    setLoadingFeatured(true);
+    try {
+      // Load hardcoded featured clans
+      const featuredData = await Promise.all(
+        FEATURED_MALAYSIA_CLANS.map(async (featured) => {
+          try {
+            const clan = await getClan(featured.tag);
+            return { ...clan, description: featured.description };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      // Load approved community clans and fetch their live data
+      let communityData = [];
       try {
-        const clanData = await Promise.all(
-          FEATURED_MALAYSIA_CLANS.map(async (featured) => {
+        const resp = await getCommunityClans();
+        const approvedClans = resp.clans || [];
+        communityData = await Promise.all(
+          approvedClans.map(async (c) => {
             try {
-              const clan = await getClan(featured.tag);
-              return { ...clan, description: featured.description };
+              const clan = await getClan(c.clan_tag);
+              return { ...clan, description: c.description || clan.description };
             } catch {
               return null;
             }
           })
         );
-        setFeaturedClans(clanData.filter(Boolean));
       } catch {
-        setFeaturedClans([]);
-      } finally {
-        setLoadingFeatured(false);
+        // ignore
       }
-    };
+
+      setFeaturedClans([...featuredData.filter(Boolean), ...communityData.filter(Boolean)]);
+    } catch {
+      setFeaturedClans([]);
+    } finally {
+      setLoadingFeatured(false);
+    }
+  };
+
+  useEffect(() => {
     loadFeaturedClans();
-    loadCommunityClans();
   }, []);
 
   return (
@@ -476,66 +481,6 @@ function ClanFinder() {
           {clans.length === 0 && !loading && searchParams.name && (
             <div className="empty-state">
               <p>No clans found. Try a different search.</p>
-            </div>
-          )}
-
-          {/* Community Clans */}
-          {clans.length === 0 && !loading && !searchParams.name && (
-            <div className="community-clans-section">
-              <div className="section-header">
-                <div>
-                  <h3 className="featured-title">👥 Community Clans</h3>
-                  <p className="featured-desc">Clans promoted by the community</p>
-                </div>
-                <button
-                  className="submit-clan-btn"
-                  onClick={() => setShowSubmitModal(true)}
-                >
-                  ➕ Submit Clan
-                </button>
-              </div>
-
-              {loadingCommunity ? (
-                <div className="featured-loading">Loading community clans...</div>
-              ) : communityClans.length > 0 ? (
-                <div className="community-clan-list">
-                  {communityClans.map((c) => (
-                    <div key={c.id} className="community-clan-card">
-                      <div className="cc-card-header">
-                        <span className="cc-badge">🏰 {c.name}</span>
-                        <span className="cc-tag">#{c.clan_tag}</span>
-                      </div>
-                      {c.description && <p className="cc-desc">{c.description}</p>}
-                      <div className="cc-meta">
-                        <span>👤 Leader: {c.leader_name}</span>
-                        {c.trophy_requirement && <span>🏆 Min: {c.trophy_requirement}</span>}
-                        {c.members_count && <span>👥 {c.members_count} members</span>}
-                        {c.location && <span>📍 {c.location}</span>}
-                      </div>
-                      <div className="cc-actions">
-                        {c.discord_link && (
-                          <a href={c.discord_link} target="_blank" rel="noopener noreferrer" className="cc-discord">
-                            💬 Discord
-                          </a>
-                        )}
-                        <button className="cc-share" onClick={() => {
-                          const text = `🏰 ${c.name}\n#${c.clan_tag}\n👤 Leader: ${c.leader_name}\n${c.discord_link ? '💬 Discord: ' + c.discord_link + '\n' : ''}🔗 https://royalemy.netlify.app/clan`;
-                          navigator.clipboard.writeText(text);
-                          alert('Clan details copied to clipboard!');
-                        }}>
-                          🔗 Share
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state-box">
-                  <div className="empty-icon">🏰</div>
-                  <h4>No community clans yet</h4>
-                  <p className="empty-helper">Be the first to submit your clan!</p>
-                </div>
-              )}
             </div>
           )}
 
@@ -1997,7 +1942,7 @@ function ClanFinder() {
         </div>
       )}
 
-      {adminKey && <ClanAdminPanel adminKey={adminKey} onRefresh={loadCommunityClans} />}
+      {adminKey && <ClanAdminPanel adminKey={adminKey} onRefresh={loadFeaturedClans} />}
     </div>
   );
 }
