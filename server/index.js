@@ -119,7 +119,7 @@ if (process.env.CORS_ORIGINS) {
 app.use(cors({
   origin: corsOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
 }));
 
