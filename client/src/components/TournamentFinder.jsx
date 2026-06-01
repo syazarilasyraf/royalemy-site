@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  searchTournaments,
-  getTournament,
-  getGlobalTournaments,
   getCommunityTournaments,
   submitCommunityTournament,
   getAdminTournaments,
@@ -182,9 +179,6 @@ function TournamentFinder() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState('search');
-  const [globalTournaments, setGlobalTournaments] = useState([]);
-  const [loadingGlobal, setLoadingGlobal] = useState(false);
-
   const [searchParams] = useSearchParams();
   const adminKey = searchParams.get('admin');
   
@@ -214,22 +208,7 @@ function TournamentFinder() {
     contact_info: '',
   });
 
-  // Load global tournaments
-  const loadGlobalTournaments = async () => {
-    setLoadingGlobal(true);
-    try {
-      const data = await getGlobalTournaments();
-      setGlobalTournaments(data.items || []);
-    } catch (err) {
-      console.error('Failed to load global tournaments:', err);
-      setGlobalTournaments([]);
-    } finally {
-      setLoadingGlobal(false);
-    }
-  };
-
   useEffect(() => {
-    loadGlobalTournaments();
     loadCommunityTournaments();
   }, []);
 
@@ -354,10 +333,6 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
     return { label: `In ${days} days`, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' };
   };
 
-  const handleRefresh = () => {
-    loadGlobalTournaments();
-  };
-
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchName.trim()) return;
@@ -466,104 +441,11 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
         <>
           {/* Header */}
           <div className="finder-header">
-            <h2 className="section-title">🏆 Tournament Finder</h2>
-            <p className="section-desc">Find and join tournaments in Clash Royale</p>
+            <h2 className="section-title">🏆 Community Tournaments</h2>
+            <p className="section-desc">Discover and join tournaments hosted by the community</p>
           </div>
 
-          {/* Official Global Tournaments */}
-          <section className="global-section">
-            <div className="section-header">
-              <div>
-                <h3>🌍 Official Global Tournaments</h3>
-                <p className="section-subtitle">Ongoing official tournaments from Supercell</p>
-              </div>
-              <button className="refresh-btn" onClick={handleRefresh} disabled={loadingGlobal}>
-                {loadingGlobal ? '⟳' : '🔄'} Refresh
-              </button>
-            </div>
-            
-            {loadingGlobal ? (
-              <div className="loading-state">
-                <div className="loading-spinner"></div>
-                <p>Loading tournaments...</p>
-              </div>
-            ) : globalTournaments.length > 0 ? (
-              <div className="global-cards">
-                {globalTournaments.map((tournament) => {
-                  const status = getStatusConfig(tournament.status);
-                  const isFull = tournament.capacity >= tournament.maxCapacity;
-                  return (
-                    <div 
-                      key={tournament.tag} 
-                      className="global-card"
-                      onClick={() => viewTournamentDetails(tournament)}
-                    >
-                      <div className="card-header">
-                        <span 
-                          className="status-badge"
-                          style={{ 
-                            color: status.color, 
-                            background: status.bg 
-                          }}
-                        >
-                          {status.dot} {status.label}
-                        </span>
-                        {isFull && <span className="full-badge">FULL</span>}
-                      </div>
-                      
-                      <h4 className="tournament-name">{tournament.name}</h4>
-                      
-                      <div className="player-count">
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill"
-                            style={{ 
-                              width: `${(tournament.capacity / tournament.maxCapacity) * 100}%`,
-                              background: isFull ? '#ef4444' : '#22c55e'
-                            }}
-                          />
-                        </div>
-                        <span className="count-text">
-                          {tournament.capacity} / {tournament.maxCapacity} players
-                        </span>
-                      </div>
-
-                      <div className="tournament-meta">
-                        <div className="meta-item">
-                          <span className="meta-label">Started</span>
-                          <span className="meta-value">{formatDate(tournament.startTime)}</span>
-                        </div>
-                        <div className="meta-item">
-                          <span className="meta-label">Ends</span>
-                          <span className="meta-value">{formatDate(tournament.endTime)}</span>
-                        </div>
-                        {tournament.prizes && tournament.prizes.length > 0 && (
-                          <div className="meta-item prize">
-                            <span className="meta-label">Prize</span>
-                            <span className="meta-value">{tournament.prizes[0].amount} {tournament.prizes[0].type}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {tournament.status === 'inProgress' && (
-                        <div className="time-remaining" style={{ color: status.color }}>
-                          ⏱️ {formatTimeRemaining(tournament.endTime)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="empty-state-box">
-                <div className="empty-icon">🏆</div>
-                <h4>No official global tournaments are available right now.</h4>
-                <p className="empty-helper">Global tournaments appear periodically in Clash Royale. Check back later!</p>
-              </div>
-            )}
-          </section>
-
-          {/* Community Tournaments */}
+          {/* Community Tournaments -->
           <section className="community-section">
             <div className="section-header">
               <div>
