@@ -199,14 +199,7 @@ function ClanFinder() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [submitForm, setSubmitForm] = useState({
-    name: '',
     clan_tag: '',
-    description: '',
-    leader_name: '',
-    discord_link: '',
-    trophy_requirement: '',
-    members_count: '',
-    location: '',
   });
 
   const [urlSearchParams] = useSearchParams();
@@ -302,8 +295,8 @@ function ClanFinder() {
 
   const handleSubmitClan = async (e) => {
     e.preventDefault();
-    if (!submitForm.name || !submitForm.clan_tag || !submitForm.leader_name) {
-      alert('Please fill in all required fields.');
+    if (!submitForm.clan_tag) {
+      alert('Please enter a clan tag.');
       return;
     }
 
@@ -311,10 +304,7 @@ function ClanFinder() {
     try {
       await submitCommunityClan(submitForm);
       setSubmitSuccess('Clan submitted for review! It will appear after admin approval.');
-      setSubmitForm({
-        name: '', clan_tag: '', description: '', leader_name: '',
-        discord_link: '', trophy_requirement: '', members_count: '', location: ''
-      });
+      setSubmitForm({ clan_tag: '' });
       setTimeout(() => {
         setSubmitSuccess('');
         setShowSubmitModal(false);
@@ -1900,39 +1890,12 @@ function ClanFinder() {
             </div>
             <form onSubmit={handleSubmitClan} className="submit-form">
               {submitSuccess && <div className="submit-success">{submitSuccess}</div>}
-              <div className="form-grid">
-                <div className="form-field">
-                  <label>Clan Name *</label>
-                  <input type="text" value={submitForm.name} onChange={(e) => handleSubmitFormChange('name', e.target.value)} placeholder="Your clan name" required />
-                </div>
-                <div className="form-field">
-                  <label>Clan Tag *</label>
-                  <input type="text" value={submitForm.clan_tag} onChange={(e) => handleSubmitFormChange('clan_tag', e.target.value)} placeholder="e.g. GGUJU2RC" required />
-                </div>
-                <div className="form-field">
-                  <label>Leader Name *</label>
-                  <input type="text" value={submitForm.leader_name} onChange={(e) => handleSubmitFormChange('leader_name', e.target.value)} placeholder="Your name" required />
-                </div>
-                <div className="form-field">
-                  <label>Location</label>
-                  <input type="text" value={submitForm.location} onChange={(e) => handleSubmitFormChange('location', e.target.value)} placeholder="e.g. Malaysia" />
-                </div>
-                <div className="form-field">
-                  <label>Trophy Requirement</label>
-                  <input type="number" value={submitForm.trophy_requirement} onChange={(e) => handleSubmitFormChange('trophy_requirement', e.target.value)} placeholder="e.g. 5000" />
-                </div>
-                <div className="form-field">
-                  <label>Members Count</label>
-                  <input type="number" value={submitForm.members_count} onChange={(e) => handleSubmitFormChange('members_count', e.target.value)} placeholder="e.g. 25" />
-                </div>
-                <div className="form-field full-width">
-                  <label>Discord Link (optional)</label>
-                  <input type="url" value={submitForm.discord_link} onChange={(e) => handleSubmitFormChange('discord_link', e.target.value)} placeholder="https://discord.gg/..." />
-                </div>
-                <div className="form-field full-width">
-                  <label>Description (optional)</label>
-                  <textarea value={submitForm.description} onChange={(e) => handleSubmitFormChange('description', e.target.value)} placeholder="Tell us about your clan..." rows={3} />
-                </div>
+              <div className="form-field full-width">
+                <label>Clan Tag *</label>
+                <input type="text" value={submitForm.clan_tag} onChange={(e) => handleSubmitFormChange('clan_tag', e.target.value)} placeholder="e.g. GGUJU2RC" required />
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  We'll fetch your clan info automatically from the Clash Royale API.
+                </p>
               </div>
               <button type="submit" className="submit-btn" disabled={submitLoading}>
                 {submitLoading ? 'Submitting...' : 'Submit for Review'}
