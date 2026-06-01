@@ -234,6 +234,52 @@ export function deleteTournament(id, key) {
   });
 }
 
+// ==================== COMMUNITY CLANS ====================
+
+export function getCommunityClans() {
+  return fetchAPI('/community-clans');
+}
+
+export function getCommunityClan(id) {
+  return fetchAPI(`/community-clans/${id}`);
+}
+
+export function submitCommunityClan(data) {
+  return fetchAPI('/community-clans', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function getAdminClans(key) {
+  return fetchAPI(`/community-clans/admin?key=${encodeURIComponent(key)}`);
+}
+
+export function approveClan(id, key) {
+  return fetchAPI(`/community-clans/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function rejectClan(id, key) {
+  return fetchAPI(`/community-clans/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function updateClanStatus(id, status, key) {
+  return fetchAPI(`/community-clans/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify({ status })
+  });
+}
+
+export function deleteClan(id, key) {
+  return fetchAPI(`/community-clans/admin/${id}?key=${encodeURIComponent(key)}`, {
+    method: 'DELETE'
+  });
+}
+
 // ==================== UTILS ====================
 
 export function checkHealth() {

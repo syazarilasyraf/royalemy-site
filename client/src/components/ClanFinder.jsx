@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
-import { searchClans, getClan, getClanMembers, getClanCurrentRiverRace, getClanRiverRaceLog } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import {
+  searchClans, getClan, getClanMembers, getClanCurrentRiverRace, getClanRiverRaceLog,
+  getCommunityClans, submitCommunityClan, getAdminClans, approveClan, rejectClan, updateClanStatus, deleteClan,
+} from '../services/api';
 
 // Top Malaysian clans - featured recommendations
 const FEATURED_MALAYSIA_CLANS = [
@@ -8,6 +12,168 @@ const FEATURED_MALAYSIA_CLANS = [
   // { tag: 'GQV099GG', name: 'BERITA HARIAN', description: 'Yang Tak Masuk Bontot Kau Berduri.. sape tak on 10 hari auto kick' },
   // { tag: '800JJGP8', name: 'perak', description: 'welcome to perak clan. happy clashing everyone and FREE PALESTINE!!' },
 ];
+
+const CLAN_STATUS_LABELS = {
+  pending: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+};
+
+const CLAN_STATUS_BADGES = {
+  pending: 'badge-warning',
+  approved: 'badge-success',
+  rejected: 'badge-danger',
+};
+
+// ==================== ADMIN PANEL ====================
+
+function ClanAdminPanel({ adminKey, onRefresh }) {
+  const [allClans, setAllClans] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const fetchAdminData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getAdminClans(adminKey);
+      setAllClans(data.clans || []);
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey]);
+
+  useEffect(() => {
+    fetchAdminData();
+  }, [fetchAdminData]);
+
+  const handleApprove = async (id) => {
+    try {
+      await approveClan(id, adminKey);
+      setMessage('Clan approved');
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      await rejectClan(id, adminKey);
+      setMessage('Clan rejected');
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this clan?')) return;
+    try {
+      await deleteClan(id, adminKey);
+      setMessage('Clan deleted');
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleStatusChange = async (id, status) => {
+    try {
+      await updateClanStatus(id, status, adminKey);
+      setMessage(`Status updated to ${CLAN_STATUS_LABELS[status]}`);
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const pending = allClans.filter((c) => c.status === 'pending');
+
+  return (
+    <div className="clan-admin">
+      <h2 className="clan-admin-title">🛡️ Admin Panel</h2>
+      {message && (
+        <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
+          {message}
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <div className="clan-admin-section">
+          <h3>Pending Review ({pending.length})</h3>
+          <div className="clan-admin-list">
+            {pending.map((c) => (
+              <div key={c.id} className="clan-admin-item">
+                <div>
+                  <strong>{c.name}</strong>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    #{c.clan_tag} — {c.leader_name}
+                  </p>
+                </div>
+                <div className="clan-admin-actions">
+                  <button className="btn btn-success btn-sm" onClick={() => handleApprove(c.id)}>
+                    Approve
+                  </button>
+                  <button className="btn btn-danger btn-sm" onClick={() => handleReject(c.id)}>
+                    Reject
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(c.id)}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="clan-admin-section">
+        <h3>All Clans</h3>
+        <div className="clan-admin-list">
+          {allClans.map((c) => (
+            <div key={c.id} className="clan-admin-item">
+              <div>
+                <strong>{c.name}</strong>
+                <span
+                  className={`badge ${CLAN_STATUS_BADGES[c.status] || 'badge-secondary'}`}
+                  style={{ marginLeft: '8px' }}
+                >
+                  {CLAN_STATUS_LABELS[c.status]}
+                </span>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  #{c.clan_tag} — {c.leader_name}
+                </p>
+              </div>
+              <div className="clan-admin-actions">
+                <select
+                  className="input"
+                  style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}
+                  value={c.status}
+                  onChange={(e) => handleStatusChange(c.id, e.target.value)}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(c.id)}>
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== MAIN COMPONENT ====================
 
 function ClanFinder() {
   const [searchParams, setSearchParams] = useState({
@@ -27,6 +193,39 @@ function ClanFinder() {
   const [riverRaceData, setRiverRaceData] = useState(null);
   const [riverRaceLog, setRiverRaceLog] = useState([]);
   const [warLoading, setWarLoading] = useState(false);
+
+  // Community clans
+  const [communityClans, setCommunityClans] = useState([]);
+  const [loadingCommunity, setLoadingCommunity] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState('');
+  const [submitForm, setSubmitForm] = useState({
+    name: '',
+    clan_tag: '',
+    description: '',
+    leader_name: '',
+    discord_link: '',
+    trophy_requirement: '',
+    members_count: '',
+    location: '',
+  });
+
+  const [urlSearchParams] = useSearchParams();
+  const adminKey = urlSearchParams.get('admin');
+
+  const loadCommunityClans = async () => {
+    setLoadingCommunity(true);
+    try {
+      const data = await getCommunityClans();
+      setCommunityClans(data.clans || []);
+    } catch (err) {
+      console.error('Failed to load community clans:', err);
+      setCommunityClans([]);
+    } finally {
+      setLoadingCommunity(false);
+    }
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -112,6 +311,37 @@ function ClanFinder() {
     return Number.isNaN(n) ? 0 : n;
   };
 
+  const handleSubmitFormChange = (field, value) => {
+    setSubmitForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmitClan = async (e) => {
+    e.preventDefault();
+    if (!submitForm.name || !submitForm.clan_tag || !submitForm.leader_name) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    setSubmitLoading(true);
+    try {
+      await submitCommunityClan(submitForm);
+      setSubmitSuccess('Clan submitted for review! It will appear after admin approval.');
+      setSubmitForm({
+        name: '', clan_tag: '', description: '', leader_name: '',
+        discord_link: '', trophy_requirement: '', members_count: '', location: ''
+      });
+      setTimeout(() => {
+        setSubmitSuccess('');
+        setShowSubmitModal(false);
+        loadCommunityClans();
+      }, 1500);
+    } catch (err) {
+      alert('Failed to submit clan. Please try again.');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   const formatDate = (raw) => {
     const dateStr = safeString(raw, '');
     if (!dateStr) return '-';
@@ -130,7 +360,7 @@ function ClanFinder() {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Load featured Malaysian clans on mount
+  // Load featured Malaysian clans and community clans on mount
   useEffect(() => {
     const loadFeaturedClans = async () => {
       setLoadingFeatured(true);
@@ -153,6 +383,7 @@ function ClanFinder() {
       }
     };
     loadFeaturedClans();
+    loadCommunityClans();
   }, []);
 
   return (
@@ -248,6 +479,66 @@ function ClanFinder() {
             </div>
           )}
 
+          {/* Community Clans */}
+          {clans.length === 0 && !loading && !searchParams.name && (
+            <div className="community-clans-section">
+              <div className="section-header">
+                <div>
+                  <h3 className="featured-title">👥 Community Clans</h3>
+                  <p className="featured-desc">Clans promoted by the community</p>
+                </div>
+                <button
+                  className="submit-clan-btn"
+                  onClick={() => setShowSubmitModal(true)}
+                >
+                  ➕ Submit Clan
+                </button>
+              </div>
+
+              {loadingCommunity ? (
+                <div className="featured-loading">Loading community clans...</div>
+              ) : communityClans.length > 0 ? (
+                <div className="community-clan-list">
+                  {communityClans.map((c) => (
+                    <div key={c.id} className="community-clan-card">
+                      <div className="cc-card-header">
+                        <span className="cc-badge">🏰 {c.name}</span>
+                        <span className="cc-tag">#{c.clan_tag}</span>
+                      </div>
+                      {c.description && <p className="cc-desc">{c.description}</p>}
+                      <div className="cc-meta">
+                        <span>👤 Leader: {c.leader_name}</span>
+                        {c.trophy_requirement && <span>🏆 Min: {c.trophy_requirement}</span>}
+                        {c.members_count && <span>👥 {c.members_count} members</span>}
+                        {c.location && <span>📍 {c.location}</span>}
+                      </div>
+                      <div className="cc-actions">
+                        {c.discord_link && (
+                          <a href={c.discord_link} target="_blank" rel="noopener noreferrer" className="cc-discord">
+                            💬 Discord
+                          </a>
+                        )}
+                        <button className="cc-share" onClick={() => {
+                          const text = `🏰 ${c.name}\n#${c.clan_tag}\n👤 Leader: ${c.leader_name}\n${c.discord_link ? '💬 Discord: ' + c.discord_link + '\n' : ''}🔗 https://royalemy.netlify.app/clan`;
+                          navigator.clipboard.writeText(text);
+                          alert('Clan details copied to clipboard!');
+                        }}>
+                          🔗 Share
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state-box">
+                  <div className="empty-icon">🏰</div>
+                  <h4>No community clans yet</h4>
+                  <p className="empty-helper">Be the first to submit your clan!</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Featured Malaysian Clans */}
           {clans.length === 0 && !loading && !searchParams.name && (
             <div className="featured-section">
@@ -281,13 +572,13 @@ function ClanFinder() {
                 </div>
               )}
 
-              {/* Promotion Banner */}
-              <div className="promo-banner">
-                <div className="promo-icon">📢</div>
+              {/* Submit Clan Banner */}
+              <div className="promo-banner clickable" onClick={() => setShowSubmitModal(true)}>
+                <div className="promo-icon">➕</div>
                 <div className="promo-content">
-                  <h4>Want your clan featured here?</h4>
-                  <p>We're opening clan promotion slots soon! Malaysian clans can request to be featured on this page.</p>
-                  <span className="promo-soon">Coming Soon</span>
+                  <h4>Promote Your Clan</h4>
+                  <p>Submit your clan to be featured on this page. Approved clans will be visible to all visitors.</p>
+                  <span className="promo-soon" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white' }}>Submit Clan</span>
                 </div>
               </div>
             </div>
@@ -937,6 +1228,143 @@ function ClanFinder() {
           opacity: 1;
         }
 
+        /* Community Clans */
+        .community-clans-section {
+          margin-bottom: var(--spacing-xl);
+        }
+
+        .submit-clan-btn {
+          padding: var(--spacing-xs) var(--spacing-md);
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          border: none;
+          border-radius: var(--radius-md);
+          color: white;
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .submit-clan-btn:hover {
+          filter: brightness(1.1);
+        }
+
+        .community-clan-list {
+          display: grid;
+          gap: var(--spacing-md);
+        }
+
+        .community-clan-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+          transition: all 0.2s;
+        }
+
+        .community-clan-card:hover {
+          border-color: var(--accent-primary);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .cc-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .cc-badge {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .cc-tag {
+          font-size: 0.875rem;
+          color: var(--text-muted);
+          font-family: monospace;
+        }
+
+        .cc-desc {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          margin: 0 0 var(--spacing-sm);
+          line-height: 1.5;
+        }
+
+        .cc-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .cc-meta span {
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          background: var(--bg-primary);
+          padding: 4px 10px;
+          border-radius: var(--radius-md);
+        }
+
+        .cc-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+
+        .cc-discord {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          background: #5865f2;
+          color: white;
+          text-decoration: none;
+          border-radius: var(--radius-md);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .cc-discord:hover {
+          background: #4752c4;
+        }
+
+        .cc-share {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          color: var(--text-secondary);
+          border-radius: var(--radius-md);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .cc-share:hover {
+          background: var(--accent-primary);
+          color: white;
+          border-color: var(--accent-primary);
+        }
+
+        .promo-banner.clickable {
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .promo-banner.clickable:hover {
+          border-color: var(--accent-primary);
+          transform: translateY(-2px);
+        }
+
         /* Promotion Banner */
         .promo-banner {
           display: flex;
@@ -1274,6 +1702,199 @@ function ClanFinder() {
           color: var(--text-muted);
         }
 
+        /* Admin Panel */
+        .clan-admin {
+          margin-top: var(--spacing-xl);
+          padding-top: var(--spacing-xl);
+          border-top: 2px solid var(--bg-tertiary);
+        }
+
+        .clan-admin-title {
+          font-size: 1.25rem;
+          margin-bottom: var(--spacing-lg);
+          color: var(--text-primary);
+        }
+
+        .clan-admin-section {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .clan-admin-section h3 {
+          font-size: 0.875rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: var(--spacing-md);
+        }
+
+        .clan-admin-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .clan-admin-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-lg);
+        }
+
+        .clan-admin-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+          flex-shrink: 0;
+          align-items: center;
+        }
+
+        /* Modal */
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 200;
+          padding: var(--spacing-md);
+          backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          width: 100%;
+          max-width: 560px;
+          max-height: 90vh;
+          overflow-y: auto;
+          animation: modalIn 0.2s ease;
+        }
+
+        @keyframes modalIn {
+          from { opacity: 0; transform: translateY(20px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-lg);
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .modal-header h3 {
+          margin: 0;
+          font-size: 1.25rem;
+          color: var(--text-primary);
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          font-size: 1.25rem;
+          cursor: pointer;
+          padding: var(--spacing-xs);
+        }
+
+        .modal-close:hover {
+          color: var(--text-primary);
+        }
+
+        .submit-form {
+          padding: var(--spacing-lg);
+        }
+
+        .submit-success {
+          background: rgba(34, 197, 94, 0.15);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          color: #22c55e;
+          padding: var(--spacing-md);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--spacing-md);
+          font-weight: 600;
+        }
+
+        .form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .form-field {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-xs);
+        }
+
+        .form-field.full-width {
+          grid-column: 1 / -1;
+        }
+
+        .form-field label {
+          font-size: 0.8125rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
+
+        .form-field input,
+        .form-field select,
+        .form-field textarea {
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 0.9375rem;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .form-field input:focus,
+        .form-field select:focus,
+        .form-field textarea:focus {
+          border-color: var(--accent-primary);
+        }
+
+        .form-field input::placeholder,
+        .form-field textarea::placeholder {
+          color: var(--text-muted);
+        }
+
+        .form-field textarea {
+          resize: vertical;
+          font-family: inherit;
+        }
+
+        .submit-btn {
+          width: 100%;
+          padding: var(--spacing-md);
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: white;
+          border: none;
+          border-radius: var(--radius-lg);
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+          filter: brightness(1.1);
+        }
+
+        .submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
         @media (max-width: 640px) {
           .promo-banner {
             flex-direction: column;
@@ -1304,10 +1925,79 @@ function ClanFinder() {
             align-items: flex-start;
             gap: var(--spacing-xs);
           }
-        }
-          to { opacity: 1; transform: translateY(0); }
+
+          .clan-admin-item {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .clan-admin-actions {
+            width: 100%;
+          }
+
+          .clan-admin-actions .btn {
+            flex: 1;
+          }
+
+          .form-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
+
+      {/* Submit Clan Modal */}
+      {showSubmitModal && (
+        <div className="modal-overlay" onClick={() => setShowSubmitModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>➕ Submit Clan</h3>
+              <button className="modal-close" onClick={() => setShowSubmitModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSubmitClan} className="submit-form">
+              {submitSuccess && <div className="submit-success">{submitSuccess}</div>}
+              <div className="form-grid">
+                <div className="form-field">
+                  <label>Clan Name *</label>
+                  <input type="text" value={submitForm.name} onChange={(e) => handleSubmitFormChange('name', e.target.value)} placeholder="Your clan name" required />
+                </div>
+                <div className="form-field">
+                  <label>Clan Tag *</label>
+                  <input type="text" value={submitForm.clan_tag} onChange={(e) => handleSubmitFormChange('clan_tag', e.target.value)} placeholder="e.g. GGUJU2RC" required />
+                </div>
+                <div className="form-field">
+                  <label>Leader Name *</label>
+                  <input type="text" value={submitForm.leader_name} onChange={(e) => handleSubmitFormChange('leader_name', e.target.value)} placeholder="Your name" required />
+                </div>
+                <div className="form-field">
+                  <label>Location</label>
+                  <input type="text" value={submitForm.location} onChange={(e) => handleSubmitFormChange('location', e.target.value)} placeholder="e.g. Malaysia" />
+                </div>
+                <div className="form-field">
+                  <label>Trophy Requirement</label>
+                  <input type="number" value={submitForm.trophy_requirement} onChange={(e) => handleSubmitFormChange('trophy_requirement', e.target.value)} placeholder="e.g. 5000" />
+                </div>
+                <div className="form-field">
+                  <label>Members Count</label>
+                  <input type="number" value={submitForm.members_count} onChange={(e) => handleSubmitFormChange('members_count', e.target.value)} placeholder="e.g. 25" />
+                </div>
+                <div className="form-field full-width">
+                  <label>Discord Link (optional)</label>
+                  <input type="url" value={submitForm.discord_link} onChange={(e) => handleSubmitFormChange('discord_link', e.target.value)} placeholder="https://discord.gg/..." />
+                </div>
+                <div className="form-field full-width">
+                  <label>Description (optional)</label>
+                  <textarea value={submitForm.description} onChange={(e) => handleSubmitFormChange('description', e.target.value)} placeholder="Tell us about your clan..." rows={3} />
+                </div>
+              </div>
+              <button type="submit" className="submit-btn" disabled={submitLoading}>
+                {submitLoading ? 'Submitting...' : 'Submit for Review'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {adminKey && <ClanAdminPanel adminKey={adminKey} onRefresh={loadCommunityClans} />}
     </div>
   );
 }

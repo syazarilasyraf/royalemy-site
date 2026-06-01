@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import roadmapRouter from './routes/roadmap.js';
 import communityTournamentRouter from './routes/communityTournaments.js';
+import communityClanRouter from './routes/communityClans.js';
 
 dotenv.config();
 
@@ -865,6 +866,7 @@ app.use('/api/roadmap', roadmapRouter);
 // ==================== COMMUNITY TOURNAMENTS ====================
 
 app.use('/api/community-tournaments', communityTournamentRouter);
+app.use('/api/community-clans', communityClanRouter);
 
 // ==================== STATIC FILE SERVING (SPA) ====================
 

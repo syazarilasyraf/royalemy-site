@@ -55,6 +55,22 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_tournaments_status ON community_tournaments(status);
   CREATE INDEX IF NOT EXISTS idx_tournaments_start ON community_tournaments(start_date);
+
+  CREATE TABLE IF NOT EXISTS community_clans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    clan_tag TEXT NOT NULL,
+    description TEXT,
+    leader_name TEXT NOT NULL,
+    discord_link TEXT,
+    trophy_requirement INTEGER,
+    members_count INTEGER,
+    location TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_clans_status ON community_clans(status);
 `);
 
 // Prepared statements
@@ -127,6 +143,27 @@ const statements = {
   ),
   deleteTournament: db.prepare(
     `DELETE FROM community_tournaments WHERE id = ?`
+  ),
+
+  // Community Clans
+  insertClan: db.prepare(
+    `INSERT INTO community_clans (name, clan_tag, description, leader_name, discord_link, trophy_requirement, members_count, location, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ),
+  getApprovedClans: db.prepare(
+    `SELECT * FROM community_clans WHERE status = 'approved' ORDER BY created_at DESC`
+  ),
+  getAllClans: db.prepare(
+    `SELECT * FROM community_clans ORDER BY created_at DESC`
+  ),
+  getClanById: db.prepare(
+    `SELECT * FROM community_clans WHERE id = ?`
+  ),
+  updateClanStatus: db.prepare(
+    `UPDATE community_clans SET status = ? WHERE id = ?`
+  ),
+  deleteClan: db.prepare(
+    `DELETE FROM community_clans WHERE id = ?`
   ),
 
 };
