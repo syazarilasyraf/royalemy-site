@@ -33,6 +33,36 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_features_status ON features(status);
   CREATE INDEX IF NOT EXISTS idx_votes_feature ON votes(feature_id);
+
+  CREATE TABLE IF NOT EXISTS community_tournaments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    host_name TEXT NOT NULL,
+    tournament_tag TEXT,
+    start_date DATETIME NOT NULL,
+    end_date DATETIME,
+    format TEXT DEFAULT '1v1',
+    max_players INTEGER,
+    prize TEXT,
+    discord_link TEXT,
+    contact_info TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    notified_24h INTEGER NOT NULL DEFAULT 0,
+    notified_1h INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tournaments_status ON community_tournaments(status);
+  CREATE INDEX IF NOT EXISTS idx_tournaments_start ON community_tournaments(start_date);
 `);
 
 // Prepared statements
@@ -81,6 +111,47 @@ const statements = {
   ),
   getUserVotes: db.prepare(
     `SELECT feature_id FROM votes WHERE voter_id = ?`
+  ),
+
+  // Community Tournaments
+  insertTournament: db.prepare(
+    `INSERT INTO community_tournaments (name, description, host_name, tournament_tag, start_date, end_date, format, max_players, prize, discord_link, contact_info, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ),
+  getApprovedTournaments: db.prepare(
+    `SELECT * FROM community_tournaments WHERE status = 'approved' AND start_date > datetime('now', '-1 day') ORDER BY start_date ASC`
+  ),
+  getAllTournaments: db.prepare(
+    `SELECT * FROM community_tournaments ORDER BY created_at DESC`
+  ),
+  getTournamentById: db.prepare(
+    `SELECT * FROM community_tournaments WHERE id = ?`
+  ),
+  updateTournamentStatus: db.prepare(
+    `UPDATE community_tournaments SET status = ? WHERE id = ?`
+  ),
+  updateTournamentNotified: db.prepare(
+    `UPDATE community_tournaments SET notified_24h = ?, notified_1h = ? WHERE id = ?`
+  ),
+  getUpcomingTournamentsForNotify: db.prepare(
+    `SELECT * FROM community_tournaments WHERE status = 'approved' AND start_date > datetime('now') AND start_date <= datetime('now', '+24 hours') AND notified_24h = 0`
+  ),
+  getSoonTournamentsForNotify: db.prepare(
+    `SELECT * FROM community_tournaments WHERE status = 'approved' AND start_date > datetime('now') AND start_date <= datetime('now', '+1 hours') AND notified_1h = 0`
+  ),
+
+  // Push Subscriptions
+  insertSubscription: db.prepare(
+    `INSERT OR IGNORE INTO push_subscriptions (endpoint, p256dh, auth) VALUES (?, ?, ?)`
+  ),
+  deleteSubscription: db.prepare(
+    `DELETE FROM push_subscriptions WHERE endpoint = ?`
+  ),
+  getAllSubscriptions: db.prepare(
+    `SELECT * FROM push_subscriptions`
+  ),
+  deleteSubscriptionByEndpoint: db.prepare(
+    `DELETE FROM push_subscriptions WHERE endpoint = ?`
   ),
 };
 

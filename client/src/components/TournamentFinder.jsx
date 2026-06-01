@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
-import { searchTournaments, getTournament, getGlobalTournaments } from '../services/api';
+import {
+  searchTournaments,
+  getTournament,
+  getGlobalTournaments,
+  getCommunityTournaments,
+  submitCommunityTournament,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from '../services/api';
 
 function TournamentFinder() {
   const [searchName, setSearchName] = useState('');
@@ -17,6 +25,28 @@ function TournamentFinder() {
   const [tagLoading, setTagLoading] = useState(false);
   const [tagError, setTagError] = useState('');
 
+  // Community tournaments
+  const [communityTournaments, setCommunityTournaments] = useState([]);
+  const [loadingCommunity, setLoadingCommunity] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState('');
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [submitForm, setSubmitForm] = useState({
+    name: '',
+    host_name: '',
+    description: '',
+    tournament_tag: '',
+    start_date: '',
+    end_date: '',
+    format: '1v1',
+    max_players: '',
+    prize: '',
+    discord_link: '',
+    contact_info: '',
+  });
+
   // Load global tournaments
   const loadGlobalTournaments = async () => {
     setLoadingGlobal(true);
@@ -33,7 +63,148 @@ function TournamentFinder() {
 
   useEffect(() => {
     loadGlobalTournaments();
+    loadCommunityTournaments();
+    checkPushSubscription();
   }, []);
+
+  const loadCommunityTournaments = async () => {
+    setLoadingCommunity(true);
+    try {
+      const data = await getCommunityTournaments();
+      setCommunityTournaments(data.tournaments || []);
+    } catch (err) {
+      console.error('Failed to load community tournaments:', err);
+      setCommunityTournaments([]);
+    } finally {
+      setLoadingCommunity(false);
+    }
+  };
+
+  const checkPushSubscription = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      setPushSubscribed(!!sub);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleNotifyMe = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Push notifications are not supported in your browser.');
+      return;
+    }
+
+    setNotifyLoading(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Notification permission denied.');
+        setNotifyLoading(false);
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      const vapidPublicKey = 'BEA0HRFKiWyh0_PWXjqLEBDY_L3jOSTNRNRpVhFx-5mfYyGvBf6Quu0c8t-Oyn0K0bMaknRqWioTsg-omNPgVoA';
+      const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
+
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedKey,
+      });
+
+      await subscribeToPush(subscription);
+      setPushSubscribed(true);
+    } catch (err) {
+      console.error('Failed to subscribe:', err);
+      alert('Failed to enable notifications. Please try again.');
+    } finally {
+      setNotifyLoading(false);
+    }
+  };
+
+  const handleUnsubscribe = async () => {
+    setNotifyLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await unsubscribeFromPush(sub.endpoint);
+        await sub.unsubscribe();
+      }
+      setPushSubscribed(false);
+    } catch (err) {
+      console.error('Failed to unsubscribe:', err);
+    } finally {
+      setNotifyLoading(false);
+    }
+  };
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  const handleSubmitFormChange = (field, value) => {
+    setSubmitForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmitTournament = async (e) => {
+    e.preventDefault();
+    if (!submitForm.name || !submitForm.host_name || !submitForm.start_date) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    setSubmitLoading(true);
+    try {
+      await submitCommunityTournament(submitForm);
+      setSubmitSuccess('Tournament submitted for review!');
+      setSubmitForm({
+        name: '',
+        host_name: '',
+        description: '',
+        tournament_tag: '',
+        start_date: '',
+        end_date: '',
+        format: '1v1',
+        max_players: '',
+        prize: '',
+        discord_link: '',
+        contact_info: '',
+      });
+      setTimeout(() => {
+        setSubmitSuccess('');
+        setShowSubmitModal(false);
+      }, 2000);
+    } catch (err) {
+      alert('Failed to submit tournament. Please try again.');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const getTournamentBadge = (startDate) => {
+    const now = new Date();
+    const start = new Date(startDate);
+    const diff = start - now;
+
+    if (diff <= 0) return { label: 'Live', color: '#22c55e', bg: 'rgba(34,197,94,0.15)' };
+    if (diff < 3600000) return { label: '< 1 hour', color: '#ef4444', bg: 'rgba(239,68,68,0.15)' };
+    if (diff < 86400000) return { label: '< 24 hours', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)' };
+    const days = Math.ceil(diff / 86400000);
+    return { label: `In ${days} days`, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' };
+  };
 
   const handleRefresh = () => {
     loadGlobalTournaments();
@@ -244,28 +415,76 @@ function TournamentFinder() {
             )}
           </section>
 
-          {/* Community Section - Coming Soon */}
+          {/* Community Tournaments */}
           <section className="community-section">
-            <h3>👥 Community Tournaments</h3>
-            <p className="section-subtitle">Discover player-created tournaments</p>
-            
-            <div className="coming-soon-grid">
-              <ComingSoonCard 
-                icon="🔍"
-                title="Tournament Search"
-                description="Search for player-created tournaments by name or keyword"
-              />
-              <ComingSoonCard 
-                icon="🇲🇾"
-                title="Malaysian Tournaments"
-                description="Discover tournaments hosted by Malaysian players"
-              />
-              <ComingSoonCard 
-                icon="✨"
-                title="Tournament Discovery"
-                description="Browse trending and recommended tournaments"
-              />
+            <div className="section-header">
+              <div>
+                <h3>👥 Community Tournaments</h3>
+                <p className="section-subtitle">Upcoming tournaments submitted by the community</p>
+              </div>
+              <div className="community-actions">
+                <button
+                  className="notify-btn"
+                  onClick={pushSubscribed ? handleUnsubscribe : handleNotifyMe}
+                  disabled={notifyLoading}
+                >
+                  {notifyLoading ? '⟳' : pushSubscribed ? '🔕 Unsubscribe' : '🔔 Notify Me'}
+                </button>
+                <button
+                  className="submit-tournament-btn"
+                  onClick={() => setShowSubmitModal(true)}
+                >
+                  ➕ Submit Tournament
+                </button>
+              </div>
             </div>
+
+            {loadingCommunity ? (
+              <div className="loading-state">
+                <div className="loading-spinner"></div>
+                <p>Loading community tournaments...</p>
+              </div>
+            ) : communityTournaments.length > 0 ? (
+              <div className="community-tournament-list">
+                {communityTournaments.map((t) => {
+                  const badge = getTournamentBadge(t.start_date);
+                  return (
+                    <div key={t.id} className="community-tournament-card">
+                      <div className="ct-card-header">
+                        <span className="ct-badge" style={{ color: badge.color, background: badge.bg }}>
+                          {badge.label}
+                        </span>
+                        <span className="ct-format">{t.format}</span>
+                      </div>
+                      <h4 className="ct-name">{t.name}</h4>
+                      <p className="ct-host">Hosted by {t.host_name}</p>
+                      {t.description && <p className="ct-desc">{t.description}</p>}
+                      <div className="ct-meta">
+                        <span>📅 {formatDate(t.start_date)}</span>
+                        {t.max_players && <span>👥 {t.max_players} players</span>}
+                        {t.prize && <span>🏆 {t.prize}</span>}
+                      </div>
+                      <div className="ct-links">
+                        {t.discord_link && (
+                          <a href={t.discord_link} target="_blank" rel="noopener noreferrer" className="ct-discord">
+                            💬 Discord
+                          </a>
+                        )}
+                        {t.tournament_tag && (
+                          <span className="ct-tag">#{t.tournament_tag}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-state-box">
+                <div className="empty-icon">🏆</div>
+                <h4>No community tournaments yet</h4>
+                <p className="empty-helper">Be the first to submit a tournament!</p>
+              </div>
+            )}
           </section>
 
           {/* Check Tournament by Tag */}
@@ -316,17 +535,129 @@ function TournamentFinder() {
             )}
           </section>
 
-          {/* Malaysian Tournament Card */}
-          <section className="malaysia-section">
-            <div className="malaysia-card">
-              <div className="mc-icon">🇲🇾</div>
-              <div className="mc-content">
-                <h4>Malaysian Tournaments</h4>
-                <p>Discover tournaments hosted by Malaysian players</p>
+          {/* Submit Tournament Modal */}
+          {showSubmitModal && (
+            <div className="modal-overlay" onClick={() => setShowSubmitModal(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>➕ Submit Tournament</h3>
+                  <button className="modal-close" onClick={() => setShowSubmitModal(false)}>✕</button>
+                </div>
+                <form onSubmit={handleSubmitTournament} className="submit-form">
+                  {submitSuccess && <div className="submit-success">{submitSuccess}</div>}
+                  <div className="form-grid">
+                    <div className="form-field">
+                      <label>Tournament Name *</label>
+                      <input
+                        type="text"
+                        value={submitForm.name}
+                        onChange={(e) => handleSubmitFormChange('name', e.target.value)}
+                        placeholder="e.g. RoyaleMY Weekly Cup"
+                        required
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Host Name *</label>
+                      <input
+                        type="text"
+                        value={submitForm.host_name}
+                        onChange={(e) => handleSubmitFormChange('host_name', e.target.value)}
+                        placeholder="Your name or clan"
+                        required
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Start Date & Time *</label>
+                      <input
+                        type="datetime-local"
+                        value={submitForm.start_date}
+                        onChange={(e) => handleSubmitFormChange('start_date', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>End Date & Time (optional)</label>
+                      <input
+                        type="datetime-local"
+                        value={submitForm.end_date}
+                        onChange={(e) => handleSubmitFormChange('end_date', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Format</label>
+                      <select
+                        value={submitForm.format}
+                        onChange={(e) => handleSubmitFormChange('format', e.target.value)}
+                      >
+                        <option value="1v1">1v1</option>
+                        <option value="2v2">2v2</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Triple Elixir">Triple Elixir</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="form-field">
+                      <label>Max Players</label>
+                      <input
+                        type="number"
+                        value={submitForm.max_players}
+                        onChange={(e) => handleSubmitFormChange('max_players', e.target.value)}
+                        placeholder="e.g. 50"
+                      />
+                    </div>
+                    <div className="form-field full-width">
+                      <label>Tournament Tag (optional)</label>
+                      <input
+                        type="text"
+                        value={submitForm.tournament_tag}
+                        onChange={(e) => handleSubmitFormChange('tournament_tag', e.target.value)}
+                        placeholder="Clash Royale tournament tag"
+                      />
+                    </div>
+                    <div className="form-field full-width">
+                      <label>Prize (optional)</label>
+                      <input
+                        type="text"
+                        value={submitForm.prize}
+                        onChange={(e) => handleSubmitFormChange('prize', e.target.value)}
+                        placeholder="e.g. 1000 Gems"
+                      />
+                    </div>
+                    <div className="form-field full-width">
+                      <label>Discord Link (optional)</label>
+                      <input
+                        type="url"
+                        value={submitForm.discord_link}
+                        onChange={(e) => handleSubmitFormChange('discord_link', e.target.value)}
+                        placeholder="https://discord.gg/..."
+                      />
+                    </div>
+                    <div className="form-field full-width">
+                      <label>Contact Info (optional)</label>
+                      <input
+                        type="text"
+                        value={submitForm.contact_info}
+                        onChange={(e) => handleSubmitFormChange('contact_info', e.target.value)}
+                        placeholder="Discord username, email, etc."
+                      />
+                    </div>
+                    <div className="form-field full-width">
+                      <label>Description (optional)</label>
+                      <textarea
+                        value={submitForm.description}
+                        onChange={(e) => handleSubmitFormChange('description', e.target.value)}
+                        placeholder="Rules, requirements, additional info..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  <button type="submit" className="submit-btn" disabled={submitLoading}>
+                    {submitLoading ? 'Submitting...' : 'Submit for Review'}
+                  </button>
+                </form>
               </div>
-              <span className="mc-badge">Coming Soon</span>
             </div>
-          </section>
+          )}
 
           {/* Search Results (if any) */}
           {tournaments.length > 0 && (
@@ -986,6 +1317,297 @@ function TournamentFinder() {
         }
 
         /* Mobile Responsive */
+        /* Community Tournament Cards */
+        .community-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+          flex-wrap: wrap;
+        }
+
+        .notify-btn {
+          padding: var(--spacing-xs) var(--spacing-md);
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .notify-btn:hover {
+          background: var(--accent-primary);
+          color: white;
+          border-color: var(--accent-primary);
+        }
+
+        .submit-tournament-btn {
+          padding: var(--spacing-xs) var(--spacing-md);
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          border: none;
+          border-radius: var(--radius-md);
+          color: white;
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .submit-tournament-btn:hover {
+          filter: brightness(1.1);
+        }
+
+        .community-tournament-list {
+          display: grid;
+          gap: var(--spacing-md);
+        }
+
+        .community-tournament-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+          transition: all 0.2s;
+        }
+
+        .community-tournament-card:hover {
+          border-color: var(--accent-primary);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .ct-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .ct-badge {
+          padding: 4px 12px;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 700;
+        }
+
+        .ct-format {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          background: var(--bg-tertiary);
+          padding: 4px 10px;
+          border-radius: var(--radius-full);
+          font-weight: 600;
+        }
+
+        .ct-name {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0 0 var(--spacing-xs);
+        }
+
+        .ct-host {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          margin: 0 0 var(--spacing-sm);
+        }
+
+        .ct-desc {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          margin: 0 0 var(--spacing-sm);
+          line-height: 1.5;
+        }
+
+        .ct-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .ct-meta span {
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          background: var(--bg-primary);
+          padding: 4px 10px;
+          border-radius: var(--radius-md);
+        }
+
+        .ct-links {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+
+        .ct-discord {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          background: #5865f2;
+          color: white;
+          text-decoration: none;
+          border-radius: var(--radius-md);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .ct-discord:hover {
+          background: #4752c4;
+        }
+
+        .ct-tag {
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          font-family: monospace;
+        }
+
+        /* Modal */
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 200;
+          padding: var(--spacing-md);
+          backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          width: 100%;
+          max-width: 560px;
+          max-height: 90vh;
+          overflow-y: auto;
+          animation: modalIn 0.2s ease;
+        }
+
+        @keyframes modalIn {
+          from { opacity: 0; transform: translateY(20px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-lg);
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .modal-header h3 {
+          margin: 0;
+          font-size: 1.25rem;
+          color: var(--text-primary);
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          font-size: 1.25rem;
+          cursor: pointer;
+          padding: var(--spacing-xs);
+        }
+
+        .modal-close:hover {
+          color: var(--text-primary);
+        }
+
+        .submit-form {
+          padding: var(--spacing-lg);
+        }
+
+        .submit-success {
+          background: rgba(34, 197, 94, 0.15);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          color: #22c55e;
+          padding: var(--spacing-md);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--spacing-md);
+          font-weight: 600;
+        }
+
+        .form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .form-field {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-xs);
+        }
+
+        .form-field.full-width {
+          grid-column: 1 / -1;
+        }
+
+        .form-field label {
+          font-size: 0.8125rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
+
+        .form-field input,
+        .form-field select,
+        .form-field textarea {
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 0.9375rem;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .form-field input:focus,
+        .form-field select:focus,
+        .form-field textarea:focus {
+          border-color: var(--accent-primary);
+        }
+
+        .form-field input::placeholder,
+        .form-field textarea::placeholder {
+          color: var(--text-muted);
+        }
+
+        .form-field textarea {
+          resize: vertical;
+          font-family: inherit;
+        }
+
+        .submit-btn {
+          width: 100%;
+          padding: var(--spacing-md);
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: white;
+          border: none;
+          border-radius: var(--radius-lg);
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+          filter: brightness(1.1);
+        }
+
+        .submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
         @media (max-width: 640px) {
           .section-header {
             flex-direction: column;
@@ -999,10 +1621,6 @@ function TournamentFinder() {
             grid-template-columns: 1fr;
           }
 
-          .coming-soon-grid {
-            grid-template-columns: 1fr;
-          }
-
           .tag-input-wrapper {
             flex-direction: column;
           }
@@ -1011,9 +1629,17 @@ function TournamentFinder() {
             display: none;
           }
 
-          .malaysia-card {
-            flex-direction: column;
-            text-align: center;
+          .form-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .community-actions {
+            width: 100%;
+            justify-content: stretch;
+          }
+
+          .community-actions button {
+            flex: 1;
           }
         }
       `}</style>
