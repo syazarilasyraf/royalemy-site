@@ -1,6 +1,15 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+
+const DESKTOP_LINKS = [
+  { to: '/player', label: 'Players' },
+  { to: '/deck', label: 'Decks' },
+  { to: '/arenadecks', label: 'Arena Decks' },
+  { to: '/roadmap', label: 'Roadmap' },
+];
 
 function Header() {
+  const location = useLocation();
+
   return (
     <header className="app-header">
       <div className="header-content">
@@ -8,6 +17,19 @@ function Header() {
           <span className="logo-icon">👑</span>
           <span className="logo-text">RoyaleMY</span>
         </Link>
+
+        <nav className="desktop-nav">
+          {DESKTOP_LINKS.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className={`desktop-nav-link ${location.pathname === link.to ? 'active' : ''}`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
         <a
           href="https://discord.gg/gWXeAqjSYH"
           target="_blank"
@@ -56,6 +78,28 @@ function Header() {
           -webkit-text-fill-color: transparent;
         }
 
+        .desktop-nav {
+          display: none;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+
+        .desktop-nav-link {
+          padding: var(--spacing-sm) var(--spacing-md);
+          color: var(--text-secondary);
+          text-decoration: none;
+          font-size: 0.875rem;
+          font-weight: 600;
+          border-radius: var(--radius-lg);
+          transition: all 0.2s ease;
+        }
+
+        .desktop-nav-link:hover,
+        .desktop-nav-link.active {
+          color: var(--text-primary);
+          background: var(--bg-tertiary);
+        }
+
         .header-discord-btn {
           display: inline-flex;
           align-items: center;
@@ -73,6 +117,12 @@ function Header() {
         .header-discord-btn:hover {
           background: #4752c4;
           transform: translateY(-1px);
+        }
+
+        @media (min-width: 768px) {
+          .desktop-nav {
+            display: flex;
+          }
         }
       `}</style>
     </header>

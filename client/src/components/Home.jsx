@@ -29,6 +29,7 @@ const ALL_TOOLS = [
   { id: 'tournaments', icon: '🎯', title: 'Tournaments', desc: 'Find & join tournaments' },
   { id: 'arenadecks', icon: '🃏', title: 'Arena Decks', desc: 'Best decks by arena' },
   { id: 'tools/deck-max-calculator', icon: '⏱️', title: 'Deck Max Calc', desc: 'Time to max your deck' },
+  { id: 'roadmap', icon: '🗺️', title: 'Roadmap', desc: 'Vote on upcoming features' },
 ];
 
 function Home() {
