@@ -7,7 +7,6 @@ import ClanFinder from './components/ClanFinder';
 import TournamentFinder from './components/TournamentFinder';
 import ArenaDeckRecommender from './components/ArenaDeckRecommender';
 import MYRankings from './components/MYRankings';
-import DeckMaxCalculator from './components/DeckMaxCalculator';
 import More from './components/More';
 import Roadmap from './components/Roadmap';
 
@@ -15,7 +14,6 @@ const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
   { id: 'player', label: 'Players', icon: '👤' },
   { id: 'arenadecks', label: 'Decks', icon: '🃏' },
-  { id: 'tools/deck-max-calculator', label: 'Calc', icon: '⏱️' },
   { id: 'roadmap', label: 'Roadmap', icon: '🗺️' },
   { id: 'more', label: 'More', icon: '⋮' },
 ];
@@ -82,7 +80,6 @@ function App() {
           <Route path="/tournaments" element={<TournamentFinder />} />
           <Route path="/arenadecks" element={<ArenaDeckRecommender />} />
           <Route path="/rankings" element={<MYRankings />} />
-          <Route path="/tools/deck-max-calculator" element={<DeckMaxCalculator />} />
           <Route path="/more" element={<More />} />
           <Route path="/roadmap" element={<Roadmap />} />
           <Route path="*" element={<Navigate to="/" replace />} />
