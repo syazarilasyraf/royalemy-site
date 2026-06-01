@@ -1,11 +1,179 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   searchTournaments,
   getTournament,
   getGlobalTournaments,
   getCommunityTournaments,
   submitCommunityTournament,
+  getAdminTournaments,
+  approveTournament,
+  rejectTournament,
+  updateTournamentStatus,
+  deleteTournament,
 } from '../services/api';
+
+const STATUS_LABELS = {
+  pending: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+};
+
+const STATUS_BADGES = {
+  pending: 'badge-warning',
+  approved: 'badge-success',
+  rejected: 'badge-danger',
+};
+
+// ==================== ADMIN PANEL ====================
+
+function AdminPanel({ adminKey, onRefresh }) {
+  const [allTournaments, setAllTournaments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const fetchAdminData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getAdminTournaments(adminKey);
+      setAllTournaments(data.tournaments || []);
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey]);
+
+  useEffect(() => {
+    fetchAdminData();
+  }, [fetchAdminData]);
+
+  const handleApprove = async (id) => {
+    try {
+      await approveTournament(id, adminKey);
+      setMessage('Tournament approved');
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      await rejectTournament(id, adminKey);
+      setMessage('Tournament rejected');
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this tournament?')) return;
+    try {
+      await deleteTournament(id, adminKey);
+      setMessage('Tournament deleted');
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleStatusChange = async (id, status) => {
+    try {
+      await updateTournamentStatus(id, status, adminKey);
+      setMessage(`Status updated to ${STATUS_LABELS[status]}`);
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const pending = allTournaments.filter((t) => t.status === 'pending');
+
+  return (
+    <div className="tournament-admin">
+      <h2 className="tournament-admin-title">🛡️ Admin Panel</h2>
+      {message && (
+        <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
+          {message}
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <div className="tournament-admin-section">
+          <h3>Pending Review ({pending.length})</h3>
+          <div className="tournament-admin-list">
+            {pending.map((t) => (
+              <div key={t.id} className="tournament-admin-item">
+                <div>
+                  <strong>{t.name}</strong>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    {t.host_name} — {t.start_date}
+                  </p>
+                </div>
+                <div className="tournament-admin-actions">
+                  <button className="btn btn-success btn-sm" onClick={() => handleApprove(t.id)}>
+                    Approve
+                  </button>
+                  <button className="btn btn-danger btn-sm" onClick={() => handleReject(t.id)}>
+                    Reject
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="tournament-admin-section">
+        <h3>All Tournaments</h3>
+        <div className="tournament-admin-list">
+          {allTournaments.map((t) => (
+            <div key={t.id} className="tournament-admin-item">
+              <div>
+                <strong>{t.name}</strong>
+                <span
+                  className={`badge ${STATUS_BADGES[t.status] || 'badge-secondary'}`}
+                  style={{ marginLeft: '8px' }}
+                >
+                  {STATUS_LABELS[t.status]}
+                </span>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  {t.host_name} — {t.start_date}
+                </p>
+              </div>
+              <div className="tournament-admin-actions">
+                <select
+                  className="input"
+                  style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}
+                  value={t.status}
+                  onChange={(e) => handleStatusChange(t.id, e.target.value)}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== MAIN COMPONENT ====================
 
 function TournamentFinder() {
   const [searchName, setSearchName] = useState('');
@@ -16,6 +184,9 @@ function TournamentFinder() {
   const [view, setView] = useState('search');
   const [globalTournaments, setGlobalTournaments] = useState([]);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const adminKey = searchParams.get('admin');
   
   // Tournament tag checker
   const [tagInput, setTagInput] = useState('');
@@ -89,7 +260,7 @@ function TournamentFinder() {
     setSubmitLoading(true);
     try {
       await submitCommunityTournament(submitForm);
-      setSubmitSuccess('Tournament submitted for review!');
+      setSubmitSuccess('Tournament submitted for review! It will appear after admin approval.');
       setSubmitForm({
         name: '',
         host_name: '',
@@ -714,6 +885,8 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           )}
         </div>
       )}
+
+      {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
 
       <style>{`
         .tournament-finder {
@@ -1582,6 +1755,125 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           cursor: not-allowed;
         }
 
+        /* Admin Panel */
+        .tournament-admin {
+          margin-top: var(--spacing-xl);
+          padding-top: var(--spacing-xl);
+          border-top: 2px solid var(--bg-tertiary);
+        }
+
+        .tournament-admin-title {
+          font-size: 1.25rem;
+          margin-bottom: var(--spacing-lg);
+          color: var(--text-primary);
+        }
+
+        .tournament-admin-section {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .tournament-admin-section h3 {
+          font-size: 0.875rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: var(--spacing-md);
+        }
+
+        .tournament-admin-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .tournament-admin-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-lg);
+        }
+
+        .tournament-admin-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+          flex-shrink: 0;
+          align-items: center;
+        }
+
+        .btn {
+          padding: var(--spacing-xs) var(--spacing-sm);
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-success {
+          background: #22c55e;
+          color: white;
+        }
+
+        .btn-success:hover {
+          background: #16a34a;
+        }
+
+        .btn-danger {
+          background: #ef4444;
+          color: white;
+        }
+
+        .btn-danger:hover {
+          background: #dc2626;
+        }
+
+        .btn-secondary {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+          background: var(--text-muted);
+          color: white;
+        }
+
+        .badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: var(--radius-full);
+          font-size: 0.7rem;
+          font-weight: 700;
+        }
+
+        .badge-warning {
+          background: rgba(245, 158, 11, 0.15);
+          color: #f59e0b;
+        }
+
+        .badge-success {
+          background: rgba(34, 197, 94, 0.15);
+          color: #22c55e;
+        }
+
+        .badge-danger {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .alert-success {
+          background: rgba(34, 197, 94, 0.15);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          color: #22c55e;
+          padding: var(--spacing-md);
+          border-radius: var(--radius-lg);
+          font-weight: 600;
+        }
+
         @media (max-width: 640px) {
           .section-header {
             flex-direction: column;
@@ -1613,6 +1905,19 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           }
 
           .community-actions button {
+            flex: 1;
+          }
+
+          .tournament-admin-item {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .tournament-admin-actions {
+            width: 100%;
+          }
+
+          .tournament-admin-actions .btn {
             flex: 1;
           }
         }

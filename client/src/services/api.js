@@ -209,8 +209,27 @@ export function getAdminTournaments(key) {
   return fetchAPI(`/community-tournaments/admin?key=${encodeURIComponent(key)}`);
 }
 
+export function approveTournament(id, key) {
+  return fetchAPI(`/community-tournaments/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function rejectTournament(id, key) {
+  return fetchAPI(`/community-tournaments/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function updateTournamentStatus(id, status, key) {
+  return fetchAPI(`/community-tournaments/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify({ status })
+  });
+}
+
 export function deleteTournament(id, key) {
-  return fetchAPI(`/community-tournaments/${id}?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-tournaments/admin/${id}?key=${encodeURIComponent(key)}`, {
     method: 'DELETE'
   });
 }
