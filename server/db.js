@@ -53,14 +53,6 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS push_subscriptions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    endpoint TEXT NOT NULL UNIQUE,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
   CREATE INDEX IF NOT EXISTS idx_tournaments_status ON community_tournaments(status);
   CREATE INDEX IF NOT EXISTS idx_tournaments_start ON community_tournaments(start_date);
 `);
@@ -133,26 +125,7 @@ const statements = {
   updateTournamentNotified: db.prepare(
     `UPDATE community_tournaments SET notified_24h = ?, notified_1h = ? WHERE id = ?`
   ),
-  getUpcomingTournamentsForNotify: db.prepare(
-    `SELECT * FROM community_tournaments WHERE status = 'approved' AND start_date > datetime('now') AND start_date <= datetime('now', '+24 hours') AND notified_24h = 0`
-  ),
-  getSoonTournamentsForNotify: db.prepare(
-    `SELECT * FROM community_tournaments WHERE status = 'approved' AND start_date > datetime('now') AND start_date <= datetime('now', '+1 hours') AND notified_1h = 0`
-  ),
 
-  // Push Subscriptions
-  insertSubscription: db.prepare(
-    `INSERT OR IGNORE INTO push_subscriptions (endpoint, p256dh, auth) VALUES (?, ?, ?)`
-  ),
-  deleteSubscription: db.prepare(
-    `DELETE FROM push_subscriptions WHERE endpoint = ?`
-  ),
-  getAllSubscriptions: db.prepare(
-    `SELECT * FROM push_subscriptions`
-  ),
-  deleteSubscriptionByEndpoint: db.prepare(
-    `DELETE FROM push_subscriptions WHERE endpoint = ?`
-  ),
 };
 
 export { db, statements };

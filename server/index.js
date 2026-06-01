@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import roadmapRouter from './routes/roadmap.js';
-import communityTournamentRouter, { startNotificationScheduler } from './routes/communityTournaments.js';
+import communityTournamentRouter from './routes/communityTournaments.js';
 
 dotenv.config();
 
@@ -865,9 +865,6 @@ app.use('/api/roadmap', roadmapRouter);
 // ==================== COMMUNITY TOURNAMENTS ====================
 
 app.use('/api/community-tournaments', communityTournamentRouter);
-
-// Start push notification scheduler
-startNotificationScheduler();
 
 // ==================== STATIC FILE SERVING (SPA) ====================
 

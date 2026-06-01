@@ -5,8 +5,6 @@ import {
   getGlobalTournaments,
   getCommunityTournaments,
   submitCommunityTournament,
-  subscribeToPush,
-  unsubscribeFromPush,
 } from '../services/api';
 
 function TournamentFinder() {
@@ -31,8 +29,6 @@ function TournamentFinder() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
-  const [pushSubscribed, setPushSubscribed] = useState(false);
-  const [notifyLoading, setNotifyLoading] = useState(false);
   const [submitForm, setSubmitForm] = useState({
     name: '',
     host_name: '',
@@ -64,7 +60,6 @@ function TournamentFinder() {
   useEffect(() => {
     loadGlobalTournaments();
     loadCommunityTournaments();
-    checkPushSubscription();
   }, []);
 
   const loadCommunityTournaments = async () => {
@@ -79,81 +74,6 @@ function TournamentFinder() {
       setLoadingCommunity(false);
     }
   };
-
-  const checkPushSubscription = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      setPushSubscribed(!!sub);
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  const handleNotifyMe = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Push notifications are not supported in your browser.');
-      return;
-    }
-
-    setNotifyLoading(true);
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        alert('Notification permission denied.');
-        setNotifyLoading(false);
-        return;
-      }
-
-      const reg = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
-
-      const vapidPublicKey = 'BEA0HRFKiWyh0_PWXjqLEBDY_L3jOSTNRNRpVhFx-5mfYyGvBf6Quu0c8t-Oyn0K0bMaknRqWioTsg-omNPgVoA';
-      const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
-
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedKey,
-      });
-
-      await subscribeToPush(subscription);
-      setPushSubscribed(true);
-    } catch (err) {
-      console.error('Failed to subscribe:', err);
-      alert('Failed to enable notifications. Please try again.');
-    } finally {
-      setNotifyLoading(false);
-    }
-  };
-
-  const handleUnsubscribe = async () => {
-    setNotifyLoading(true);
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await unsubscribeFromPush(sub.endpoint);
-        await sub.unsubscribe();
-      }
-      setPushSubscribed(false);
-    } catch (err) {
-      console.error('Failed to unsubscribe:', err);
-    } finally {
-      setNotifyLoading(false);
-    }
-  };
-
-  function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-    const rawData = atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  }
 
   const handleSubmitFormChange = (field, value) => {
     setSubmitForm((prev) => ({ ...prev, [field]: value }));
@@ -186,12 +106,69 @@ function TournamentFinder() {
       setTimeout(() => {
         setSubmitSuccess('');
         setShowSubmitModal(false);
-      }, 2000);
+        loadCommunityTournaments();
+      }, 1500);
     } catch (err) {
       alert('Failed to submit tournament. Please try again.');
     } finally {
       setSubmitLoading(false);
     }
+  };
+
+  const generateICS = (t) => {
+    const formatICSDate = (d) => {
+      const date = new Date(d);
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+    const dtStart = formatICSDate(t.start_date);
+    const dtEnd = formatICSDate(t.end_date || t.start_date);
+    const uid = `tournament-${t.id}@royalemy.gg`;
+    const desc = [t.description, t.host_name ? `Host: ${t.host_name}` : '', t.discord_link ? `Discord: ${t.discord_link}` : ''].filter(Boolean).join('\\n');
+
+    return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//RoyaleMY//Community Tournament//EN
+BEGIN:VEVENT
+UID:${uid}
+DTSTART:${dtStart}
+DTEND:${dtEnd}
+SUMMARY:${t.name}
+DESCRIPTION:${desc}
+LOCATION:${t.discord_link || 'Clash Royale'}
+END:VEVENT
+END:VCALENDAR`;
+  };
+
+  const downloadICS = (t) => {
+    const ics = generateICS(t);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${t.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const shareTournament = async (t) => {
+    const text = `🏆 ${t.name}
+📅 ${formatDate(t.start_date)}
+👤 Host: ${t.host_name}
+🎮 Format: ${t.format}
+${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discord: ' + t.discord_link + '\n' : ''}🔗 https://royalemy.netlify.app/tournaments`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: t.name, text });
+        return;
+      } catch (e) {
+        // fallback to clipboard
+      }
+    }
+    await navigator.clipboard.writeText(text);
+    alert('Tournament details copied to clipboard!');
   };
 
   const getTournamentBadge = (startDate) => {
@@ -424,13 +401,6 @@ function TournamentFinder() {
               </div>
               <div className="community-actions">
                 <button
-                  className="notify-btn"
-                  onClick={pushSubscribed ? handleUnsubscribe : handleNotifyMe}
-                  disabled={notifyLoading}
-                >
-                  {notifyLoading ? '⟳' : pushSubscribed ? '🔕 Unsubscribe' : '🔔 Notify Me'}
-                </button>
-                <button
                   className="submit-tournament-btn"
                   onClick={() => setShowSubmitModal(true)}
                 >
@@ -464,15 +434,18 @@ function TournamentFinder() {
                         {t.max_players && <span>👥 {t.max_players} players</span>}
                         {t.prize && <span>🏆 {t.prize}</span>}
                       </div>
-                      <div className="ct-links">
+                      <div className="ct-actions">
                         {t.discord_link && (
                           <a href={t.discord_link} target="_blank" rel="noopener noreferrer" className="ct-discord">
                             💬 Discord
                           </a>
                         )}
-                        {t.tournament_tag && (
-                          <span className="ct-tag">#{t.tournament_tag}</span>
-                        )}
+                        <button className="ct-calendar" onClick={() => downloadICS(t)}>
+                          📅 Add to Calendar
+                        </button>
+                        <button className="ct-share" onClick={() => shareTournament(t)}>
+                          🔗 Share
+                        </button>
                       </div>
                     </div>
                   );
@@ -1324,23 +1297,6 @@ function TournamentFinder() {
           flex-wrap: wrap;
         }
 
-        .notify-btn {
-          padding: var(--spacing-xs) var(--spacing-md);
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-md);
-          color: var(--text-primary);
-          font-size: 0.875rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .notify-btn:hover {
-          background: var(--accent-primary);
-          color: white;
-          border-color: var(--accent-primary);
-        }
-
         .submit-tournament-btn {
           padding: var(--spacing-xs) var(--spacing-md);
           background: linear-gradient(135deg, #22c55e, #16a34a);
@@ -1434,8 +1390,9 @@ function TournamentFinder() {
           border-radius: var(--radius-md);
         }
 
-        .ct-links {
+        .ct-actions {
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
           gap: var(--spacing-sm);
         }
@@ -1458,10 +1415,27 @@ function TournamentFinder() {
           background: #4752c4;
         }
 
-        .ct-tag {
+        .ct-calendar,
+        .ct-share {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          color: var(--text-secondary);
+          border-radius: var(--radius-md);
           font-size: 0.8125rem;
-          color: var(--text-muted);
-          font-family: monospace;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .ct-calendar:hover,
+        .ct-share:hover {
+          background: var(--accent-primary);
+          color: white;
+          border-color: var(--accent-primary);
         }
 
         /* Modal */

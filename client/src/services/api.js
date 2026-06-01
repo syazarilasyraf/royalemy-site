@@ -194,40 +194,14 @@ export function getCommunityTournaments() {
   return fetchAPI('/community-tournaments');
 }
 
+export function getCommunityTournament(id) {
+  return fetchAPI(`/community-tournaments/${id}`);
+}
+
 export function submitCommunityTournament(data) {
   return fetchAPI('/community-tournaments', {
     method: 'POST',
     body: JSON.stringify(data)
-  });
-}
-
-export function subscribeToPush(subscription) {
-  return fetchAPI('/community-tournaments/subscribe', {
-    method: 'POST',
-    body: JSON.stringify(subscription)
-  });
-}
-
-export function unsubscribeFromPush(endpoint) {
-  return fetchAPI('/community-tournaments/unsubscribe', {
-    method: 'POST',
-    body: JSON.stringify({ endpoint })
-  });
-}
-
-export function getAdminTournaments(key) {
-  return fetchAPI(`/community-tournaments/admin?key=${encodeURIComponent(key)}`);
-}
-
-export function approveTournament(id, key) {
-  return fetchAPI(`/community-tournaments/${id}/approve?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
-  });
-}
-
-export function rejectTournament(id, key) {
-  return fetchAPI(`/community-tournaments/${id}/reject?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
   });
 }
 
