@@ -246,6 +246,8 @@ async function fetchFromCR(endpoint, cacheKey, ttl) {
   }
 }
 
+export { fetchFromCR };
+
 // ==================== API ROUTES ====================
 
 // Health check

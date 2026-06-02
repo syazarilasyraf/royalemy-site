@@ -1,6 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
+import { fetchFromCR } from '../index.js';
 
 const router = express.Router();
 
@@ -14,6 +15,11 @@ function log(level, message, data = null) {
   } else {
     console.log(`${prefix} [${timestamp}] ${message}`);
   }
+}
+
+function sanitizeTag(tag) {
+  if (!tag) return '';
+  return tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 }
 
 function getAdminKey() {
@@ -157,27 +163,40 @@ router.get('/:id', (req, res) => {
   }
 });
 
-router.post('/', submitLimiter, (req, res) => {
+router.post('/', submitLimiter, async (req, res) => {
   try {
-    const {
-      name, clan_tag, description, leader_name,
-      discord_link, trophy_requirement, members_count, location
-    } = req.body;
+    const { clan_tag } = req.body;
 
-    if (!name || !clan_tag || !leader_name) {
-      return res.status(400).json({ error: 'Name, clan tag, and leader name are required' });
+    if (!clan_tag) {
+      return res.status(400).json({ error: 'Clan tag is required' });
+    }
+
+    const cleanTag = sanitizeTag(clan_tag);
+    if (!cleanTag || cleanTag.length < 3) {
+      return res.status(400).json({ error: 'Invalid clan tag' });
+    }
+
+    // Fetch clan data from Clash Royale API
+    let clanData;
+    try {
+      clanData = await fetchFromCR(`/clans/%23${cleanTag}`, `community-clan-${cleanTag}`, 60);
+    } catch (error) {
+      return res.status(400).json({ error: 'Could not find clan with that tag. Please check and try again.' });
     }
 
     const result = statements.insertClan.run(
-      name, clan_tag, description || '', leader_name,
-      discord_link || '',
-      trophy_requirement ? parseInt(trophy_requirement) : null,
-      members_count ? parseInt(members_count) : null,
-      location || '',
+      clanData.name || '',
+      cleanTag,
+      clanData.description || '',
+      'Unknown',
+      '',
+      clanData.requiredTrophies || null,
+      clanData.members || null,
+      '',
       'pending'
     );
 
-    log('success', `Clan submitted: ${name} (ID: ${result.lastInsertRowid})`);
+    log('success', `Clan submitted: ${clanData.name} (ID: ${result.lastInsertRowid})`);
     res.status(201).json({ id: result.lastInsertRowid, message: 'Clan submitted for review' });
   } catch (error) {
     log('error', `Failed to submit clan: ${error.message}`);
