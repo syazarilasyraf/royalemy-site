@@ -121,7 +121,7 @@ app.use(cors({
   origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
@@ -915,7 +915,6 @@ app.listen(PORT, () => {
   console.log(`⚡ Rate Limit: 60 req/min per IP`);
   console.log(`💾 Cache: Enabled with TTL`);
   console.log('');
-  console.log('Expose to internet: ngrok http 3001');
   console.log(`Frontend should point to: ${FRONTEND_URL}`);
   console.log('');
   console.log('Ready for viewers! 👥');
