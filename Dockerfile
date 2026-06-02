@@ -4,10 +4,14 @@ FROM node:20
 # Working directory
 WORKDIR /app
 
-# Copy package files first
+# Copy root package files first (layer caching)
 COPY package*.json ./
 
-# Install dependencies
+# Copy workspace package files so npm workspaces resolve correctly
+COPY client/package*.json ./client/
+COPY server/package*.json ./server/
+
+# Install all dependencies (workspaces)
 RUN npm install
 
 # Copy entire project
