@@ -457,7 +457,7 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
                   className="submit-tournament-btn"
                   onClick={() => setShowSubmitModal(true)}
                 >
-                  ➕ Submit Tournament
+                  ➕ Add Tournament
                 </button>
               </div>
             </div>
@@ -566,7 +566,7 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
             <div className="modal-overlay" onClick={() => setShowSubmitModal(false)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                  <h3>➕ Submit Tournament</h3>
+                  <h3>➕ Add Tournament</h3>
                   <button className="modal-close" onClick={() => setShowSubmitModal(false)}>✕</button>
                 </div>
                 <form onSubmit={handleSubmitTournament} className="submit-form">
