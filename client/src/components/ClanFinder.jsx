@@ -479,11 +479,6 @@ function ClanFinder() {
             <div className="featured-section">
               <h3 className="featured-title">🇲🇾 Featured Malaysian Clans</h3>
               <p className="featured-desc">Top recommended clans from Malaysia</p>
-              <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-lg)' }}>
-                <button className="submit-clan-btn" onClick={() => setShowSubmitModal(true)}>
-                  ➕ Add Clan
-                </button>
-              </div>
               
               {loadingFeatured ? (
                 <div className="featured-loading">Loading featured clans...</div>
