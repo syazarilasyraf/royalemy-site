@@ -443,6 +443,14 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           <div className="finder-header">
             <h2 className="section-title">🏆 Community Tournaments</h2>
             <p className="section-desc">Discover and join tournaments hosted by the community</p>
+            <div style={{ textAlign: 'center', marginTop: 'var(--spacing-md)' }}>
+              <button
+                className="submit-tournament-btn"
+                onClick={() => setShowSubmitModal(true)}
+              >
+                ➕ Add Tournament
+              </button>
+            </div>
           </div>
 
           {/* Community Tournaments -->
