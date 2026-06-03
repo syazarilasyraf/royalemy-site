@@ -2,20 +2,11 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { fetchFromCR } from '../index.js';
+import { log } from '../logger.js';
 
 const router = express.Router();
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
-
-function log(level, message, data = null) {
-  const timestamp = new Date().toISOString();
-  const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : level === 'success' ? '✅' : '📡';
-  if (data) {
-    console.log(`${prefix} [${timestamp}] ${message}`, data);
-  } else {
-    console.log(`${prefix} [${timestamp}] ${message}`);
-  }
-}
 
 function sanitizeTag(tag) {
   if (!tag) return '';

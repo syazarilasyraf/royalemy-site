@@ -1,20 +1,11 @@
 import express from 'express';
 import { statements } from '../db.js';
+import { log } from '../logger.js';
 
 const router = express.Router();
 
 function getAdminKey() {
   return process.env.ROADMAP_ADMIN_KEY;
-}
-
-function log(level, message, data = null) {
-  const timestamp = new Date().toISOString();
-  const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : level === 'success' ? '✅' : '📡';
-  if (data) {
-    console.log(`${prefix} [${timestamp}] ${message}`, data);
-  } else {
-    console.log(`${prefix} [${timestamp}] ${message}`);
-  }
 }
 
 function validateAdminKey(req, res, next) {

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 import roadmapRouter from './routes/roadmap.js';
 import communityTournamentRouter from './routes/communityTournaments.js';
 import communityClanRouter from './routes/communityClans.js';
+import adminRouter from './routes/admin.js';
+import { log, logRequest, logError } from './logger.js';
 
 dotenv.config();
 
@@ -25,29 +27,6 @@ if (!CR_API_TOKEN) {
   console.error('❌ ERROR: CR_API_TOKEN not set in environment variables');
   console.error('Please copy .env.example to .env and add your token');
   process.exit(1);
-}
-
-// ==================== LOGGING UTILITIES ====================
-
-function log(level, message, data = null) {
-  const timestamp = new Date().toISOString();
-  const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : level === 'success' ? '✅' : '📡';
-  
-  if (data) {
-    console.log(`${prefix} [${timestamp}] ${message}`, data);
-  } else {
-    console.log(`${prefix} [${timestamp}] ${message}`);
-  }
-}
-
-function logRequest(req, type = 'API') {
-  const ip = req.ip || req.connection.remoteAddress;
-  log('info', `${type} Request: ${req.method} ${req.path} from ${ip}`);
-}
-
-function logError(req, error, type = 'API') {
-  const ip = req.ip || req.connection.remoteAddress;
-  log('error', `${type} Error: ${req.method} ${req.path} from ${ip} - ${error.message}`);
 }
 
 // ==================== CACHE SETUP ====================
@@ -869,6 +848,10 @@ app.use('/api/roadmap', roadmapRouter);
 
 app.use('/api/community-tournaments', communityTournamentRouter);
 app.use('/api/community-clans', communityClanRouter);
+
+// ==================== ADMIN ====================
+
+app.use('/api/admin', adminRouter);
 
 // ==================== STATIC FILE SERVING (SPA) ====================
 

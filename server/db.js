@@ -71,6 +71,18 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_clans_status ON community_clans(status);
+
+  CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    level TEXT NOT NULL,
+    message TEXT NOT NULL,
+    data TEXT,
+    timestamp TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
+  CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
 `);
 
 // Prepared statements
@@ -164,6 +176,29 @@ const statements = {
   ),
   deleteClan: db.prepare(
     `DELETE FROM community_clans WHERE id = ?`
+  ),
+
+  // Logs
+  insertLog: db.prepare(
+    `INSERT INTO logs (level, message, data, timestamp) VALUES (?, ?, ?, ?)`
+  ),
+  getLogs: db.prepare(
+    `SELECT * FROM logs ORDER BY id DESC LIMIT ? OFFSET ?`
+  ),
+  getLogsByLevel: db.prepare(
+    `SELECT * FROM logs WHERE level = ? ORDER BY id DESC LIMIT ? OFFSET ?`
+  ),
+  searchLogs: db.prepare(
+    `SELECT * FROM logs WHERE message LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?`
+  ),
+  searchLogsByLevel: db.prepare(
+    `SELECT * FROM logs WHERE level = ? AND message LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?`
+  ),
+  getLogCount: db.prepare(
+    `SELECT COUNT(*) as count FROM logs`
+  ),
+  trimOldLogs: db.prepare(
+    `DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT ?)`
   ),
 
 };

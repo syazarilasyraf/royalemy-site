@@ -43,3 +43,7 @@ coverage
 
 # Misc
 *.log
+
+# SQLite transient files
+*.db-shm
+*.db-wal

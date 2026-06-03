@@ -284,3 +284,19 @@ export function deleteClan(id, key) {
 export function checkHealth() {
   return fetchAPI('/health');
 }
+
+// ==================== ADMIN LOGS ====================
+
+export function getAdminLogs(key, params = {}) {
+  const query = new URLSearchParams();
+  query.append('key', key);
+  if (params.level) query.append('level', params.level);
+  if (params.search) query.append('search', params.search);
+  if (params.limit) query.append('limit', String(params.limit));
+  if (params.offset) query.append('offset', String(params.offset));
+  return fetchAPI(`/admin/logs?${query.toString()}`);
+}
+
+export function getAdminServerInfo(key) {
+  return fetchAPI(`/admin/server-info?key=${encodeURIComponent(key)}`);
+}

@@ -9,6 +9,7 @@ import ArenaDeckRecommender from './components/ArenaDeckRecommender';
 import MYRankings from './components/MYRankings';
 import More from './components/More';
 import Roadmap from './components/Roadmap';
+import AdminLogs from './components/AdminLogs';
 import InstallButton from './components/InstallButton';
 import InstallBanner from './components/InstallBanner';
 
@@ -84,6 +85,7 @@ function App() {
           <Route path="/rankings" element={<MYRankings />} />
           <Route path="/more" element={<More />} />
           <Route path="/roadmap" element={<Roadmap />} />
+          <Route path="/admin/logs" element={<AdminLogs />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
