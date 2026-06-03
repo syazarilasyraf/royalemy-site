@@ -9,6 +9,8 @@ import ArenaDeckRecommender from './components/ArenaDeckRecommender';
 import MYRankings from './components/MYRankings';
 import More from './components/More';
 import Roadmap from './components/Roadmap';
+import InstallButton from './components/InstallButton';
+import InstallBanner from './components/InstallBanner';
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
@@ -88,6 +90,8 @@ function App() {
 
       <Footer />
       <Navigation />
+      <InstallButton />
+      <InstallBanner />
 
       <style>{`
         .app {

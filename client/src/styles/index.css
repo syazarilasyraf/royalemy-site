@@ -76,6 +76,35 @@ body {
   overflow-x: hidden;
 }
 
+/* Safe area support for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Standalone / installed app adjustments */
+@media (display-mode: standalone) {
+  .app-header {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}
+
+/* iOS standalone mode */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    .app-header {
+      padding-top: max(12px, env(safe-area-inset-top));
+    }
+    .bottom-nav {
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+  }
+}
+
 #root {
   min-height: 100vh;
 }
