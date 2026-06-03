@@ -4,6 +4,7 @@ import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById, calculateAverageElixir, hasEvolution, hasHero } from '../utils/cardMapping';
 import { canHitAir, hasSplash, isWinCondition, isMelee, isDefensiveBuilding, isTank, isSmallSpell, isBigSpell } from '../utils/cardAttributes';
 import SkeletonLoader from './SkeletonLoader';
+import { analyzeDeck } from '../utils/archetypeAnalyzer';
 
 // Info popup component
 function InfoPopup({ title, description, onClose }) {
@@ -139,7 +140,8 @@ function DeckStats() {
       tankCount,
       smallSpellCount,
       bigSpellCount,
-      originalLink: link
+      originalLink: link,
+      archetypeAnalysis: analyzeDeck(cardIds, parseFloat(avgElixir))
     });
     setLoading(false);
   };
@@ -269,6 +271,59 @@ function DeckStats() {
             </div>
           </div>
           
+          {/* Deck Identity */}
+          {deckData.archetypeAnalysis && (
+            <div className="identity-section">
+              <h4 className="identity-title">🎯 Deck Identity</h4>
+              <div className="identity-card">
+                <div className="identity-row">
+                  <span className="identity-label">Primary Archetype</span>
+                  <span className="identity-value identity-value--primary">{deckData.archetypeAnalysis.archetypes.primaryArchetype.name}</span>
+                </div>
+                <div className="identity-row">
+                  <span className="identity-label">Secondary Archetype</span>
+                  <span className="identity-value identity-value--secondary">{deckData.archetypeAnalysis.archetypes.secondaryArchetype.name}</span>
+                </div>
+                <div className="identity-row">
+                  <span className="identity-label">Confidence</span>
+                  <span className="identity-value identity-value--confidence">{deckData.archetypeAnalysis.archetypes.confidence}%</span>
+                </div>
+                <div className="confidence-bar">
+                  <div 
+                    className="confidence-fill" 
+                    style={{ width: `${deckData.archetypeAnalysis.archetypes.confidence}%` }}
+                  />
+                </div>
+                <p className="identity-description">{deckData.archetypeAnalysis.archetypes.description}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Playstyle Breakdown */}
+          {deckData.archetypeAnalysis && (
+            <div className="breakdown-section">
+              <h4>📊 Playstyle Breakdown</h4>
+              <p className="section-hint">How strongly this deck matches each archetype</p>
+              <div className="playstyle-list">
+                {deckData.archetypeAnalysis.archetypes.breakdown.map((arch) => (
+                  <div key={arch.key} className="playstyle-item">
+                    <span className="ps-label">{arch.key === 'dualLane' ? 'Dual Lane' : arch.key === 'bridgespam' ? 'Bridge Spam' : arch.key === 'minerControl' ? 'Miner Control' : arch.key.charAt(0).toUpperCase() + arch.key.slice(1)}</span>
+                    <div className="ps-bar-wrap">
+                      <div 
+                        className="ps-bar" 
+                        style={{ 
+                          width: `${arch.score}%`,
+                          background: arch.score >= 60 ? '#22c55e' : arch.score >= 35 ? '#3b82f6' : arch.score >= 15 ? '#f59e0b' : '#64748b'
+                        }}
+                      />
+                    </div>
+                    <span className="ps-value">{arch.score}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {deckData.archetypeHints.length > 0 && (
             <div className="archetype-tags">
               {deckData.archetypeHints.map((hint, i) => (
@@ -483,6 +538,73 @@ function DeckStats() {
               </div>
             </div>
           </div>
+
+          {/* How This Deck Wins */}
+          {deckData.archetypeAnalysis?.howToWin.length > 0 && (
+            <div className="breakdown-section">
+              <h4>🏆 How This Deck Wins</h4>
+              <ul className="win-list">
+                {deckData.archetypeAnalysis.howToWin.map((tip, i) => (
+                  <li key={i} className="win-item">{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Strengths & Weaknesses */}
+          {deckData.archetypeAnalysis && (
+            <div className="breakdown-section">
+              <h4>⚖️ Strengths & Weaknesses</h4>
+              <div className="sw-grid">
+                <div className="sw-column">
+                  <h5 className="sw-heading sw-heading--strength">Strengths</h5>
+                  <ul className="sw-list">
+                    {deckData.archetypeAnalysis.strengthsWeaknesses.strengths.map((s, i) => (
+                      <li key={i} className="sw-item sw-item--strength">{s}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="sw-column">
+                  <h5 className="sw-heading sw-heading--weakness">Weaknesses</h5>
+                  <ul className="sw-list">
+                    {deckData.archetypeAnalysis.strengthsWeaknesses.weaknesses.map((w, i) => (
+                      <li key={i} className="sw-item sw-item--weakness">{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Similar Decks */}
+          {deckData.archetypeAnalysis?.similarDecks.length > 0 && (
+            <div className="breakdown-section">
+              <h4>🔍 Similar Decks</h4>
+              <p className="section-hint">Top meta decks that match your build</p>
+              <div className="similar-list">
+                {deckData.archetypeAnalysis.similarDecks.map((deck, i) => (
+                  <div key={i} className="similar-item">
+                    <div className="similar-info">
+                      <span className="similar-name">{deck.name}</span>
+                      <span className="similar-meta">{deck.sharedCount}/8 cards shared • {deck.archetypes.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')}</span>
+                    </div>
+                    <div className="similar-score">
+                      <span className="similar-percent">{deck.similarity}%</span>
+                      <div className="similar-bar-wrap">
+                        <div 
+                          className="similar-bar" 
+                          style={{ 
+                            width: `${deck.similarity}%`,
+                            background: deck.similarity >= 70 ? '#22c55e' : deck.similarity >= 40 ? '#3b82f6' : '#f59e0b'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Rarity Breakdown */}
           <div className="breakdown-section">
@@ -1357,6 +1479,315 @@ function DeckStats() {
           .ci-badge {
             font-size: 0.65rem;
             padding: 2px 6px;
+          }
+        }
+
+        /* Deck Identity */
+        .identity-section {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), var(--bg-secondary));
+          border: 1px solid rgba(59, 130, 246, 0.25);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+        }
+
+        .identity-title {
+          margin: 0 0 var(--spacing-md);
+          font-size: 1rem;
+          color: var(--text-primary);
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+
+        .identity-card {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .identity-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--spacing-sm);
+        }
+
+        .identity-label {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+        }
+
+        .identity-value {
+          font-size: 0.9rem;
+          font-weight: 700;
+        }
+
+        .identity-value--primary {
+          color: #3b82f6;
+        }
+
+        .identity-value--secondary {
+          color: #a855f7;
+        }
+
+        .identity-value--confidence {
+          color: #22c55e;
+        }
+
+        .confidence-bar {
+          height: 6px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-full);
+          overflow: hidden;
+          margin-top: 2px;
+        }
+
+        .confidence-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #3b82f6, #22c55e);
+          border-radius: var(--radius-full);
+          transition: width 0.6s ease;
+        }
+
+        .identity-description {
+          margin: var(--spacing-sm) 0 0;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          line-height: 1.5;
+        }
+
+        /* Playstyle Breakdown */
+        .playstyle-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .playstyle-item {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+
+        .ps-label {
+          width: 110px;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          flex-shrink: 0;
+        }
+
+        .ps-bar-wrap {
+          flex: 1;
+          height: 10px;
+          background: var(--bg-primary);
+          border-radius: var(--radius-full);
+          overflow: hidden;
+        }
+
+        .ps-bar {
+          height: 100%;
+          border-radius: var(--radius-full);
+          transition: width 0.5s ease;
+        }
+
+        .ps-value {
+          width: 40px;
+          text-align: right;
+          font-size: 0.875rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          flex-shrink: 0;
+        }
+
+        /* How This Deck Wins */
+        .win-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .win-item {
+          position: relative;
+          padding-left: var(--spacing-lg);
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          line-height: 1.5;
+        }
+
+        .win-item::before {
+          content: '•';
+          position: absolute;
+          left: 0;
+          color: var(--accent-primary);
+          font-weight: 800;
+          font-size: 1.2rem;
+          line-height: 1;
+        }
+
+        /* Strengths & Weaknesses */
+        .sw-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--spacing-md);
+        }
+
+        .sw-column {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .sw-heading {
+          font-size: 0.875rem;
+          font-weight: 700;
+          margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .sw-heading--strength {
+          color: #22c55e;
+        }
+
+        .sw-heading--weakness {
+          color: #ef4444;
+        }
+
+        .sw-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-xs);
+        }
+
+        .sw-item {
+          position: relative;
+          padding-left: var(--spacing-md);
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          line-height: 1.4;
+        }
+
+        .sw-item::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 6px;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        .sw-item--strength::before {
+          background: #22c55e;
+        }
+
+        .sw-item--weakness::before {
+          background: #ef4444;
+        }
+
+        /* Similar Decks */
+        .similar-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .similar-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-primary);
+          border-radius: var(--radius-lg);
+        }
+
+        .similar-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+
+        .similar-name {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .similar-meta {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+
+        .similar-score {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 4px;
+          flex-shrink: 0;
+        }
+
+        .similar-percent {
+          font-size: 0.875rem;
+          font-weight: 800;
+          color: var(--text-primary);
+        }
+
+        .similar-bar-wrap {
+          width: 80px;
+          height: 5px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-full);
+          overflow: hidden;
+        }
+
+        .similar-bar {
+          height: 100%;
+          border-radius: var(--radius-full);
+          transition: width 0.4s ease;
+        }
+
+        /* Responsive Fixes */
+        @media (max-width: 640px) {
+          .ps-label {
+            width: 90px;
+            font-size: 0.8rem;
+          }
+
+          .ps-value {
+            width: 36px;
+            font-size: 0.8rem;
+          }
+
+          .sw-grid {
+            grid-template-columns: 1fr;
+            gap: var(--spacing-md);
+          }
+
+          .similar-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--spacing-xs);
+          }
+
+          .similar-score {
+            flex-direction: row;
+            align-items: center;
+            width: 100%;
+          }
+
+          .similar-bar-wrap {
+            flex: 1;
           }
         }
 
