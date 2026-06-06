@@ -47,3 +47,6 @@ coverage
 # SQLite transient files
 *.db-shm
 *.db-wal
+
+# SQLite databases
+*.db
