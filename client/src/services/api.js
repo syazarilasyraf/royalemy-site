@@ -18,12 +18,24 @@ async function fetchAPI(endpoint, options = {}) {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const error = await response.json().catch(() => ({ error: `Server error (${response.status})` }));
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+      // Server returned HTML (likely not running or misconfigured)
+      if (response.status === 404) {
+        throw new Error('API endpoint not found. Is the backend server running?');
+      }
+      throw new Error(`Server error (${response.status}). The backend may be down or misconfigured.`);
     }
 
     return await response.json();
   } catch (error) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      console.error(`API Error (${endpoint}): Backend unreachable`);
+      throw new Error('Cannot connect to server. Please make sure the backend is running.');
+    }
     console.error(`API Error (${endpoint}):`, error);
     throw error;
   }

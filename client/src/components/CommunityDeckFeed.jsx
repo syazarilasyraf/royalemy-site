@@ -168,7 +168,11 @@ function CommunityDeckFeed() {
           <button type="submit" disabled={submitLoading}>
             {submitLoading ? 'Submitting...' : 'Submit Deck'}
           </button>
-          {submitMessage && <p className="submit-message">{submitMessage}</p>}
+          {submitMessage && (
+            <p className={`submit-message ${submitMessage.startsWith('❌') ? 'submit-error' : ''}`}>
+              {submitMessage}
+            </p>
+          )}
         </form>
       )}
 
@@ -178,7 +182,11 @@ function CommunityDeckFeed() {
           <p>Loading community decks...</p>
         </div>
       ) : error ? (
-        <div className="error-state">{error}</div>
+        <div className="error-state">
+          <div className="empty-icon">⚠️</div>
+          <h3>Failed to load decks</h3>
+          <p>{error}</p>
+        </div>
       ) : decks.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🃏</div>
@@ -301,6 +309,9 @@ function CommunityDeckFeed() {
           margin: 0;
           font-size: 0.875rem;
           color: var(--text-secondary);
+        }
+        .submit-message.submit-error {
+          color: var(--accent-danger);
         }
         .community-decks-grid {
           display: grid;

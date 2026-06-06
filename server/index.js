@@ -25,12 +25,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const CR_API_BASE = 'https://api.clashroyale.com/v1';
 const CR_API_TOKEN = process.env.CR_API_TOKEN;
 
-// Validate required environment variables
-if (!CR_API_TOKEN) {
-  console.error('❌ ERROR: CR_API_TOKEN not set in environment variables');
-  console.error('Please copy .env.example to .env and add your token');
-  process.exit(1);
-}
+// CR_API_TOKEN is validated lazily inside fetchFromCR so the server can start
+// and serve non-CR routes (community decks, roadmap, etc.) without it
 
 // ==================== CACHE SETUP ====================
 
@@ -161,7 +157,15 @@ function validateClanTag(tag) {
 
 // ==================== CR API HELPERS ====================
 
+function requireCRToken() {
+  if (!CR_API_TOKEN) {
+    throw new Error('Clash Royale API token is not configured on the server');
+  }
+}
+
 async function fetchFromCR(endpoint, cacheKey, ttl) {
+  requireCRToken();
+
   // Check cache first
   const cached = getCache(cacheKey);
   if (cached) {
