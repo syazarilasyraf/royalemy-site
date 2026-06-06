@@ -6,6 +6,7 @@ import PlayerLookup from './components/PlayerLookup';
 import ClanFinder from './components/ClanFinder';
 import TournamentFinder from './components/TournamentFinder';
 import ArenaDeckRecommender from './components/ArenaDeckRecommender';
+import CommunityDeckFeed from './components/CommunityDeckFeed';
 import MYRankings from './components/MYRankings';
 import More from './components/More';
 import Roadmap from './components/Roadmap';
@@ -82,6 +83,7 @@ function App() {
           <Route path="/clan" element={<ClanFinder />} />
           <Route path="/tournaments" element={<TournamentFinder />} />
           <Route path="/arenadecks" element={<ArenaDeckRecommender />} />
+          <Route path="/communitydecks" element={<CommunityDeckFeed />} />
           <Route path="/rankings" element={<MYRankings />} />
           <Route path="/more" element={<More />} />
           <Route path="/roadmap" element={<Roadmap />} />

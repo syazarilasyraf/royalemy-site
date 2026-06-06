@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  getLocations, getClanRankings, getClanWarRankings, getPathOfLegendRankings, getPlayerRankings,
-  getStatePlayers, submitStatePlayer
+  getLocations, getClanRankings, getClanWarRankings, getPathOfLegendRankings, getPlayerRankings
 } from '../services/api';
 
 const MALAYSIAN_STATES = [
@@ -19,14 +18,8 @@ function MYRankings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // State rankings
-  const [statePlayers, setStatePlayers] = useState([]);
-  const [stateLoading, setStateLoading] = useState(false);
-  const [selectedState, setSelectedState] = useState('All');
-  const [showSubmitForm, setShowSubmitForm] = useState(false);
-  const [submitForm, setSubmitForm] = useState({ playerTag: '', stateName: '', submitterName: '' });
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState('');
+  // State rankings - in progress
+  const [stateLoading] = useState(false);
 
   useEffect(() => {
     const findMalaysia = async () => {
@@ -95,24 +88,6 @@ function MYRankings() {
     loadRankings();
   }, [malaysiaId, activeTab]);
 
-  useEffect(() => {
-    if (activeTab === 'states') {
-      loadStatePlayers();
-    }
-  }, [activeTab]);
-
-  const loadStatePlayers = async () => {
-    setStateLoading(true);
-    try {
-      const data = await getStatePlayers();
-      setStatePlayers(data.players || []);
-    } catch (err) {
-      console.error('Failed to load state players:', err);
-    } finally {
-      setStateLoading(false);
-    }
-  };
-
   const handlePlayerClick = (playerTag) => {
     navigate(`/player?tag=${encodeURIComponent(playerTag)}`);
   };
@@ -120,39 +95,6 @@ function MYRankings() {
   const handleClanClick = (clanTag) => {
     navigate(`/clan?tag=${encodeURIComponent(clanTag)}`);
   };
-
-  const handleStateSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitMessage('');
-    if (!submitForm.playerTag.trim() || !submitForm.stateName) {
-      setSubmitMessage('Please fill in all required fields');
-      return;
-    }
-    setSubmitLoading(true);
-    try {
-      await submitStatePlayer({
-        player_tag: submitForm.playerTag.trim(),
-        state_name: submitForm.stateName,
-        submitter_name: submitForm.submitterName.trim()
-      });
-      setSubmitMessage('✅ Submitted for review! Your entry will appear after approval.');
-      setSubmitForm({ playerTag: '', stateName: '', submitterName: '' });
-      loadStatePlayers();
-    } catch (err) {
-      setSubmitMessage(`❌ ${err.message || 'Failed to submit'}`);
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  const filteredStatePlayers = selectedState === 'All'
-    ? statePlayers
-    : statePlayers.filter(p => p.state_name === selectedState);
-
-  const stateStats = MALAYSIAN_STATES.map(state => ({
-    name: state,
-    count: statePlayers.filter(p => p.state_name === state).length
-  })).filter(s => s.count > 0);
 
   if (!loading && !malaysiaId && activeTab !== 'states') {
     return (
@@ -271,7 +213,7 @@ function MYRankings() {
           <p>⚔️ <strong>Clan Wars</strong> — Click any clan to view details</p>
         )}
         {activeTab === 'states' && (
-          <p>🗺️ <strong>State Rankings</strong> — Community-driven state leaderboards. Submit your tag to represent your state!</p>
+          <p>🗺️ <strong>State Rankings</strong> — In progress. State leaderboards coming soon!</p>
         )}
       </div>
 
@@ -373,123 +315,12 @@ function MYRankings() {
 
       {activeTab === 'states' && (
         <div className="rankings-content">
-          <div className="state-filter-bar">
-            <select 
-              className="state-select"
-              value={selectedState}
-              onChange={(e) => setSelectedState(e.target.value)}
-            >
-              <option value="All">All States</option>
-              {MALAYSIAN_STATES.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <button 
-              className="submit-state-btn"
-              onClick={() => setShowSubmitForm(!showSubmitForm)}
-            >
-              {showSubmitForm ? 'Cancel' : '+ Submit Your Tag'}
-            </button>
+          <div className="in-progress-state">
+            <div className="in-progress-icon">🚧</div>
+            <h3>In Progress</h3>
+            <p>State leaderboards are currently being developed.</p>
+            <p className="empty-hint">Check back soon for updates!</p>
           </div>
-
-          {showSubmitForm && (
-            <form className="state-submit-form" onSubmit={handleStateSubmit}>
-              <h4>🗺️ Submit Your Player Tag</h4>
-              <div className="form-row">
-                <input
-                  type="text"
-                  placeholder="Player Tag (e.g. 2P0JJQ0Y)"
-                  value={submitForm.playerTag}
-                  onChange={(e) => setSubmitForm({ ...submitForm, playerTag: e.target.value.replace('#', '').toUpperCase() })}
-                  required
-                />
-                <select
-                  value={submitForm.stateName}
-                  onChange={(e) => setSubmitForm({ ...submitForm, stateName: e.target.value })}
-                  required
-                >
-                  <option value="">Select State</option>
-                  {MALAYSIAN_STATES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <input
-                type="text"
-                placeholder="Your Name (Optional)"
-                value={submitForm.submitterName}
-                onChange={(e) => setSubmitForm({ ...submitForm, submitterName: e.target.value })}
-              />
-              <button type="submit" disabled={submitLoading}>
-                {submitLoading ? 'Submitting...' : 'Submit'}
-              </button>
-              {submitMessage && <p className="submit-message">{submitMessage}</p>}
-            </form>
-          )}
-
-          {stateLoading ? (
-            <div className="loading-state">
-              <div className="spinner"></div>
-              <p>Loading state rankings...</p>
-            </div>
-          ) : filteredStatePlayers.length === 0 ? (
-            <div className="empty-state">
-              <p>No state players submitted yet</p>
-              <p className="empty-hint">
-                Be the first to represent your state! Submit your player tag above.
-              </p>
-            </div>
-          ) : (
-            <div className="state-rankings">
-              {selectedState === 'All' ? (
-                stateStats.map(({ name, count }) => (
-                  <div key={name} className="state-group">
-                    <div className="state-group-header">
-                      <h4>{name}</h4>
-                      <span className="state-count">{count} player{count !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div className="state-players-list">
-                      {statePlayers
-                        .filter(p => p.state_name === name)
-                        .map((player, idx) => (
-                          <div 
-                            key={player.id} 
-                            className="ranking-item clickable"
-                            onClick={() => handlePlayerClick(player.player_tag)}
-                          >
-                            <span className={`rank-number ${idx < 3 ? 'top' : ''}`}>{idx + 1}</span>
-                            <div className="rank-info">
-                              <span className="rank-name">{player.submitter_name || 'Anonymous'}</span>
-                              <span className="rank-tag">#{player.player_tag}</span>
-                            </div>
-                            <span className="rank-score">🏆 {player.trophies?.toLocaleString() || 'N/A'}</span>
-                            <span className="click-hint">→</span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="state-players-list">
-                  {filteredStatePlayers.map((player, idx) => (
-                    <div 
-                      key={player.id} 
-                      className="ranking-item clickable"
-                      onClick={() => handlePlayerClick(player.player_tag)}
-                    >
-                      <span className={`rank-number ${idx < 3 ? 'top' : ''}`}>{idx + 1}</span>
-                      <div className="rank-info">
-                        <span className="rank-name">{player.submitter_name || 'Anonymous'}</span>
-                        <span className="rank-tag">#{player.player_tag}</span>
-                      </div>
-                      <span className="rank-score">🏆 {player.trophies?.toLocaleString() || 'N/A'}</span>
-                      <span className="click-hint">→</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -853,6 +684,22 @@ function MYRankings() {
         .state-players-list {
           display: flex;
           flex-direction: column;
+        }
+
+        .in-progress-state {
+          text-align: center;
+          padding: var(--spacing-xl);
+          color: var(--text-muted);
+        }
+
+        .in-progress-icon {
+          font-size: 3rem;
+          margin-bottom: var(--spacing-md);
+        }
+
+        .in-progress-state h3 {
+          margin: 0 0 var(--spacing-sm);
+          color: var(--text-primary);
         }
 
         @media (max-width: 640px) {

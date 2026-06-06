@@ -205,30 +205,30 @@ function DeckStats() {
           </div>
         </div>
 
-        {/* Arena Decks CTA */}
+        {/* Smart Deck Finder CTA */}
         <div className="arena-cta">
           <div className="arena-cta-content">
-            <span className="arena-cta-icon">🏟️</span>
+            <span className="arena-cta-icon">🎯</span>
             <div className="arena-cta-text">
-              <h4>Find Decks for Your Arena</h4>
-              <p>Get curated deck recommendations based on your arena level</p>
+              <h4>Smart Deck Finder</h4>
+              <p>Find live meta decks matched to your card collection</p>
             </div>
           </div>
           <button onClick={() => navigate('/arenadecks')} className="arena-cta-btn">
-            Browse Arena Decks →
+            Find My Decks →
           </button>
         </div>
 
-        {/* Community Vote Teaser */}
-        <div className="community-teaser">
+        {/* Community Decks Link */}
+        <div className="community-teaser" onClick={() => navigate('/communitydecks')} style={{ cursor: 'pointer' }}>
           <div className="teaser-content">
-            <span className="teaser-icon">🗳️</span>
+            <span className="teaser-icon">🌟</span>
             <div className="teaser-text">
-              <h4>Community Deck Voting</h4>
-              <p>Coming soon! Vote for the best decks and see what's trending in the community.</p>
+              <h4>Community Decks</h4>
+              <p>Vote for the best decks and see what's trending in the community.</p>
             </div>
           </div>
-          <span className="coming-soon-badge">Soon</span>
+          <span className="coming-soon-badge" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e' }}>Open</span>
         </div>
       </section>
 

@@ -9,25 +9,25 @@ const FEATURED_TOOLS = [
     color: '#3b82f6',
   },
   {
+    id: 'communitydecks',
+    icon: '🌟',
+    title: 'Community Decks',
+    desc: 'Browse and vote on decks shared by the community. Submit your own for others to try.',
+    color: '#f59e0b',
+  },
+  {
     id: 'deck',
     icon: '🎴',
     title: 'Deck Stats',
     desc: 'Paste any Clash Royale deck link to analyze elixir cost, archetype, strengths, and weaknesses.',
     color: '#a855f7',
   },
-  {
-    id: 'clan',
-    icon: '🏰',
-    title: 'Clan Finder',
-    desc: 'Search and explore Malaysian clans. Find active clans to join based on trophies and members.',
-    color: '#f59e0b',
-  },
 ];
 
 const ALL_TOOLS = [
   { id: 'rankings', icon: '🏆', title: 'MY Rankings', desc: 'Malaysian leaderboards' },
   { id: 'tournaments', icon: '🎯', title: 'Tournaments', desc: 'Find & join tournaments' },
-  { id: 'arenadecks', icon: '🃏', title: 'Arena Decks', desc: 'Best decks by arena' },
+  { id: 'clan', icon: '🏰', title: 'Clan Finder', desc: 'Search and explore Malaysian clans' },
   { id: 'roadmap', icon: '🗺️', title: 'Roadmap', desc: 'Vote on upcoming features' },
 ];
 
@@ -53,8 +53,8 @@ function Home() {
             className="hero-cta"
             onClick={() => navigate('/arenadecks')}
           >
-            <span className="cta-icon">🏟️</span>
-            <span className="cta-text">Browse Arena Decks</span>
+            <span className="cta-icon">🎯</span>
+            <span className="cta-text">Smart Deck Finder</span>
             <span className="cta-arrow">→</span>
           </button>
           <p className="hero-hint">
