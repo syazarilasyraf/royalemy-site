@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getLocations, getClanRankings, getClanWarRankings, getPathOfLegendRankings } from '../services/api';
+import {
+  getLocations, getClanRankings, getClanWarRankings, getPathOfLegendRankings, getPlayerRankings,
+  getStatePlayers, submitStatePlayer
+} from '../services/api';
+
+const MALAYSIAN_STATES = [
+  'Johor', 'Kedah', 'Kelantan', 'Kuala Lumpur', 'Labuan', 'Melaka',
+  'Negeri Sembilan', 'Pahang', 'Penang', 'Perak', 'Perlis', 'Putrajaya',
+  'Sabah', 'Sarawak', 'Selangor', 'Terengganu'
+];
 
 function MYRankings() {
   const navigate = useNavigate();
@@ -9,6 +18,15 @@ function MYRankings() {
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // State rankings
+  const [statePlayers, setStatePlayers] = useState([]);
+  const [stateLoading, setStateLoading] = useState(false);
+  const [selectedState, setSelectedState] = useState('All');
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [submitForm, setSubmitForm] = useState({ playerTag: '', stateName: '', submitterName: '' });
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
 
   useEffect(() => {
     const findMalaysia = async () => {
@@ -51,9 +69,16 @@ function MYRankings() {
           case 'clanwars':
             data = await getClanWarRankings(malaysiaId);
             break;
-          case 'pol':
-            data = await getPathOfLegendRankings(malaysiaId);
+          case 'pol': {
+            try {
+              data = await getPathOfLegendRankings(malaysiaId);
+            } catch (polErr) {
+              // Fallback to regular player rankings if Path of Legend fails
+              console.warn('Path of Legend failed, falling back to player rankings:', polErr.message);
+              data = await getPlayerRankings(malaysiaId);
+            }
             break;
+          }
           default:
             data = { items: [] };
         }
@@ -70,6 +95,24 @@ function MYRankings() {
     loadRankings();
   }, [malaysiaId, activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 'states') {
+      loadStatePlayers();
+    }
+  }, [activeTab]);
+
+  const loadStatePlayers = async () => {
+    setStateLoading(true);
+    try {
+      const data = await getStatePlayers();
+      setStatePlayers(data.players || []);
+    } catch (err) {
+      console.error('Failed to load state players:', err);
+    } finally {
+      setStateLoading(false);
+    }
+  };
+
   const handlePlayerClick = (playerTag) => {
     navigate(`/player?tag=${encodeURIComponent(playerTag)}`);
   };
@@ -78,7 +121,40 @@ function MYRankings() {
     navigate(`/clan?tag=${encodeURIComponent(clanTag)}`);
   };
 
-  if (!loading && !malaysiaId) {
+  const handleStateSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitMessage('');
+    if (!submitForm.playerTag.trim() || !submitForm.stateName) {
+      setSubmitMessage('Please fill in all required fields');
+      return;
+    }
+    setSubmitLoading(true);
+    try {
+      await submitStatePlayer({
+        player_tag: submitForm.playerTag.trim(),
+        state_name: submitForm.stateName,
+        submitter_name: submitForm.submitterName.trim()
+      });
+      setSubmitMessage('✅ Submitted for review! Your entry will appear after approval.');
+      setSubmitForm({ playerTag: '', stateName: '', submitterName: '' });
+      loadStatePlayers();
+    } catch (err) {
+      setSubmitMessage(`❌ ${err.message || 'Failed to submit'}`);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const filteredStatePlayers = selectedState === 'All'
+    ? statePlayers
+    : statePlayers.filter(p => p.state_name === selectedState);
+
+  const stateStats = MALAYSIAN_STATES.map(state => ({
+    name: state,
+    count: statePlayers.filter(p => p.state_name === state).length
+  })).filter(s => s.count > 0);
+
+  if (!loading && !malaysiaId && activeTab !== 'states') {
     return (
       <div className="my-rankings">
         <div className="rankings-header">
@@ -104,7 +180,7 @@ function MYRankings() {
 
           .rankings-header {
             text-align: center;
-            margin-bottom: var(--spacing-xl);
+            margin-bottom: var(--spacing-lg);
           }
 
           .section-title {
@@ -136,13 +212,13 @@ function MYRankings() {
           }
 
           .not-available h3 {
-            font-size: 1.25rem;
+            margin: 0 0 var(--spacing-sm);
             color: var(--text-primary);
-            margin-bottom: var(--spacing-sm);
           }
 
           .not-available p {
             color: var(--text-secondary);
+            margin: 0;
             line-height: 1.6;
           }
         `}</style>
@@ -176,17 +252,26 @@ function MYRankings() {
         >
           ⚔️ Clan Wars
         </button>
+        <button 
+          className={`tab ${activeTab === 'states' ? 'active' : ''}`}
+          onClick={() => setActiveTab('states')}
+        >
+          🗺️ By State
+        </button>
       </div>
 
       <div className="info-box">
         {activeTab === 'pol' && (
-          <p>🏆 <strong>Ranked Mode</strong> — Rankings reset at the start of each new season. Check back again soon!</p>
+          <p>🏆 <strong>Ranked Mode</strong> — Click any player to view their profile. Falls back to trophy rankings when Path of Legend is unavailable.</p>
         )}
         {activeTab === 'clans' && (
           <p>🏰 <strong>Top Clans</strong> — Click any clan to view details</p>
         )}
         {activeTab === 'clanwars' && (
           <p>⚔️ <strong>Clan Wars</strong> — Click any clan to view details</p>
+        )}
+        {activeTab === 'states' && (
+          <p>🗺️ <strong>State Rankings</strong> — Community-driven state leaderboards. Submit your tag to represent your state!</p>
         )}
       </div>
 
@@ -203,13 +288,13 @@ function MYRankings() {
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && activeTab !== 'states' && (
         <div className="rankings-content">
           {rankings.length === 0 ? (
             <div className="empty-state">
               <p>No rankings data available for Malaysia</p>
               <p className="empty-hint">
-                Rankings reset when a new season starts. Please check back again later!
+                Rankings may reset when a new season starts, or Supercell may have deprecated this endpoint. Please check back again later!
               </p>
             </div>
           ) : (
@@ -227,7 +312,7 @@ function MYRankings() {
                     <span className="rank-name">{player.name}</span>
                     <span className="rank-tag">#{player.tag}</span>
                   </div>
-                  <span className="rank-league">{player.league || 'Unranked'}</span>
+                  <span className="rank-league">🏆 {player.trophies?.toLocaleString() || 'N/A'}</span>
                   <span className="click-hint">→</span>
                 </div>
               ))}
@@ -281,6 +366,128 @@ function MYRankings() {
                   <span className="click-hint">→</span>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'states' && (
+        <div className="rankings-content">
+          <div className="state-filter-bar">
+            <select 
+              className="state-select"
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+            >
+              <option value="All">All States</option>
+              {MALAYSIAN_STATES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <button 
+              className="submit-state-btn"
+              onClick={() => setShowSubmitForm(!showSubmitForm)}
+            >
+              {showSubmitForm ? 'Cancel' : '+ Submit Your Tag'}
+            </button>
+          </div>
+
+          {showSubmitForm && (
+            <form className="state-submit-form" onSubmit={handleStateSubmit}>
+              <h4>🗺️ Submit Your Player Tag</h4>
+              <div className="form-row">
+                <input
+                  type="text"
+                  placeholder="Player Tag (e.g. 2P0JJQ0Y)"
+                  value={submitForm.playerTag}
+                  onChange={(e) => setSubmitForm({ ...submitForm, playerTag: e.target.value.replace('#', '').toUpperCase() })}
+                  required
+                />
+                <select
+                  value={submitForm.stateName}
+                  onChange={(e) => setSubmitForm({ ...submitForm, stateName: e.target.value })}
+                  required
+                >
+                  <option value="">Select State</option>
+                  {MALAYSIAN_STATES.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <input
+                type="text"
+                placeholder="Your Name (Optional)"
+                value={submitForm.submitterName}
+                onChange={(e) => setSubmitForm({ ...submitForm, submitterName: e.target.value })}
+              />
+              <button type="submit" disabled={submitLoading}>
+                {submitLoading ? 'Submitting...' : 'Submit'}
+              </button>
+              {submitMessage && <p className="submit-message">{submitMessage}</p>}
+            </form>
+          )}
+
+          {stateLoading ? (
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Loading state rankings...</p>
+            </div>
+          ) : filteredStatePlayers.length === 0 ? (
+            <div className="empty-state">
+              <p>No state players submitted yet</p>
+              <p className="empty-hint">
+                Be the first to represent your state! Submit your player tag above.
+              </p>
+            </div>
+          ) : (
+            <div className="state-rankings">
+              {selectedState === 'All' ? (
+                stateStats.map(({ name, count }) => (
+                  <div key={name} className="state-group">
+                    <div className="state-group-header">
+                      <h4>{name}</h4>
+                      <span className="state-count">{count} player{count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="state-players-list">
+                      {statePlayers
+                        .filter(p => p.state_name === name)
+                        .map((player, idx) => (
+                          <div 
+                            key={player.id} 
+                            className="ranking-item clickable"
+                            onClick={() => handlePlayerClick(player.player_tag)}
+                          >
+                            <span className={`rank-number ${idx < 3 ? 'top' : ''}`}>{idx + 1}</span>
+                            <div className="rank-info">
+                              <span className="rank-name">{player.submitter_name || 'Anonymous'}</span>
+                              <span className="rank-tag">#{player.player_tag}</span>
+                            </div>
+                            <span className="rank-score">🏆 {player.trophies?.toLocaleString() || 'N/A'}</span>
+                            <span className="click-hint">→</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="state-players-list">
+                  {filteredStatePlayers.map((player, idx) => (
+                    <div 
+                      key={player.id} 
+                      className="ranking-item clickable"
+                      onClick={() => handlePlayerClick(player.player_tag)}
+                    >
+                      <span className={`rank-number ${idx < 3 ? 'top' : ''}`}>{idx + 1}</span>
+                      <div className="rank-info">
+                        <span className="rank-name">{player.submitter_name || 'Anonymous'}</span>
+                        <span className="rank-tag">#{player.player_tag}</span>
+                      </div>
+                      <span className="rank-score">🏆 {player.trophies?.toLocaleString() || 'N/A'}</span>
+                      <span className="click-hint">→</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -518,6 +725,136 @@ function MYRankings() {
           margin-top: var(--spacing-sm);
         }
 
+        /* State Rankings */
+        .state-filter-bar {
+          display: flex;
+          gap: var(--spacing-md);
+          padding: var(--spacing-md) var(--spacing-lg);
+          border-bottom: 1px solid var(--bg-tertiary);
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .state-select {
+          flex: 1;
+          min-width: 150px;
+          padding: 8px 12px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--bg-tertiary);
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+        }
+
+        .submit-state-btn {
+          padding: 8px 16px;
+          background: var(--accent-primary);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+
+        .submit-state-btn:hover {
+          opacity: 0.9;
+        }
+
+        .state-submit-form {
+          padding: var(--spacing-lg);
+          border-bottom: 1px solid var(--bg-tertiary);
+          background: var(--bg-primary);
+        }
+
+        .state-submit-form h4 {
+          margin: 0 0 var(--spacing-md);
+          color: var(--text-primary);
+        }
+
+        .state-submit-form .form-row {
+          display: flex;
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-md);
+          flex-wrap: wrap;
+        }
+
+        .state-submit-form input,
+        .state-submit-form select {
+          flex: 1;
+          min-width: 150px;
+          padding: 8px 12px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--bg-tertiary);
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+        }
+
+        .state-submit-form button {
+          padding: 8px 20px;
+          background: var(--accent-success);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          margin-top: var(--spacing-sm);
+        }
+
+        .state-submit-form button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .submit-message {
+          margin-top: var(--spacing-sm);
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+        }
+
+        .state-rankings {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .state-group {
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .state-group:last-child {
+          border-bottom: none;
+        }
+
+        .state-group-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-md) var(--spacing-lg);
+          background: var(--bg-primary);
+        }
+
+        .state-group-header h4 {
+          margin: 0;
+          color: var(--text-primary);
+          font-size: 1rem;
+        }
+
+        .state-count {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          background: var(--bg-tertiary);
+          padding: 2px 10px;
+          border-radius: var(--radius-full);
+        }
+
+        .state-players-list {
+          display: flex;
+          flex-direction: column;
+        }
+
         @media (max-width: 640px) {
           .rankings-tabs {
             justify-content: flex-start;
@@ -550,6 +887,15 @@ function MYRankings() {
 
           .click-hint {
             display: none;
+          }
+
+          .state-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .state-submit-form .form-row {
+            flex-direction: column;
           }
         }
       `}</style>

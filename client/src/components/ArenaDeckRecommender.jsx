@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-// Arena browse feature removed — focusing on Smart Deck Finder only
 import { getCardById, getCardImageUrl, hasEvolution, hasHero } from '../utils/cardMapping';
-import { buildDeckLink } from '../utils/deckParser';
-import { getPlayer, getMetaDecks } from '../services/api';
+import { buildDeckLink, isValidDeckLink, extractCardIds } from '../utils/deckParser';
+import { getPlayer, getMetaDecks, getCommunityDecks, submitCommunityDeck, voteCommunityDeck } from '../services/api';
 import { getPlayerCardMap, calculateDeckScore, sortDecks, getCompatibilityColor } from '../utils/deckSuggestions';
 import { generateDeckTitles, generateDeckDescription } from '../utils/deckTitleGenerator';
 import { isChampionCard } from '../data/deckSources';
+import DeckPreview from './DeckPreview';
 import './ArenaDeckRecommender.css';
 
 
@@ -247,6 +247,9 @@ function SmartDeckFinder() {
                 <span className="toggle-slider"></span>
                 <span className="toggle-label">Only playable decks</span>
               </label>
+            </div>
+            <div className="results-sort-wrapper">
+              <span className="sort-label">Sort by</span>
               <select className="results-sort" value={sortBy} onChange={(e) => handleSortChange(e.target.value)}>
                 <option value="recommended">Recommended</option>
                 <option value="compatibility">Compatibility</option>
@@ -378,6 +381,361 @@ function SmartDeckFinder() {
   );
 }
 
+// ==================== COMMUNITY DECK FEED ====================
+
+function CommunityDeckFeed() {
+  const [decks, setDecks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [deckLink, setDeckLink] = useState('');
+  const [authorName, setAuthorName] = useState('');
+  const [description, setDescription] = useState('');
+  const [previewCards, setPreviewCards] = useState(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
+  const [votedDecks, setVotedDecks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cr_voted_decks') || '[]'); }
+    catch { return []; }
+  });
+
+  useEffect(() => {
+    loadDecks();
+  }, []);
+
+  useEffect(() => {
+    if (!deckLink.trim()) {
+      setPreviewCards(null);
+      return;
+    }
+    if (isValidDeckLink(deckLink)) {
+      setPreviewCards(extractCardIds(deckLink));
+    } else {
+      setPreviewCards(null);
+    }
+  }, [deckLink]);
+
+  const loadDecks = async () => {
+    setLoading(true);
+    try {
+      const data = await getCommunityDecks();
+      setDecks(data.decks || []);
+    } catch (err) {
+      setError('Failed to load community decks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitMessage('');
+    if (!isValidDeckLink(deckLink)) {
+      setSubmitMessage('Please enter a valid deck link');
+      return;
+    }
+    const cardIds = extractCardIds(deckLink);
+    if (!cardIds || cardIds.length !== 8) {
+      setSubmitMessage('Deck must contain exactly 8 cards');
+      return;
+    }
+    setSubmitLoading(true);
+    try {
+      await submitCommunityDeck({
+        deck_link: deckLink.trim(),
+        card_ids: cardIds,
+        author_name: authorName.trim(),
+        description: description.trim(),
+        avg_elixir: calculateDynamicAvgElixir(cardIds),
+        tags: generateDeckTags(cardIds)
+      });
+      setSubmitMessage('✅ Deck submitted for review! It will appear after approval.');
+      setDeckLink('');
+      setAuthorName('');
+      setDescription('');
+      setPreviewCards(null);
+      loadDecks();
+    } catch (err) {
+      setSubmitMessage(`❌ ${err.message || 'Failed to submit deck'}`);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleVote = async (id) => {
+    if (votedDecks.includes(id)) return;
+    try {
+      await voteCommunityDeck(id);
+      const updated = [...votedDecks, id];
+      setVotedDecks(updated);
+      localStorage.setItem('cr_voted_decks', JSON.stringify(updated));
+      setDecks(prev => prev.map(d => d.id === id ? { ...d, votes: d.votes + 1 } : d));
+    } catch (err) {
+      console.error('Vote failed:', err);
+    }
+  };
+
+  return (
+    <div className="community-deck-feed">
+      <div className="feed-header">
+        <div>
+          <h2>🌟 Community Decks</h2>
+          <p>Decks shared by the community. Vote for your favorites!</p>
+        </div>
+        <button className="submit-deck-toggle" onClick={() => setShowSubmitForm(!showSubmitForm)}>
+          {showSubmitForm ? 'Cancel' : '+ Share Your Deck'}
+        </button>
+      </div>
+
+      {showSubmitForm && (
+        <form className="deck-submit-form" onSubmit={handleSubmit}>
+          <h4>Share Your Deck</h4>
+          <input
+            type="text"
+            placeholder="Deck Link from Clash Royale (e.g. https://link.clashroyale.com/deck?...)"
+            value={deckLink}
+            onChange={(e) => setDeckLink(e.target.value)}
+            required
+          />
+          {previewCards && (
+            <div className="deck-submit-preview">
+              <DeckPreview cardIds={previewCards} compact />
+            </div>
+          )}
+          <div className="form-row">
+            <input
+              type="text"
+              placeholder="Your Name (Optional)"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+            />
+          </div>
+          <textarea
+            placeholder="Deck description, strategy, or tips..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+          />
+          <button type="submit" disabled={submitLoading}>
+            {submitLoading ? 'Submitting...' : 'Submit Deck'}
+          </button>
+          {submitMessage && <p className="submit-message">{submitMessage}</p>}
+        </form>
+      )}
+
+      {loading ? (
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading community decks...</p>
+        </div>
+      ) : error ? (
+        <div className="error-state">{error}</div>
+      ) : decks.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">🃏</div>
+          <h3>No community decks yet</h3>
+          <p>Be the first to share your deck with the community!</p>
+        </div>
+      ) : (
+        <div className="community-decks-grid">
+          {decks.map((deck) => (
+            <div key={deck.id} className="community-deck-card">
+              <div className="community-deck-header">
+                <div className="community-deck-meta">
+                  <span className="community-deck-author">{deck.author_name || 'Anonymous'}</span>
+                  <span className="community-deck-date">{new Date(deck.created_at).toLocaleDateString()}</span>
+                </div>
+                <button
+                  className={`vote-btn ${votedDecks.includes(deck.id) ? 'voted' : ''}`}
+                  onClick={() => handleVote(deck.id)}
+                  disabled={votedDecks.includes(deck.id)}
+                >
+                  ▲ {deck.votes || 0}
+                </button>
+              </div>
+              {deck.description && <p className="community-deck-desc">{deck.description}</p>}
+              <DeckPreview cardIds={deck.cardIds} compact />
+              <div className="community-deck-footer">
+                <span className="avg-elixir">💧 Avg: {deck.avg_elixir || calculateDynamicAvgElixir(deck.cardIds)}</span>
+                <a href={deck.deck_link} target="_blank" rel="noopener noreferrer" className="open-deck-btn">Open in CR</a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        .community-deck-feed {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-lg);
+        }
+        .feed-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          flex-wrap: wrap;
+          gap: var(--spacing-md);
+        }
+        .feed-header h2 {
+          margin: 0 0 4px;
+          font-size: 1.5rem;
+        }
+        .feed-header p {
+          margin: 0;
+          color: var(--text-secondary);
+          font-size: 0.875rem;
+        }
+        .submit-deck-toggle {
+          padding: 8px 16px;
+          background: var(--accent-primary);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .submit-deck-toggle:hover {
+          opacity: 0.9;
+        }
+        .deck-submit-form {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-md);
+        }
+        .deck-submit-form h4 {
+          margin: 0;
+        }
+        .deck-submit-form input,
+        .deck-submit-form textarea {
+          padding: 10px 14px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--bg-tertiary);
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+          width: 100%;
+        }
+        .deck-submit-form textarea {
+          resize: vertical;
+        }
+        .deck-submit-form button {
+          padding: 10px 20px;
+          background: var(--accent-success);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          align-self: flex-start;
+        }
+        .deck-submit-form button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .deck-submit-preview {
+          max-width: 300px;
+        }
+        .submit-message {
+          margin: 0;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+        }
+        .community-decks-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          gap: var(--spacing-lg);
+        }
+        .community-deck-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-md);
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+        .community-deck-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .community-deck-meta {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .community-deck-author {
+          font-weight: 700;
+          font-size: 0.875rem;
+          color: var(--text-primary);
+        }
+        .community-deck-date {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+        .vote-btn {
+          background: var(--bg-tertiary);
+          border: none;
+          color: var(--text-secondary);
+          padding: 6px 12px;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .vote-btn:hover:not(:disabled) {
+          background: var(--accent-primary);
+          color: white;
+        }
+        .vote-btn.voted {
+          background: var(--accent-primary);
+          color: white;
+          cursor: default;
+        }
+        .community-deck-desc {
+          margin: 0;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          line-height: 1.4;
+        }
+        .community-deck-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: var(--spacing-xs);
+        }
+        .open-deck-btn {
+          padding: 6px 12px;
+          background: var(--accent-primary);
+          color: white;
+          border-radius: var(--radius-md);
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-decoration: none;
+        }
+        .empty-state {
+          text-align: center;
+          padding: var(--spacing-xl);
+          color: var(--text-muted);
+        }
+        .empty-icon {
+          font-size: 3rem;
+          margin-bottom: var(--spacing-md);
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ==================== HELPERS ====================
 
 function calculateDynamicAvgElixir(cardIds) {
@@ -410,6 +768,8 @@ function generateDeckTags(cardIds) {
 // ==================== MAIN COMPONENT ====================
 
 function ArenaDeckRecommender() {
+  const [activeTab, setActiveTab] = useState('smart');
+
   return (
     <div className="arena-deck-recommender">
       <div className="arena-header">
@@ -417,25 +777,60 @@ function ArenaDeckRecommender() {
         <p className="arena-subtitle">Find the best live meta decks matched to your card collection</p>
       </div>
 
-      <SmartDeckFinder />
-
-      <div className="coming-soon-section">
-        <h2>🚀 Coming Soon</h2>
-        <div className="coming-soon-grid">
-          <div className="coming-soon-card">
-            <div className="coming-soon-icon">🗳️</div>
-            <h3>Community Voting</h3>
-            <p>Vote for the best decks and see what the community recommends</p>
-            <span className="coming-soon-badge">Soon</span>
-          </div>
-          <div className="coming-soon-card">
-            <div className="coming-soon-icon">🇲🇾</div>
-            <h3>Malaysia Favorites</h3>
-            <p>Decks popular among Malaysian players</p>
-            <span className="coming-soon-badge">Soon</span>
-          </div>
-        </div>
+      <div className="arena-tabs">
+        <button 
+          className={`arena-tab ${activeTab === 'smart' ? 'active' : ''}`}
+          onClick={() => setActiveTab('smart')}
+        >
+          🎯 Smart Deck Finder
+        </button>
+        <button 
+          className={`arena-tab ${activeTab === 'community' ? 'active' : ''}`}
+          onClick={() => setActiveTab('community')}
+        >
+          🌟 Community Decks
+        </button>
       </div>
+
+      {activeTab === 'smart' && <SmartDeckFinder />}
+      {activeTab === 'community' && <CommunityDeckFeed />}
+
+      <style>{`
+        .arena-tabs {
+          display: flex;
+          gap: var(--spacing-xs);
+          margin-bottom: var(--spacing-lg);
+          overflow-x: auto;
+          padding-bottom: var(--spacing-xs);
+        }
+        .arena-tab {
+          flex-shrink: 0;
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-full);
+          color: var(--text-secondary);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+        .arena-tab:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+        .arena-tab.active {
+          background: var(--accent-primary);
+          border-color: var(--accent-primary);
+          color: white;
+        }
+        @media (max-width: 640px) {
+          .arena-tabs {
+            justify-content: flex-start;
+          }
+        }
+      `}</style>
     </div>
   );
 }

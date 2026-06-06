@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 import roadmapRouter from './routes/roadmap.js';
 import communityTournamentRouter from './routes/communityTournaments.js';
 import communityClanRouter from './routes/communityClans.js';
+import statePlayerRouter from './routes/statePlayers.js';
+import communityDeckRouter from './routes/communityDecks.js';
 import adminRouter from './routes/admin.js';
 import { log, logRequest, logError } from './logger.js';
 
@@ -849,6 +851,8 @@ app.use('/api/roadmap', roadmapRouter);
 
 app.use('/api/community-tournaments', communityTournamentRouter);
 app.use('/api/community-clans', communityClanRouter);
+app.use('/api/state-players', statePlayerRouter);
+app.use('/api/community-decks', communityDeckRouter);
 
 // ==================== ADMIN ====================
 

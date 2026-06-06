@@ -279,6 +279,100 @@ export function deleteClan(id, key) {
   });
 }
 
+// ==================== STATE PLAYERS ====================
+
+export function getStatePlayers() {
+  return fetchAPI('/state-players');
+}
+
+export function submitStatePlayer(data) {
+  return fetchAPI('/state-players', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function getAdminStatePlayers(key) {
+  return fetchAPI(`/state-players/admin?key=${encodeURIComponent(key)}`);
+}
+
+export function approveStatePlayer(id, key) {
+  return fetchAPI(`/state-players/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function rejectStatePlayer(id, key) {
+  return fetchAPI(`/state-players/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function updateStatePlayerStatus(id, status, key) {
+  return fetchAPI(`/state-players/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify({ status })
+  });
+}
+
+export function deleteStatePlayer(id, key) {
+  return fetchAPI(`/state-players/admin/${id}?key=${encodeURIComponent(key)}`, {
+    method: 'DELETE'
+  });
+}
+
+// ==================== COMMUNITY DECKS ====================
+
+export function getCommunityDecks() {
+  return fetchAPI('/community-decks');
+}
+
+export function getCommunityDeck(id) {
+  return fetchAPI(`/community-decks/${id}`);
+}
+
+export function submitCommunityDeck(data) {
+  return fetchAPI('/community-decks', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function voteCommunityDeck(id) {
+  return fetchAPI(`/community-decks/${id}/vote`, {
+    method: 'POST'
+  });
+}
+
+export function getAdminCommunityDecks(key) {
+  return fetchAPI(`/community-decks/admin?key=${encodeURIComponent(key)}`);
+}
+
+export function approveCommunityDeck(id, key) {
+  return fetchAPI(`/community-decks/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function rejectCommunityDeck(id, key) {
+  return fetchAPI(`/community-decks/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
+    method: 'POST'
+  });
+}
+
+export function updateCommunityDeckStatus(id, status, key) {
+  return fetchAPI(`/community-decks/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify({ status })
+  });
+}
+
+export function deleteCommunityDeck(id, key) {
+  return fetchAPI(`/community-decks/admin/${id}?key=${encodeURIComponent(key)}`, {
+    method: 'DELETE'
+  });
+}
+
 // ==================== UTILS ====================
 
 export function checkHealth() {

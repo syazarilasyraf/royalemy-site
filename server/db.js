@@ -72,6 +72,35 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_clans_status ON community_clans(status);
 
+  CREATE TABLE IF NOT EXISTS state_players (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_tag TEXT NOT NULL,
+    state_name TEXT NOT NULL,
+    submitter_name TEXT,
+    trophies INTEGER,
+    rank INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_state_players_status ON state_players(status);
+  CREATE INDEX IF NOT EXISTS idx_state_players_state ON state_players(state_name);
+
+  CREATE TABLE IF NOT EXISTS community_decks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    deck_link TEXT NOT NULL,
+    card_ids TEXT NOT NULL,
+    author_name TEXT,
+    description TEXT,
+    avg_elixir REAL,
+    tags TEXT,
+    votes INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_community_decks_status ON community_decks(status);
+
   CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     level TEXT NOT NULL,
@@ -199,6 +228,49 @@ const statements = {
   ),
   trimOldLogs: db.prepare(
     `DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT ?)`
+  ),
+
+  // State Players
+  insertStatePlayer: db.prepare(
+    `INSERT INTO state_players (player_tag, state_name, submitter_name, trophies, rank, status) VALUES (?, ?, ?, ?, ?, ?)`
+  ),
+  getApprovedStatePlayers: db.prepare(
+    `SELECT * FROM state_players WHERE status = 'approved' ORDER BY trophies DESC, created_at DESC`
+  ),
+  getAllStatePlayers: db.prepare(
+    `SELECT * FROM state_players ORDER BY created_at DESC`
+  ),
+  getStatePlayerById: db.prepare(
+    `SELECT * FROM state_players WHERE id = ?`
+  ),
+  updateStatePlayerStatus: db.prepare(
+    `UPDATE state_players SET status = ? WHERE id = ?`
+  ),
+  deleteStatePlayer: db.prepare(
+    `DELETE FROM state_players WHERE id = ?`
+  ),
+
+  // Community Decks
+  insertCommunityDeck: db.prepare(
+    `INSERT INTO community_decks (deck_link, card_ids, author_name, description, avg_elixir, tags, votes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ),
+  getApprovedCommunityDecks: db.prepare(
+    `SELECT * FROM community_decks WHERE status = 'approved' ORDER BY votes DESC, created_at DESC`
+  ),
+  getAllCommunityDecks: db.prepare(
+    `SELECT * FROM community_decks ORDER BY created_at DESC`
+  ),
+  getCommunityDeckById: db.prepare(
+    `SELECT * FROM community_decks WHERE id = ?`
+  ),
+  updateCommunityDeckStatus: db.prepare(
+    `UPDATE community_decks SET status = ? WHERE id = ?`
+  ),
+  deleteCommunityDeck: db.prepare(
+    `DELETE FROM community_decks WHERE id = ?`
+  ),
+  voteCommunityDeck: db.prepare(
+    `UPDATE community_decks SET votes = votes + 1 WHERE id = ?`
   ),
 
 };

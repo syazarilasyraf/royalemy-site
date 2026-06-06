@@ -205,6 +205,15 @@ function ClanFinder() {
   const [urlSearchParams] = useSearchParams();
   const adminKey = urlSearchParams.get('admin');
 
+  // Auto-load clan details when ?tag= is present in URL
+  useEffect(() => {
+    const tagFromUrl = urlSearchParams.get('tag');
+    if (tagFromUrl && view === 'search' && !loading) {
+      viewClanDetails({ tag: tagFromUrl });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSearchParams]);
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchParams.name.trim()) return;
