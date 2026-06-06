@@ -1,11 +1,17 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, 'data', 'roadmap.db');
+const dbDir = process.env.DB_DIR || path.join(__dirname, 'data');
+const dbPath = path.join(dbDir, 'roadmap.db');
+
+// Ensure database directory exists (needed for persistent volume mounts)
+fs.mkdirSync(dbDir, { recursive: true });
+
 const db = new Database(dbPath);
 
 // Enable WAL mode for better concurrency
