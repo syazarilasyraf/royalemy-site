@@ -192,11 +192,11 @@ router.post('/', submitLimiter, (req, res) => {
       avg_elixir || null,
       JSON.stringify(tags || []),
       0,
-      'pending'
+      'approved'
     );
 
     log('success', `Community deck submitted by ${author_name || 'Anonymous'} (ID: ${result.lastInsertRowid})`);
-    res.status(201).json({ id: result.lastInsertRowid, message: 'Deck submitted for review' });
+    res.status(201).json({ id: result.lastInsertRowid, message: 'Deck submitted successfully' });
   } catch (error) {
     log('error', `Failed to submit community deck: ${error.message}`);
     res.status(500).json({ error: 'Failed to submit deck' });

@@ -98,7 +98,7 @@ function CommunityDeckFeed() {
         avg_elixir: calculateDynamicAvgElixir(cardIds),
         tags: generateDeckTags(cardIds)
       });
-      setSubmitMessage('✅ Deck submitted for review! It will appear after approval.');
+      setSubmitMessage('✅ Deck submitted successfully! It is now live on the community feed.');
       setDeckLink('');
       setAuthorName('');
       setDescription('');
