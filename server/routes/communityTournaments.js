@@ -221,6 +221,46 @@ router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
   }
 });
 
+router.put('/admin/:id', validateAdminKey, (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name, description, host_name, start_date, end_date,
+      registration_deadline, format, max_players, prize,
+      rules, tiktok_username, tiktok_live_url, tournament_password
+    } = req.body;
+
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    statements.updateTournament.run(
+      name ?? tournament.name,
+      description ?? tournament.description,
+      host_name ?? tournament.host_name,
+      start_date ?? tournament.start_date,
+      end_date ?? tournament.end_date,
+      registration_deadline ?? tournament.registration_deadline,
+      format ?? tournament.format,
+      max_players ? parseInt(max_players) : tournament.max_players,
+      prize ?? tournament.prize,
+      rules ?? tournament.rules,
+      tiktok_username ?? tournament.tiktok_username,
+      tiktok_live_url ?? tournament.tiktok_live_url,
+      tournament_password ?? tournament.tournament_password,
+      id
+    );
+
+    createNotification(id, 'updated', `Tournament "${name || tournament.name}" has been updated.`);
+    log('success', `Tournament ${id} updated by admin`);
+    res.json({ message: 'Tournament updated', id });
+  } catch (error) {
+    log('error', `Failed to update tournament: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update tournament' });
+  }
+});
+
 router.delete('/admin/:id', validateAdminKey, (req, res) => {
   try {
     const { id } = req.params;

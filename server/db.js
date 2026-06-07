@@ -341,6 +341,13 @@ const statements = {
   deleteTournament: db.prepare(
     `DELETE FROM community_tournaments WHERE id = ?`
   ),
+  updateTournament: db.prepare(
+    `UPDATE community_tournaments
+     SET name = ?, description = ?, host_name = ?, start_date = ?, end_date = ?,
+         registration_deadline = ?, format = ?, max_players = ?, prize = ?,
+         rules = ?, tiktok_username = ?, tiktok_live_url = ?, tournament_password = ?
+     WHERE id = ?`
+  ),
 
   // Tournament Registrations
   insertRegistration: db.prepare(

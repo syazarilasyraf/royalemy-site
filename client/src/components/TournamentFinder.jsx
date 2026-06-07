@@ -14,6 +14,7 @@ import {
   updateTournamentStatus,
   updateTournamentWinners,
   updateTournamentPrizeStatus,
+  updateTournament,
   deleteTournament,
   searchTournaments,
   getTournament,
@@ -471,7 +472,7 @@ function AdminPanel({ adminKey, onRefresh }) {
 
 // ==================== TOURNAMENT DETAIL ====================
 
-function TournamentDetail({ tournament, onBack, onRefresh }) {
+function TournamentDetail({ tournament, onBack, onRefresh, adminKey }) {
   const [registrations, setRegistrations] = useState([]);
   const [showRegister, setShowRegister] = useState(false);
   const [registerForm, setRegisterForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
@@ -480,11 +481,23 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [showParticipants, setShowParticipants] = useState(false);
 
+  // Admin edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState(() => ({ ...tournament }));
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState('');
+  const [statusLoading, setStatusLoading] = useState(false);
+
   const countdown = useCountdown(tournament.start_date);
 
   useEffect(() => {
     loadRegistrations();
   }, [tournament.id]);
+
+  useEffect(() => {
+    setEditForm({ ...tournament });
+  }, [tournament]);
 
   const loadRegistrations = async () => {
     try {
@@ -526,6 +539,61 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
       setRegisterError(err.message);
     } finally {
       setRegisterLoading(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditError('');
+    setEditSuccess('');
+    setEditLoading(true);
+    try {
+      await updateTournament(tournament.id, {
+        name: editForm.name,
+        description: editForm.description,
+        host_name: editForm.host_name,
+        start_date: editForm.start_date,
+        end_date: editForm.end_date,
+        registration_deadline: editForm.registration_deadline,
+        format: editForm.format,
+        max_players: editForm.max_players,
+        prize: editForm.prize,
+        rules: editForm.rules,
+        tiktok_username: editForm.tiktok_username,
+        tiktok_live_url: editForm.tiktok_live_url,
+        tournament_password: editForm.tournament_password,
+      }, adminKey);
+      setEditSuccess('Tournament updated successfully!');
+      setIsEditing(false);
+      onRefresh();
+    } catch (err) {
+      setEditError(err.message || 'Failed to update tournament');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (!newStatus || newStatus === tournament.status) return;
+    setStatusLoading(true);
+    try {
+      await updateTournamentStatus(tournament.id, newStatus, adminKey);
+      onRefresh();
+    } catch (err) {
+      alert(err.message || 'Failed to update status');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this tournament? This cannot be undone.')) return;
+    try {
+      await deleteTournament(tournament.id, adminKey);
+      onBack();
+      onRefresh();
+    } catch (err) {
+      alert(err.message || 'Failed to delete tournament');
     }
   };
 
@@ -745,6 +813,178 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {adminKey && !isEditing && (
+          <div className="details-section admin-controls">
+            <h4>🔧 Admin Controls</h4>
+            <div className="admin-actions">
+              <button className="btn btn-info" onClick={() => setIsEditing(true)}>
+                ✏️ Edit Tournament
+              </button>
+              <div className="status-changer">
+                <label>Quick Status:</label>
+                <select
+                  value={tournament.status}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  disabled={statusLoading}
+                >
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <button className="btn btn-danger" onClick={handleDelete}>
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+        )}
+
+        {adminKey && isEditing && (
+          <div className="details-section">
+            <form onSubmit={handleEditSubmit} className="register-form">
+              <div className="register-form-header">
+                <span className="register-form-icon">✏️</span>
+                <h4>Edit Tournament</h4>
+              </div>
+              {editSuccess && <div className="submit-success">{editSuccess}</div>}
+              {editError && <div className="submit-error">{editError}</div>}
+              <div className="form-grid" style={{ marginBottom: 0 }}>
+                <div className="form-field">
+                  <label>Tournament Name *</label>
+                  <input
+                    type="text"
+                    value={editForm.name || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Tournament name"
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Organizer *</label>
+                  <input
+                    type="text"
+                    value={editForm.host_name || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, host_name: e.target.value }))}
+                    placeholder="Organizer name"
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Start Date & Time *</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.start_date || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, start_date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>End Date & Time (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.end_date || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, end_date: e.target.value }))}
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Registration Deadline (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.registration_deadline || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, registration_deadline: e.target.value }))}
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Format</label>
+                  <select
+                    value={editForm.format || 'Normal Battle'}
+                    onChange={(e) => setEditForm((p) => ({ ...p, format: e.target.value }))}
+                  >
+                    {TOURNAMENT_FORMATS.map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label>Max Players</label>
+                  <input
+                    type="number"
+                    value={editForm.max_players || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, max_players: e.target.value }))}
+                    placeholder="e.g. 50"
+                    min="2"
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Prize Pool</label>
+                  <input
+                    type="text"
+                    value={editForm.prize || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, prize: e.target.value }))}
+                    placeholder="e.g. 1000 Gems"
+                  />
+                </div>
+              </div>
+              <div className="form-field full-width">
+                <label>TikTok Username</label>
+                <div className="tiktok-input-wrapper">
+                  <span className="tiktok-at">@</span>
+                  <input
+                    type="text"
+                    value={editForm.tiktok_username || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, tiktok_username: e.target.value.replace(/^@+/, '') }))}
+                    placeholder="username"
+                  />
+                </div>
+              </div>
+              <div className="form-field full-width">
+                <label>TikTok Live URL (optional)</label>
+                <input
+                  type="url"
+                  value={editForm.tiktok_live_url || ''}
+                  onChange={(e) => setEditForm((p) => ({ ...p, tiktok_live_url: e.target.value }))}
+                  placeholder="https://www.tiktok.com/@username/live"
+                />
+              </div>
+              <div className="form-field full-width">
+                <label>Tournament Password (optional)</label>
+                <input
+                  type="text"
+                  value={editForm.tournament_password || ''}
+                  onChange={(e) => setEditForm((p) => ({ ...p, tournament_password: e.target.value }))}
+                  placeholder="Password to join"
+                />
+              </div>
+              <div className="form-field full-width">
+                <label>Description</label>
+                <textarea
+                  rows="3"
+                  value={editForm.description || ''}
+                  onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Short description..."
+                />
+              </div>
+              <div className="form-field full-width">
+                <label>Rules</label>
+                <textarea
+                  rows="3"
+                  value={editForm.rules || ''}
+                  onChange={(e) => setEditForm((p) => ({ ...p, rules: e.target.value }))}
+                  placeholder="Tournament rules..."
+                />
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="submit-btn" disabled={editLoading}>
+                  {editLoading ? 'Saving...' : '💾 Save Changes'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>
@@ -1287,6 +1527,7 @@ function TournamentFinder() {
           tournament={t}
           onBack={handleBack}
           onRefresh={loadCommunityTournaments}
+          adminKey={adminKey}
         />
         {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
       </div>
@@ -2442,6 +2683,63 @@ function TournamentFinder() {
 
         .archive-card {
           cursor: pointer;
+        }
+
+        /* Admin Controls */
+        .admin-controls {
+          background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), var(--bg-primary));
+          border: 1px solid rgba(139, 92, 246, 0.2);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+          margin: 0 var(--spacing-lg) var(--spacing-lg);
+        }
+
+        .admin-controls h4 {
+          margin: 0 0 var(--spacing-md);
+          color: var(--text-primary);
+          font-size: 1rem;
+        }
+
+        .admin-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+
+        .status-changer {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          flex: 1;
+          min-width: 200px;
+        }
+
+        .status-changer label {
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+          font-weight: 600;
+          white-space: nowrap;
+        }
+
+        .status-changer select {
+          flex: 1;
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+          outline: none;
+        }
+
+        .btn-info {
+          background: linear-gradient(135deg, #3b82f6, #2563eb);
+          color: white;
+        }
+
+        .btn-info:hover {
+          filter: brightness(1.1);
         }
 
         /* Tag Input */

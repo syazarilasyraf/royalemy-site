@@ -273,6 +273,13 @@ export function updateTournamentPrizeStatus(id, prizeStatus, key) {
   });
 }
 
+export function updateTournament(id, data, key) {
+  return fetchAPI(`/community-tournaments/admin/${id}?key=${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+}
+
 export function deleteTournament(id, key) {
   return fetchAPI(`/community-tournaments/admin/${id}?key=${encodeURIComponent(key)}`, {
     method: 'DELETE'
