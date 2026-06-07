@@ -46,24 +46,22 @@ const STATUS_BADGES = {
 const PUBLIC_STATUSES = ['approved', 'registration_open', 'registration_closed', 'live'];
 
 const TOURNAMENT_FORMATS = [
-  '1v1 Single Elimination',
-  '1v1 Double Elimination',
-  '1v1 Swiss',
-  '1v1 Round Robin',
-  '1v1 Best of 3',
-  '1v1 Best of 5',
-  '2v2',
-  'Triple Elixir',
-  'Sudden Death',
-  'Ramp Up',
-  'Draft Mode',
-  'Mirror Mode',
-  'Rage Mode',
-  'Classic Decks',
-  'Mega Deck',
-  '7x Elixir',
-  'Infinite Elixir',
+  'Normal Battle',
+  'Double Elixir Battle',
+  'Triple Elixir Battle',
+  'Sudden Death Battle',
+  'Draft Battle',
+  'Double Elixir Draft',
+  'Triple Draft',
+  'Heist Draft',
+  'Hog Race',
   'Lumberjack Rush',
+  'Wall Breaker Party',
+  'Ghost Parade',
+  'Elixir Capture',
+  'Dragon Hunt',
+  'Duel',
+  'Mega Draft Challenge',
 ];
 
 const PRIZE_STATUS_LABELS = {
@@ -846,31 +844,34 @@ function HallOfFameView({ onBack }) {
           <p>Loading rankings...</p>
         </div>
       ) : stats.length > 0 ? (
-        <div className="hof-table-wrapper">
-          <table className="hof-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th>Tag</th>
-                <th>Wins</th>
-                <th>Top 3</th>
-                <th>Participations</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.map((s, idx) => (
-                <tr key={s.id}>
-                  <td className="hof-rank">#{idx + 1}</td>
-                  <td className="hof-name">{s.player_name}</td>
-                  <td className="hof-tag">{s.player_tag}</td>
-                  <td className="hof-wins">{s.tournament_wins}</td>
-                  <td className="hof-top3">{s.top_3_finishes}</td>
-                  <td className="hof-participations">{s.total_participations}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="hof-list">
+          {stats.map((s, idx) => {
+            const rank = idx + 1;
+            const rankClass = rank === 1 ? 'hof-rank-1' : rank === 2 ? 'hof-rank-2' : rank === 3 ? 'hof-rank-3' : 'hof-rank-other';
+            return (
+              <div key={s.id} className="hof-card">
+                <div className={`hof-rank-badge ${rankClass}`}>
+                  {rank === 1 ? '1' : rank === 2 ? '2' : rank === 3 ? '3' : rank}
+                </div>
+                <div className="hof-player-info">
+                  <span className="hof-player-name">{s.player_name}</span>
+                  <span className="hof-player-tag">{s.player_tag}</span>
+                </div>
+                <div className="hof-stat hof-stat-wins">
+                  <span className="hof-stat-value">{s.tournament_wins}</span>
+                  <span className="hof-stat-label">Wins</span>
+                </div>
+                <div className="hof-stat hof-stat-top3">
+                  <span className="hof-stat-value">{s.top_3_finishes}</span>
+                  <span className="hof-stat-label">Top 3</span>
+                </div>
+                <div className="hof-stat hof-stat-part">
+                  <span className="hof-stat-value">{s.total_participations}</span>
+                  <span className="hof-stat-label">Joined</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="empty-state-box">
@@ -893,7 +894,7 @@ function SubmitModal({ onClose, onSuccess }) {
     start_date: '',
     end_date: '',
     registration_deadline: '',
-    format: '1v1 Single Elimination',
+    format: 'Normal Battle',
     max_players: '',
     prize: '',
     rules: '',
@@ -2097,6 +2098,135 @@ function TournamentFinder() {
           font-size: 0.8125rem;
         }
 
+        /* Tag Input */
+        .tag-checker-section {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-xl);
+          margin-top: var(--spacing-xl);
+        }
+
+        .tag-checker-section h3 {
+          margin: 0 0 var(--spacing-xs);
+          font-size: 1.125rem;
+          color: var(--text-primary);
+        }
+
+        .tag-checker-section .section-subtitle {
+          margin: 0 0 var(--spacing-lg);
+          color: var(--text-secondary);
+          font-size: 0.875rem;
+        }
+
+        .tag-form {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .tag-input-wrapper {
+          display: flex;
+          align-items: center;
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-xs);
+          gap: var(--spacing-xs);
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .tag-input-wrapper:focus-within {
+          border-color: var(--accent-primary);
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .tag-prefix {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-muted);
+          font-weight: 700;
+          font-size: 1rem;
+          flex-shrink: 0;
+        }
+
+        .tag-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          color: var(--text-primary);
+          font-size: 0.9375rem;
+          outline: none;
+          padding: var(--spacing-sm) var(--spacing-xs);
+          min-width: 0;
+        }
+
+        .tag-input::placeholder {
+          color: var(--text-muted);
+        }
+
+        .tag-submit-btn {
+          padding: var(--spacing-sm) var(--spacing-lg);
+          background: linear-gradient(135deg, var(--accent-primary), #2563eb);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-weight: 700;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: filter 0.2s, transform 0.1s;
+          flex-shrink: 0;
+          white-space: nowrap;
+        }
+
+        .tag-submit-btn:hover:not(:disabled) {
+          filter: brightness(1.15);
+        }
+
+        .tag-submit-btn:active:not(:disabled) {
+          transform: scale(0.97);
+        }
+
+        .tag-submit-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .tag-error {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          border-radius: var(--radius-md);
+          color: #ef4444;
+          font-size: 0.875rem;
+          font-weight: 500;
+          margin-top: var(--spacing-sm);
+        }
+
+        .tag-result {
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+          margin-top: var(--spacing-md);
+          cursor: pointer;
+          transition: transform 0.15s, box-shadow 0.2s;
+        }
+
+        .tag-result:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+          border-color: var(--accent-primary);
+        }
+
         /* Archive */
         .tournament-archive {
           animation: fadeIn 0.3s ease;
@@ -2104,58 +2234,90 @@ function TournamentFinder() {
 
         .archive-list {
           display: grid;
-          gap: var(--spacing-md);
+          gap: var(--spacing-lg);
         }
 
         .archive-card {
-          background: var(--bg-secondary);
+          background: linear-gradient(145deg, var(--bg-secondary), rgba(255,255,255,0.02));
           border: 1px solid var(--bg-tertiary);
           border-radius: var(--radius-xl);
-          padding: var(--spacing-lg);
+          padding: var(--spacing-xl);
+          transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .archive-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, #f59e0b, #ef4444, #3b82f6);
+          opacity: 0.6;
+        }
+
+        .archive-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+          border-color: rgba(255,255,255,0.08);
         }
 
         .archive-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: var(--spacing-sm);
+          margin-bottom: var(--spacing-md);
+          gap: var(--spacing-md);
         }
 
         .archive-header h4 {
           margin: 0;
           color: var(--text-primary);
-          font-size: 1.1rem;
+          font-size: 1.15rem;
+          font-weight: 700;
+          line-height: 1.3;
+          flex: 1;
         }
 
         .archive-date {
           font-size: 0.8125rem;
           color: var(--text-muted);
+          background: var(--bg-primary);
+          padding: 4px 10px;
+          border-radius: var(--radius-md);
+          white-space: nowrap;
+          flex-shrink: 0;
         }
 
         .archive-meta {
           display: flex;
           flex-wrap: wrap;
           gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-sm);
+          margin-bottom: var(--spacing-md);
         }
 
         .archive-meta span {
           font-size: 0.8125rem;
           color: var(--text-secondary);
           background: var(--bg-primary);
-          padding: 4px 10px;
+          padding: 5px 12px;
           border-radius: var(--radius-md);
+          font-weight: 500;
+          border: 1px solid var(--bg-tertiary);
         }
 
         .archive-prize {
-          color: #f59e0b !important;
-          font-weight: 600;
+          color: #fbbf24 !important;
+          font-weight: 700;
+          border-color: rgba(251, 191, 36, 0.2) !important;
         }
 
         .archive-winners {
           display: flex;
           flex-wrap: wrap;
-          gap: var(--spacing-md);
+          gap: var(--spacing-sm);
         }
 
         .archive-winner {
@@ -2164,6 +2326,11 @@ function TournamentFinder() {
           gap: var(--spacing-xs);
           font-size: 0.875rem;
           color: var(--text-primary);
+          background: var(--bg-primary);
+          padding: 6px 12px;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--bg-tertiary);
+          font-weight: 600;
         }
 
         /* Hall of Fame */
@@ -2171,57 +2338,143 @@ function TournamentFinder() {
           animation: fadeIn 0.3s ease;
         }
 
-        .hof-table-wrapper {
-          overflow-x: auto;
+        .hof-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-md);
         }
 
-        .hof-table {
-          width: 100%;
-          border-collapse: collapse;
+        .hof-card {
+          display: grid;
+          grid-template-columns: auto 1fr auto auto auto;
+          align-items: center;
+          gap: var(--spacing-md);
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-md) var(--spacing-lg);
+          transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .hof-card:hover {
+          transform: translateX(4px);
+          border-color: rgba(255,255,255,0.08);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .hof-rank-badge {
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          font-weight: 800;
           font-size: 0.875rem;
+          flex-shrink: 0;
         }
 
-        .hof-table th,
-        .hof-table td {
-          padding: var(--spacing-sm) var(--spacing-md);
-          text-align: left;
-          border-bottom: 1px solid var(--bg-tertiary);
+        .hof-rank-1 {
+          background: linear-gradient(135deg, #fbbf24, #f59e0b);
+          color: #1a1a1a;
+          box-shadow: 0 0 12px rgba(251, 191, 36, 0.3);
         }
 
-        .hof-table th {
+        .hof-rank-2 {
+          background: linear-gradient(135deg, #e5e7eb, #9ca3af);
+          color: #1a1a1a;
+        }
+
+        .hof-rank-3 {
+          background: linear-gradient(135deg, #fdba74, #ea580c);
+          color: #1a1a1a;
+        }
+
+        .hof-rank-other {
+          background: var(--bg-primary);
           color: var(--text-muted);
-          font-size: 0.75rem;
-          text-transform: uppercase;
-          font-weight: 600;
+          border: 1px solid var(--bg-tertiary);
         }
 
-        .hof-table td {
-          color: var(--text-primary);
+        .hof-player-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
         }
 
-        .hof-rank {
+        .hof-player-name {
           font-weight: 700;
-          color: #f59e0b;
+          font-size: 1rem;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
-        .hof-name {
-          font-weight: 600;
-        }
-
-        .hof-tag {
+        .hof-player-tag {
           font-family: monospace;
           color: var(--text-secondary);
-          font-size: 0.8125rem;
+          font-size: 0.75rem;
         }
 
-        .hof-wins {
-          color: #f59e0b;
-          font-weight: 700;
+        .hof-stat {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+          min-width: 56px;
         }
 
-        .hof-top3 {
-          color: #3b82f6;
-          font-weight: 700;
+        .hof-stat-value {
+          font-weight: 800;
+          font-size: 1rem;
+        }
+
+        .hof-stat-label {
+          font-size: 0.6875rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.03em;
+        }
+
+        .hof-stat-wins .hof-stat-value {
+          color: #fbbf24;
+        }
+
+        .hof-stat-top3 .hof-stat-value {
+          color: #60a5fa;
+        }
+
+        .hof-stat-part .hof-stat-value {
+          color: var(--text-secondary);
+        }
+
+        @media (max-width: 640px) {
+          .hof-card {
+            grid-template-columns: auto 1fr auto auto auto;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+          }
+
+          .hof-rank-badge {
+            width: 32px;
+            height: 32px;
+            font-size: 0.75rem;
+          }
+
+          .hof-stat {
+            min-width: 44px;
+          }
+
+          .hof-stat-value {
+            font-size: 0.875rem;
+          }
+
+          .hof-stat-label {
+            font-size: 0.625rem;
+          }
         }
 
         /* Modal */
