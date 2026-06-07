@@ -537,24 +537,31 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
       <button className="back-btn" onClick={onBack}>← Back to Tournaments</button>
 
       <div className="details-card">
-        <div className="details-header">
-          <TournamentStatusBadge status={tournament.status} />
-          {countdown && !countdown.expired && (
-            <CountdownTimer targetDate={tournament.start_date} className="details-countdown" />
-          )}
+        <div className="details-hero">
+          <div className="details-header">
+            <TournamentStatusBadge status={tournament.status} />
+            {countdown && !countdown.expired && (
+              <CountdownTimer targetDate={tournament.start_date} className="details-countdown" />
+            )}
+          </div>
+          <h2>{tournament.name}</h2>
+          <p className="details-organizer">👤 Organized by <strong>{tournament.host_name}</strong></p>
         </div>
 
-        <h2>{tournament.name}</h2>
-        <p className="details-organizer">Organized by {tournament.host_name}</p>
-
         {tournament.tiktok_username && (
-          <div className="tiktok-banner">
+          <a
+            href={`https://www.tiktok.com/@${tournament.tiktok_username}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="tiktok-banner"
+          >
             <span className="tiktok-icon">🎵</span>
             <div>
               <p className="tiktok-label">Tournament Organizer on TikTok</p>
               <p className="tiktok-user">@{tournament.tiktok_username}</p>
             </div>
-          </div>
+            <span className="tiktok-arrow">→</span>
+          </a>
         )}
 
         {tournament.tiktok_live_url && tournament.status === 'live' && (
@@ -571,31 +578,37 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
 
         <div className="details-stats">
           <div className="ds-item">
+            <span className="ds-icon">📅</span>
             <span className="ds-value">{formatDate(tournament.start_date)}</span>
             <span className="ds-label">Start Date</span>
           </div>
           {tournament.end_date && (
             <div className="ds-item">
+              <span className="ds-icon">🏁</span>
               <span className="ds-value">{formatDate(tournament.end_date)}</span>
               <span className="ds-label">End Date</span>
             </div>
           )}
           {tournament.registration_deadline && (
             <div className="ds-item">
+              <span className="ds-icon">⏰</span>
               <span className="ds-value">{formatDate(tournament.registration_deadline)}</span>
               <span className="ds-label">Registration Deadline</span>
             </div>
           )}
           <div className="ds-item">
-            <span className="ds-value">{tournament.format || '1v1'}</span>
+            <span className="ds-icon">⚔️</span>
+            <span className="ds-value">{tournament.format || 'Normal Battle'}</span>
             <span className="ds-label">Format</span>
           </div>
           <div className="ds-item">
+            <span className="ds-icon">👥</span>
             <span className="ds-value">{registrations.length}{tournament.max_players ? ` / ${tournament.max_players}` : ''}</span>
             <span className="ds-label">Participants</span>
           </div>
           {tournament.prize && (
             <div className="ds-item prize">
+              <span className="ds-icon">🏆</span>
               <span className="ds-value">{tournament.prize}</span>
               <span className="ds-label">Prize Pool</span>
             </div>
@@ -604,15 +617,15 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
 
         {tournament.description && (
           <div className="details-section">
-            <h4>Description</h4>
-            <p>{tournament.description}</p>
+            <h4>📝 Description</h4>
+            <div className="details-box">{tournament.description}</div>
           </div>
         )}
 
         {tournament.rules && (
           <div className="details-section">
-            <h4>Rules</h4>
-            <p className="rules-text">{tournament.rules}</p>
+            <h4>📜 Rules</h4>
+            <div className="details-box rules-text">{tournament.rules}</div>
           </div>
         )}
 
@@ -643,7 +656,7 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
               )}
             </div>
             <div className="prize-status">
-              Prize Status: <strong>{PRIZE_STATUS_LABELS[tournament.prize_status] || 'Pending'}</strong>
+              Prize Status: <span className={`ps-badge ps-${tournament.prize_status || 'pending'}`}>{PRIZE_STATUS_LABELS[tournament.prize_status] || 'Pending'}</span>
             </div>
           </div>
         )}
@@ -652,49 +665,58 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
           <div className="registration-box">
             {!showRegister ? (
               <button
-                className="submit-btn"
+                className="register-btn"
                 onClick={() => setShowRegister(true)}
                 disabled={isFull}
               >
-                {isFull ? 'Tournament Full' : 'Register Now'}
+                <span className="register-btn-icon">✍️</span>
+                <span>{isFull ? 'Tournament Full' : 'Register Now'}</span>
               </button>
             ) : (
               <form onSubmit={handleRegister} className="register-form">
-                <h4>Register for Tournament</h4>
+                <div className="register-form-header">
+                  <span className="register-form-icon">📝</span>
+                  <h4>Register for Tournament</h4>
+                </div>
                 {registerSuccess && <div className="submit-success">{registerSuccess}</div>}
                 {registerError && <div className="submit-error">{registerError}</div>}
-                <div className="form-field">
-                  <label>Player Name *</label>
-                  <input
-                    type="text"
-                    value={registerForm.player_name}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, player_name: e.target.value }))}
-                    placeholder="Your name"
-                    required
-                  />
+                <div className="form-grid" style={{ marginBottom: 0 }}>
+                  <div className="form-field">
+                    <label>Player Name *</label>
+                    <input
+                      type="text"
+                      value={registerForm.player_name}
+                      onChange={(e) => setRegisterForm((p) => ({ ...p, player_name: e.target.value }))}
+                      placeholder="Your in-game name"
+                      required
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Clash Royale Player Tag *</label>
+                    <input
+                      type="text"
+                      value={registerForm.player_tag}
+                      onChange={(e) => setRegisterForm((p) => ({ ...p, player_tag: e.target.value }))}
+                      placeholder="e.g. #2P0JJQ0Y"
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="form-field">
-                  <label>Clash Royale Player Tag *</label>
-                  <input
-                    type="text"
-                    value={registerForm.player_tag}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, player_tag: e.target.value }))}
-                    placeholder="e.g. #2P0JJQ0Y"
-                    required
-                  />
-                </div>
-                <div className="form-field">
-                  <label>TikTok Username</label>
-                  <input
-                    type="text"
-                    value={registerForm.tiktok_username}
-                    onChange={(e) => setRegisterForm((p) => ({ ...p, tiktok_username: e.target.value }))}
-                    placeholder="@username"
-                  />
+                <div className="form-field full-width">
+                  <label>TikTok Username (optional)</label>
+                  <div className="tiktok-input-wrapper">
+                    <span className="tiktok-at">@</span>
+                    <input
+                      type="text"
+                      value={registerForm.tiktok_username}
+                      onChange={(e) => setRegisterForm((p) => ({ ...p, tiktok_username: e.target.value.replace(/^@+/, '') }))}
+                      placeholder="username"
+                    />
+                  </div>
                 </div>
                 <div className="form-actions">
                   <button type="submit" className="submit-btn" disabled={registerLoading}>
-                    {registerLoading ? 'Registering...' : 'Confirm Registration'}
+                    {registerLoading ? 'Registering...' : '✓ Confirm Registration'}
                   </button>
                   <button type="button" className="btn btn-secondary" onClick={() => setShowRegister(false)}>
                     Cancel
@@ -706,10 +728,10 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
         )}
 
         {registrations.length > 0 && (
-          <div className="details-section">
+          <div className="details-section participants-section">
             <div className="participants-header" onClick={() => setShowParticipants((p) => !p)}>
-              <h4>Participants ({registrations.length})</h4>
-              <span>{showParticipants ? '▲' : '▼'}</span>
+              <h4>👥 Participants ({registrations.length})</h4>
+              <span className="participants-toggle">{showParticipants ? '▲' : '▼'}</span>
             </div>
             {showParticipants && (
               <div className="participants-list">
@@ -718,7 +740,7 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
                     <span className="participant-rank">#{idx + 1}</span>
                     <span className="participant-name">{reg.player_name}</span>
                     <span className="participant-tag">{reg.player_tag}</span>
-                    {reg.tiktok_username && <span className="participant-tiktok">🎵 {reg.tiktok_username}</span>}
+                    {reg.tiktok_username && <span className="participant-tiktok">🎵 @{reg.tiktok_username}</span>}
                   </div>
                 ))}
               </div>
@@ -732,7 +754,7 @@ function TournamentDetail({ tournament, onBack, onRefresh }) {
 
 // ==================== ARCHIVE VIEW ====================
 
-function ArchiveView({ onBack }) {
+function ArchiveView({ onBack, onViewDetails }) {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -766,7 +788,7 @@ function ArchiveView({ onBack }) {
       ) : tournaments.length > 0 ? (
         <div className="archive-list">
           {tournaments.map((t) => (
-            <div key={t.id} className="archive-card">
+            <div key={t.id} className="archive-card" onClick={() => onViewDetails && onViewDetails(t)}>
               <div className="archive-header">
                 <h4>{t.name}</h4>
                 <span className="archive-date">{formatDateOnly(t.start_date)}</span>
@@ -778,24 +800,25 @@ function ArchiveView({ onBack }) {
               </div>
               <div className="archive-winners">
                 {t.winner_1st && (
-                  <div className="archive-winner">
+                  <div className="archive-winner first">
                     <span>🥇</span>
                     <span>{t.winner_1st}</span>
                   </div>
                 )}
                 {t.winner_2nd && (
-                  <div className="archive-winner">
+                  <div className="archive-winner second">
                     <span>🥈</span>
                     <span>{t.winner_2nd}</span>
                   </div>
                 )}
                 {t.winner_3rd && (
-                  <div className="archive-winner">
+                  <div className="archive-winner third">
                     <span>🥉</span>
                     <span>{t.winner_3rd}</span>
                   </div>
                 )}
               </div>
+              {onViewDetails && <div className="archive-click-hint">Click to view details →</div>}
             </div>
           ))}
         </div>
@@ -1015,12 +1038,15 @@ function SubmitModal({ onClose, onSuccess }) {
             </div>
             <div className="form-field">
               <label>TikTok Username</label>
-              <input
-                type="text"
-                value={form.tiktok_username}
-                onChange={(e) => handleChange('tiktok_username', e.target.value)}
-                placeholder="@username"
-              />
+              <div className="tiktok-input-wrapper">
+                <span className="tiktok-at">@</span>
+                <input
+                  type="text"
+                  value={form.tiktok_username}
+                  onChange={(e) => handleChange('tiktok_username', e.target.value.replace(/^@+/, ''))}
+                  placeholder="username"
+                />
+              </div>
             </div>
             <div className="form-field">
               <label>TikTok Live URL (optional)</label>
@@ -1099,32 +1125,48 @@ function OfficialTournamentDetail({ tournament, onBack }) {
     <div className="tournament-details">
       <button className="back-btn" onClick={onBack}>← Back</button>
       <div className="details-card">
-        <div className="details-status" style={{ color: status.color, background: status.bg }}>
-          {status.dot} {status.label}
+        <div className="details-hero official">
+          <div className="details-status-badge" style={{ color: status.color, background: status.bg }}>
+            {status.dot} {status.label}
+          </div>
+          <h2>{tournament.name}</h2>
+          <p className="details-tag">🏷️ #{tournament.tag}</p>
         </div>
-        <h2>{tournament.name}</h2>
-        <p className="details-tag">#{tournament.tag}</p>
+
         <div className="details-stats">
           <div className="ds-item">
+            <span className="ds-icon">👥</span>
             <span className="ds-value">{tournament.capacity}/{tournament.maxCapacity}</span>
             <span className="ds-label">Players</span>
           </div>
           <div className="ds-item">
+            <span className="ds-icon">📅</span>
             <span className="ds-value">{formatDate(tournament.startTime)}</span>
             <span className="ds-label">Started</span>
           </div>
           <div className="ds-item">
-            <span className="ds-value">{formatDate(tournament.endTime)}</span>
-            <span className="ds-label">Ends</span>
+            <span className="ds-icon">⏰</span>
+            <span className="ds-value">{formatTimeRemaining(tournament.endTime)}</span>
+            <span className="ds-label">Time Left</span>
           </div>
         </div>
+
         <div className="join-box">
-          <h4>How to Join</h4>
-          <ol>
-            <li>Open Clash Royale app</li>
-            <li>Go to Tournament tab</li>
-            <li>Search tag: <strong>#{tournament.tag}</strong></li>
-          </ol>
+          <h4>🎮 How to Join</h4>
+          <div className="join-steps">
+            <div className="join-step">
+              <span className="join-step-num">1</span>
+              <span>Open Clash Royale app</span>
+            </div>
+            <div className="join-step">
+              <span className="join-step-num">2</span>
+              <span>Go to Tournament tab</span>
+            </div>
+            <div className="join-step">
+              <span className="join-step-num">3</span>
+              <span>Search tag: <strong>#{tournament.tag}</strong></span>
+            </div>
+          </div>
           <button className="copy-btn" onClick={() => navigator.clipboard.writeText(tournament.tag)}>
             📋 Copy Tag
           </button>
@@ -1263,7 +1305,7 @@ function TournamentFinder() {
   if (view === 'archive') {
     return (
       <div className="tournament-finder">
-        <ArchiveView onBack={handleBack} />
+        <ArchiveView onBack={handleBack} onViewDetails={viewTournamentDetails} />
         {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
       </div>
     );
@@ -1828,17 +1870,30 @@ function TournamentFinder() {
           cursor: pointer;
           margin-bottom: var(--spacing-lg);
           font-size: 0.9rem;
+          font-weight: 600;
+          transition: all 0.2s;
         }
 
         .back-btn:hover {
           background: var(--bg-tertiary);
+          transform: translateX(-2px);
         }
 
         .details-card {
           background: var(--bg-secondary);
           border-radius: var(--radius-xl);
-          padding: var(--spacing-xl);
           border: 1px solid var(--bg-tertiary);
+          overflow: hidden;
+        }
+
+        .details-hero {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.05));
+          padding: var(--spacing-xl);
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .details-hero.official {
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(59, 130, 246, 0.05));
         }
 
         .details-header {
@@ -1854,16 +1909,40 @@ function TournamentFinder() {
           font-size: 0.9rem !important;
         }
 
-        .details-card h2 {
+        .details-hero h2 {
           color: var(--text-primary);
           margin: 0 0 var(--spacing-xs);
-          font-size: 1.5rem;
+          font-size: 1.75rem;
+          font-weight: 800;
+          line-height: 1.2;
         }
 
         .details-organizer {
           color: var(--text-secondary);
           font-size: 1rem;
-          margin: 0 0 var(--spacing-lg);
+          margin: 0;
+        }
+
+        .details-organizer strong {
+          color: var(--text-primary);
+        }
+
+        .details-status-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: 6px 14px;
+          border-radius: var(--radius-full);
+          font-size: 0.8125rem;
+          font-weight: 700;
+          margin-bottom: var(--spacing-md);
+        }
+
+        .details-tag {
+          color: var(--text-muted);
+          font-size: 0.9375rem;
+          margin: var(--spacing-xs) 0 0;
+          font-family: monospace;
         }
 
         .tiktok-banner {
@@ -1874,11 +1953,31 @@ function TournamentFinder() {
           border: 1px solid rgba(255, 0, 80, 0.2);
           border-radius: var(--radius-lg);
           padding: var(--spacing-md);
-          margin-bottom: var(--spacing-lg);
+          margin: var(--spacing-lg);
+          text-decoration: none;
+          transition: all 0.2s;
+        }
+
+        .tiktok-banner:hover {
+          border-color: rgba(255, 0, 80, 0.4);
+          transform: translateX(4px);
         }
 
         .tiktok-icon {
           font-size: 1.5rem;
+        }
+
+        .tiktok-arrow {
+          margin-left: auto;
+          color: #ff0050;
+          font-size: 1.25rem;
+          font-weight: 700;
+          opacity: 0.6;
+          transition: opacity 0.2s;
+        }
+
+        .tiktok-banner:hover .tiktok-arrow {
+          opacity: 1;
         }
 
         .tiktok-label {
@@ -1905,12 +2004,13 @@ function TournamentFinder() {
           border-radius: var(--radius-lg);
           text-decoration: none;
           font-weight: 700;
-          margin-bottom: var(--spacing-lg);
+          margin: var(--spacing-lg);
           transition: all 0.2s;
         }
 
         .live-banner:hover {
           filter: brightness(1.1);
+          transform: scale(1.01);
         }
 
         .live-dot {
@@ -1923,9 +2023,9 @@ function TournamentFinder() {
 
         .details-stats {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: var(--spacing-md);
-          margin-bottom: var(--spacing-lg);
+          padding: var(--spacing-lg);
         }
 
         .ds-item {
@@ -1933,39 +2033,60 @@ function TournamentFinder() {
           padding: var(--spacing-md);
           border-radius: var(--radius-lg);
           text-align: center;
+          border: 1px solid var(--bg-tertiary);
+          transition: transform 0.15s, border-color 0.2s;
+        }
+
+        .ds-item:hover {
+          transform: translateY(-2px);
+          border-color: rgba(255,255,255,0.06);
+        }
+
+        .ds-icon {
+          display: block;
+          font-size: 1.25rem;
+          margin-bottom: 4px;
         }
 
         .ds-value {
           display: block;
-          font-size: 1rem;
+          font-size: 0.9375rem;
           font-weight: 700;
           color: var(--accent-primary);
+          margin-bottom: 2px;
         }
 
         .ds-label {
-          font-size: 0.7rem;
+          font-size: 0.6875rem;
           color: var(--text-muted);
           text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.03em;
         }
 
         .ds-item.prize .ds-value {
-          color: #f59e0b;
+          color: #fbbf24;
         }
 
         .details-section {
-          margin-bottom: var(--spacing-lg);
+          padding: 0 var(--spacing-lg) var(--spacing-lg);
         }
 
         .details-section h4 {
           margin: 0 0 var(--spacing-sm);
           color: var(--text-primary);
           font-size: 1rem;
+          font-weight: 700;
         }
 
-        .details-section p {
+        .details-box {
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-md);
           color: var(--text-secondary);
           line-height: 1.6;
-          margin: 0;
+          font-size: 0.9375rem;
         }
 
         .rules-text {
@@ -1977,11 +2098,12 @@ function TournamentFinder() {
           border: 1px solid rgba(245, 158, 11, 0.2);
           border-radius: var(--radius-lg);
           padding: var(--spacing-lg);
+          margin: 0 var(--spacing-lg) var(--spacing-lg);
         }
 
         .winners-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
           gap: var(--spacing-md);
           margin-bottom: var(--spacing-md);
         }
@@ -1993,26 +2115,46 @@ function TournamentFinder() {
           padding: var(--spacing-md);
           border-radius: var(--radius-lg);
           background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          transition: transform 0.15s;
+        }
+
+        .winner-card:hover {
+          transform: translateY(-3px);
         }
 
         .winner-card.first {
           border: 1px solid rgba(245, 158, 11, 0.3);
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), var(--bg-secondary));
+        }
+
+        .winner-card.second {
+          border: 1px solid rgba(156, 163, 175, 0.3);
+          background: linear-gradient(135deg, rgba(156, 163, 175, 0.08), var(--bg-secondary));
+        }
+
+        .winner-card.third {
+          border: 1px solid rgba(234, 88, 12, 0.3);
+          background: linear-gradient(135deg, rgba(234, 88, 12, 0.08), var(--bg-secondary));
         }
 
         .winner-medal {
-          font-size: 1.5rem;
+          font-size: 1.75rem;
           margin-bottom: var(--spacing-xs);
         }
 
         .winner-title {
-          font-size: 0.75rem;
+          font-size: 0.6875rem;
           color: var(--text-muted);
           text-transform: uppercase;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          margin-bottom: 2px;
         }
 
         .winner-tag {
-          font-size: 0.9rem;
-          font-weight: 700;
+          font-size: 1rem;
+          font-weight: 800;
           color: var(--text-primary);
         }
 
@@ -2022,19 +2164,110 @@ function TournamentFinder() {
           color: var(--text-secondary);
         }
 
+        .ps-badge {
+          display: inline-block;
+          padding: 3px 10px;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 700;
+          margin-left: var(--spacing-xs);
+        }
+
+        .ps-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+        .ps-contacted { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .ps-paid { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+
         .registration-box {
-          margin-bottom: var(--spacing-lg);
+          padding: 0 var(--spacing-lg) var(--spacing-lg);
+        }
+
+        .register-btn {
+          width: 100%;
+          padding: var(--spacing-lg);
+          background: linear-gradient(135deg, var(--accent-primary), #2563eb);
+          color: white;
+          border: none;
+          border-radius: var(--radius-xl);
+          font-weight: 800;
+          font-size: 1.1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-sm);
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+        }
+
+        .register-btn:hover:not(:disabled) {
+          filter: brightness(1.1);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+        }
+
+        .register-btn:disabled {
+          background: linear-gradient(135deg, #6b7280, #4b5563);
+          opacity: 0.7;
+          cursor: not-allowed;
+          box-shadow: none;
+        }
+
+        .register-btn-icon {
+          font-size: 1.25rem;
         }
 
         .register-form {
           background: var(--bg-primary);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-lg);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-xl);
         }
 
-        .register-form h4 {
-          margin: 0 0 var(--spacing-md);
+        .register-form-header {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .register-form-header h4 {
+          margin: 0;
           color: var(--text-primary);
+          font-size: 1.125rem;
+        }
+
+        .register-form-icon {
+          font-size: 1.25rem;
+        }
+
+        .tiktok-input-wrapper {
+          display: flex;
+          align-items: center;
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          overflow: hidden;
+        }
+
+        .tiktok-input-wrapper input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          padding: var(--spacing-sm) var(--spacing-md);
+          color: var(--text-primary);
+          font-size: 0.9375rem;
+          outline: none;
+        }
+
+        .tiktok-at {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-tertiary);
+          color: var(--text-muted);
+          font-weight: 700;
+          font-size: 0.9375rem;
         }
 
         .form-actions {
@@ -2053,6 +2286,14 @@ function TournamentFinder() {
           font-weight: 600;
         }
 
+        .participants-section {
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg) !important;
+          margin: 0 var(--spacing-lg) var(--spacing-lg);
+        }
+
         .participants-header {
           display: flex;
           justify-content: space-between;
@@ -2060,6 +2301,20 @@ function TournamentFinder() {
           cursor: pointer;
           padding: var(--spacing-sm) 0;
           border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .participants-header h4 {
+          margin: 0;
+        }
+
+        .participants-toggle {
+          color: var(--text-muted);
+          font-size: 0.875rem;
+          transition: color 0.2s;
+        }
+
+        .participants-header:hover .participants-toggle {
+          color: var(--text-primary);
         }
 
         .participants-list {
@@ -2070,15 +2325,25 @@ function TournamentFinder() {
           display: flex;
           align-items: center;
           gap: var(--spacing-sm);
-          padding: var(--spacing-sm) 0;
-          border-bottom: 1px solid var(--bg-tertiary);
+          padding: 10px var(--spacing-sm);
+          border-radius: var(--radius-md);
           font-size: 0.875rem;
+          transition: background 0.15s;
+        }
+
+        .participant-row:hover {
+          background: var(--bg-secondary);
         }
 
         .participant-rank {
           color: var(--text-muted);
           font-weight: 700;
-          min-width: 30px;
+          min-width: 36px;
+          text-align: center;
+          background: var(--bg-secondary);
+          padding: 2px 6px;
+          border-radius: var(--radius-md);
+          font-size: 0.75rem;
         }
 
         .participant-name {
@@ -2091,11 +2356,92 @@ function TournamentFinder() {
           color: var(--text-secondary);
           font-family: monospace;
           font-size: 0.8125rem;
+          background: var(--bg-secondary);
+          padding: 2px 8px;
+          border-radius: var(--radius-md);
         }
 
         .participant-tiktok {
           color: #ff0050;
           font-size: 0.8125rem;
+          font-weight: 600;
+          background: rgba(255, 0, 80, 0.08);
+          padding: 3px 10px;
+          border-radius: var(--radius-md);
+        }
+
+        .join-box {
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), var(--bg-primary));
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-xl);
+          margin: 0 var(--spacing-lg) var(--spacing-lg);
+        }
+
+        .join-box h4 {
+          margin: 0 0 var(--spacing-md);
+          color: var(--text-primary);
+          font-size: 1.1rem;
+        }
+
+        .join-steps {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .join-step {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          color: var(--text-secondary);
+          font-size: 0.9375rem;
+        }
+
+        .join-step-num {
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--accent-primary);
+          color: white;
+          border-radius: 50%;
+          font-size: 0.75rem;
+          font-weight: 800;
+          flex-shrink: 0;
+        }
+
+        .copy-btn {
+          width: 100%;
+          padding: var(--spacing-md);
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: white;
+          border: none;
+          border-radius: var(--radius-lg);
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+
+        .archive-click-hint {
+          text-align: center;
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          margin-top: var(--spacing-md);
+          padding-top: var(--spacing-md);
+          border-top: 1px dashed var(--bg-tertiary);
+        }
+
+        .archive-card {
+          cursor: pointer;
         }
 
         /* Tag Input */
