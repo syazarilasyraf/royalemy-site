@@ -24,10 +24,8 @@ RUN npm run build
 RUN mkdir -p /app/data
 
 # Declare data directory as a volume so database persists across deployments
+# Set DB_DIR env var to match your volume mount path (e.g., /data or /app/data)
 VOLUME /app/data
-
-# Use /app/data for database storage in containers
-ENV DB_DIR=/app/data
 
 # Expose backend port
 EXPOSE 3001
