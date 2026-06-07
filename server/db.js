@@ -17,6 +17,10 @@ const db = new Database(dbPath);
 // Enable WAL mode for better concurrency
 db.pragma('journal_mode = WAL');
 
+// Checkpoint any pending WAL data into the main database file on startup.
+// This ensures data is not trapped in transient WAL files that can be lost
+db.pragma('wal_checkpoint(TRUNCATE)');
+
 // Create tables if they don't exist
 db.exec(`
   CREATE TABLE IF NOT EXISTS features (
