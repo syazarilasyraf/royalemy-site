@@ -32,9 +32,10 @@ async function fetchAPI(endpoint, options = {}) {
 
     return await response.json();
   } catch (error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      console.error(`API Error (${endpoint}): Backend unreachable`);
-      throw new Error('Cannot connect to server. Please make sure the backend is running.');
+    // Network/CORS errors throw TypeError in all browsers
+    if (error.name === 'TypeError') {
+      console.error(`API Error (${endpoint}):`, error.message);
+      throw new Error('Cannot connect to server. The backend may be restarting or a CORS issue occurred.');
     }
     console.error(`API Error (${endpoint}):`, error);
     throw error;
