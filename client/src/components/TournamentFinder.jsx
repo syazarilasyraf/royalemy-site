@@ -3127,24 +3127,25 @@ function TournamentFinder() {
         .modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.7);
+          background: rgba(0, 0, 0, 0.75);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 200;
           padding: var(--spacing-md);
-          backdrop-filter: blur(4px);
+          backdrop-filter: blur(8px);
         }
 
         .modal-content {
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
+          background: linear-gradient(180deg, var(--bg-secondary), rgba(30, 30, 40, 0.98));
+          border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: var(--radius-xl);
           width: 100%;
           max-width: 560px;
           max-height: 90vh;
           overflow-y: auto;
-          animation: modalIn 0.2s ease;
+          animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
         }
 
         .edit-modal {
@@ -3152,7 +3153,7 @@ function TournamentFinder() {
         }
 
         @keyframes modalIn {
-          from { opacity: 0; transform: translateY(20px) scale(0.98); }
+          from { opacity: 0; transform: translateY(30px) scale(0.96); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
@@ -3160,27 +3161,38 @@ function TournamentFinder() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: var(--spacing-lg);
+          padding: var(--spacing-xl);
           border-bottom: 1px solid var(--bg-tertiary);
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), transparent);
         }
 
         .modal-header h3 {
           margin: 0;
-          font-size: 1.25rem;
+          font-size: 1.35rem;
           color: var(--text-primary);
+          font-weight: 800;
         }
 
         .modal-close {
-          background: none;
-          border: none;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--bg-tertiary);
           color: var(--text-muted);
-          font-size: 1.25rem;
+          font-size: 1rem;
           cursor: pointer;
-          padding: var(--spacing-xs);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          border-radius: var(--radius-md);
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
         }
 
         .modal-close:hover {
+          background: var(--bg-primary);
           color: var(--text-primary);
+          border-color: rgba(255, 255, 255, 0.1);
         }
 
         .submit-form {

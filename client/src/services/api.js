@@ -275,8 +275,8 @@ export function updateTournamentPrizeStatus(id, prizeStatus, key) {
 }
 
 export function updateTournament(id, data, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}?key=${encodeURIComponent(key)}`, {
-    method: 'PUT',
+  return fetchAPI(`/community-tournaments/admin/${id}/edit?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
     body: JSON.stringify(data)
   });
 }

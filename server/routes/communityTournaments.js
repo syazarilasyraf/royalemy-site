@@ -221,7 +221,7 @@ router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
   }
 });
 
-router.put('/admin/:id', validateAdminKey, (req, res) => {
+router.post('/admin/:id/edit', validateAdminKey, (req, res) => {
   try {
     const { id } = req.params;
     const {
