@@ -178,13 +178,16 @@ export default function AdminDecks() {
                     <td colSpan={7} className="admin-decks-empty">Loading decks...</td>
                   </tr>
                 )}
-                {filteredDecks.map((deck) => (
+                {filteredDecks.map((deck) => {
+                  const cardIds = Array.isArray(deck.cardIds) ? deck.cardIds : (typeof deck.cardIds === 'string' ? JSON.parse(deck.cardIds || '[]') : []);
+                  const tags = Array.isArray(deck.tags) ? deck.tags : (typeof deck.tags === 'string' ? JSON.parse(deck.tags || '[]') : []);
+                  return (
                   <tr key={deck.id}>
                     <td className="admin-decks-id">#{deck.id}</td>
                     <td className="admin-decks-preview">
-                      <DeckPreview cardIds={deck.cardIds || []} compact />
+                      <DeckPreview cardIds={cardIds} compact />
                       <div className="admin-decks-tags">
-                        {(deck.tags || []).slice(0, 3).map((tag) => (
+                        {tags.slice(0, 3).map((tag) => (
                           <span key={tag} className="badge badge-secondary">{tag}</span>
                         ))}
                       </div>
@@ -237,7 +240,8 @@ export default function AdminDecks() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )}
+                )}
               </tbody>
             </table>
           </div>
