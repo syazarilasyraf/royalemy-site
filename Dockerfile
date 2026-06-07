@@ -20,6 +20,15 @@ COPY . .
 # Build frontend
 RUN npm run build
 
+# Create data directory for persistent database storage
+RUN mkdir -p /app/data
+
+# Declare data directory as a volume so database persists across deployments
+VOLUME /app/data
+
+# Use /app/data for database storage in containers
+ENV DB_DIR=/app/data
+
 # Expose backend port
 EXPOSE 3001
 

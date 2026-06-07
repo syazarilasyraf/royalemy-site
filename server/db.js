@@ -12,6 +12,9 @@ const dbPath = path.join(dbDir, 'roadmap.db');
 // Ensure database directory exists (needed for persistent volume mounts)
 fs.mkdirSync(dbDir, { recursive: true });
 
+console.log(`[DB] Database directory: ${dbDir}`);
+console.log(`[DB] Database file: ${dbPath}`);
+
 const db = new Database(dbPath);
 
 // Enable WAL mode for better concurrency
