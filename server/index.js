@@ -12,6 +12,8 @@ import statePlayerRouter from './routes/statePlayers.js';
 import communityDeckRouter from './routes/communityDecks.js';
 import adminRouter from './routes/admin.js';
 import { log, logRequest, logError } from './logger.js';
+import { db } from './db.js';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -246,6 +248,36 @@ app.get('/api/health', (req, res) => {
     frontendUrl: FRONTEND_URL,
     uptime: process.uptime()
   });
+});
+
+// Debug: database diagnostics
+app.get('/api/debug/db', (req, res) => {
+  try {
+    const dbPath = db.name;
+    const exists = fs.existsSync(dbPath);
+    const stats = exists ? fs.statSync(dbPath) : null;
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(r => r.name);
+    const counts = {};
+    for (const table of tables) {
+      try {
+        counts[table] = db.prepare(`SELECT COUNT(*) as c FROM ${table}`).get().c;
+      } catch (e) {
+        counts[table] = 'error';
+      }
+    }
+    res.json({
+      dbPath,
+      exists,
+      sizeBytes: stats ? stats.size : 0,
+      sizeKB: stats ? Math.round(stats.size / 1024) : 0,
+      modifiedAt: stats ? new Date(stats.mtime).toISOString() : null,
+      tables,
+      counts,
+      dbDir: process.env.DB_DIR || '(not set, using default)'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Clear cache (admin endpoint)
