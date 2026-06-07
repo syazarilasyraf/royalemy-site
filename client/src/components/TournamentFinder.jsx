@@ -843,148 +843,150 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey }) {
         )}
 
         {adminKey && isEditing && (
-          <div className="details-section">
-            <form onSubmit={handleEditSubmit} className="register-form">
-              <div className="register-form-header">
-                <span className="register-form-icon">✏️</span>
-                <h4>Edit Tournament</h4>
+          <div className="modal-overlay" onClick={() => setIsEditing(false)}>
+            <div className="modal-content edit-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>✏️ Edit Tournament</h3>
+                <button className="modal-close" onClick={() => setIsEditing(false)}>✕</button>
               </div>
-              {editSuccess && <div className="submit-success">{editSuccess}</div>}
-              {editError && <div className="submit-error">{editError}</div>}
-              <div className="form-grid" style={{ marginBottom: 0 }}>
-                <div className="form-field">
-                  <label>Tournament Name *</label>
-                  <input
-                    type="text"
-                    value={editForm.name || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
-                    placeholder="Tournament name"
-                    required
-                  />
+              <form onSubmit={handleEditSubmit} className="submit-form">
+                {editSuccess && <div className="submit-success">{editSuccess}</div>}
+                {editError && <div className="submit-error">{editError}</div>}
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label>Tournament Name *</label>
+                    <input
+                      type="text"
+                      value={editForm.name || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                      placeholder="Tournament name"
+                      required
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Organizer *</label>
+                    <input
+                      type="text"
+                      value={editForm.host_name || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, host_name: e.target.value }))}
+                      placeholder="Organizer name"
+                      required
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Start Date & Time *</label>
+                    <input
+                      type="datetime-local"
+                      value={editForm.start_date || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, start_date: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>End Date & Time (optional)</label>
+                    <input
+                      type="datetime-local"
+                      value={editForm.end_date || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, end_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Registration Deadline (optional)</label>
+                    <input
+                      type="datetime-local"
+                      value={editForm.registration_deadline || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, registration_deadline: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Format</label>
+                    <select
+                      value={editForm.format || 'Normal Battle'}
+                      onChange={(e) => setEditForm((p) => ({ ...p, format: e.target.value }))}
+                    >
+                      {TOURNAMENT_FORMATS.map((f) => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-field">
+                    <label>Max Players</label>
+                    <input
+                      type="number"
+                      value={editForm.max_players || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, max_players: e.target.value }))}
+                      placeholder="e.g. 50"
+                      min="2"
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Prize Pool</label>
+                    <input
+                      type="text"
+                      value={editForm.prize || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, prize: e.target.value }))}
+                      placeholder="e.g. 1000 Gems"
+                    />
+                  </div>
+                  <div className="form-field full-width">
+                    <label>TikTok Username</label>
+                    <div className="tiktok-input-wrapper">
+                      <span className="tiktok-at">@</span>
+                      <input
+                        type="text"
+                        value={editForm.tiktok_username || ''}
+                        onChange={(e) => setEditForm((p) => ({ ...p, tiktok_username: e.target.value.replace(/^@+/, '') }))}
+                        placeholder="username"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-field full-width">
+                    <label>TikTok Live URL (optional)</label>
+                    <input
+                      type="url"
+                      value={editForm.tiktok_live_url || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, tiktok_live_url: e.target.value }))}
+                      placeholder="https://www.tiktok.com/@username/live"
+                    />
+                  </div>
+                  <div className="form-field full-width">
+                    <label>Tournament Password (optional)</label>
+                    <input
+                      type="text"
+                      value={editForm.tournament_password || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, tournament_password: e.target.value }))}
+                      placeholder="Password to join"
+                    />
+                  </div>
+                  <div className="form-field full-width">
+                    <label>Description</label>
+                    <textarea
+                      rows="3"
+                      value={editForm.description || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                      placeholder="Short description..."
+                    />
+                  </div>
+                  <div className="form-field full-width">
+                    <label>Rules</label>
+                    <textarea
+                      rows="3"
+                      value={editForm.rules || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, rules: e.target.value }))}
+                      placeholder="Tournament rules..."
+                    />
+                  </div>
                 </div>
-                <div className="form-field">
-                  <label>Organizer *</label>
-                  <input
-                    type="text"
-                    value={editForm.host_name || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, host_name: e.target.value }))}
-                    placeholder="Organizer name"
-                    required
-                  />
+                <div className="form-actions">
+                  <button type="submit" className="submit-btn" disabled={editLoading}>
+                    {editLoading ? 'Saving...' : '💾 Save Changes'}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </button>
                 </div>
-                <div className="form-field">
-                  <label>Start Date & Time *</label>
-                  <input
-                    type="datetime-local"
-                    value={editForm.start_date || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, start_date: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="form-field">
-                  <label>End Date & Time (optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={editForm.end_date || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, end_date: e.target.value }))}
-                  />
-                </div>
-                <div className="form-field">
-                  <label>Registration Deadline (optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={editForm.registration_deadline || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, registration_deadline: e.target.value }))}
-                  />
-                </div>
-                <div className="form-field">
-                  <label>Format</label>
-                  <select
-                    value={editForm.format || 'Normal Battle'}
-                    onChange={(e) => setEditForm((p) => ({ ...p, format: e.target.value }))}
-                  >
-                    {TOURNAMENT_FORMATS.map((f) => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-field">
-                  <label>Max Players</label>
-                  <input
-                    type="number"
-                    value={editForm.max_players || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, max_players: e.target.value }))}
-                    placeholder="e.g. 50"
-                    min="2"
-                  />
-                </div>
-                <div className="form-field">
-                  <label>Prize Pool</label>
-                  <input
-                    type="text"
-                    value={editForm.prize || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, prize: e.target.value }))}
-                    placeholder="e.g. 1000 Gems"
-                  />
-                </div>
-              </div>
-              <div className="form-field full-width">
-                <label>TikTok Username</label>
-                <div className="tiktok-input-wrapper">
-                  <span className="tiktok-at">@</span>
-                  <input
-                    type="text"
-                    value={editForm.tiktok_username || ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, tiktok_username: e.target.value.replace(/^@+/, '') }))}
-                    placeholder="username"
-                  />
-                </div>
-              </div>
-              <div className="form-field full-width">
-                <label>TikTok Live URL (optional)</label>
-                <input
-                  type="url"
-                  value={editForm.tiktok_live_url || ''}
-                  onChange={(e) => setEditForm((p) => ({ ...p, tiktok_live_url: e.target.value }))}
-                  placeholder="https://www.tiktok.com/@username/live"
-                />
-              </div>
-              <div className="form-field full-width">
-                <label>Tournament Password (optional)</label>
-                <input
-                  type="text"
-                  value={editForm.tournament_password || ''}
-                  onChange={(e) => setEditForm((p) => ({ ...p, tournament_password: e.target.value }))}
-                  placeholder="Password to join"
-                />
-              </div>
-              <div className="form-field full-width">
-                <label>Description</label>
-                <textarea
-                  rows="3"
-                  value={editForm.description || ''}
-                  onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                  placeholder="Short description..."
-                />
-              </div>
-              <div className="form-field full-width">
-                <label>Rules</label>
-                <textarea
-                  rows="3"
-                  value={editForm.rules || ''}
-                  onChange={(e) => setEditForm((p) => ({ ...p, rules: e.target.value }))}
-                  placeholder="Tournament rules..."
-                />
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="submit-btn" disabled={editLoading}>
-                  {editLoading ? 'Saving...' : '💾 Save Changes'}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
-                  Cancel
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         )}
       </div>
@@ -3143,6 +3145,10 @@ function TournamentFinder() {
           max-height: 90vh;
           overflow-y: auto;
           animation: modalIn 0.2s ease;
+        }
+
+        .edit-modal {
+          max-width: 640px;
         }
 
         @keyframes modalIn {
