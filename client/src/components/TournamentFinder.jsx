@@ -1424,6 +1424,103 @@ function OfficialTournamentDetail({ tournament, onBack }) {
   );
 }
 
+// ==================== REGISTER MODAL ====================
+
+function RegisterModal({ tournament, onClose, onSuccess }) {
+  const [form, setForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleChange = (field, value) => {
+    setForm((p) => ({ ...p, [field]: value }));
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!form.player_name || !form.player_tag) {
+      setError('Player name and tag are required');
+      return;
+    }
+
+    const cleanTag = validatePlayerTag(form.player_tag);
+    if (!cleanTag) {
+      setError('Invalid player tag. Must be 3-10 alphanumeric characters.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await registerForTournament(tournament.id, {
+        player_name: form.player_name,
+        player_tag: cleanTag,
+        tiktok_username: form.tiktok_username,
+      });
+      setSuccess('Registration successful! 🎉');
+      setForm({ player_name: '', player_tag: '', tiktok_username: '' });
+      onSuccess();
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content register-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>📝 Register for {tournament.name}</h3>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="submit-form register-form-body">
+          {success && <div className="submit-success">{success}</div>}
+          {error && <div className="submit-error">{error}</div>}
+          <div className="form-field">
+            <label>Player Name *</label>
+            <input
+              type="text"
+              value={form.player_name}
+              onChange={(e) => handleChange('player_name', e.target.value)}
+              placeholder="Your in-game name"
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label>Clash Royale Player Tag *</label>
+            <input
+              type="text"
+              value={form.player_tag}
+              onChange={(e) => handleChange('player_tag', e.target.value)}
+              placeholder="e.g. #2P0JJQ0Y"
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label>TikTok Username (optional)</label>
+            <div className="tiktok-input-wrapper">
+              <span className="tiktok-at">@</span>
+              <input
+                type="text"
+                value={form.tiktok_username}
+                onChange={(e) => handleChange('tiktok_username', e.target.value.replace(/^@+/, ''))}
+                placeholder="username"
+              />
+            </div>
+          </div>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? 'Registering...' : '✓ Confirm Registration'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ==================== MAIN COMPONENT ====================
 
 function TournamentFinder() {
@@ -1435,6 +1532,10 @@ function TournamentFinder() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [searchParams] = useSearchParams();
   const adminKey = searchParams.get('admin');
+
+  // Registration modal
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [registeringTournament, setRegisteringTournament] = useState(null);
 
   // Official CR tournament search
   const [searchName, setSearchName] = useState('');
@@ -1477,6 +1578,11 @@ function TournamentFinder() {
       setSelectedTournamentFull({ tournament, registrations: [], participantCount: 0, notifications: [] });
       setView('detail');
     }
+  };
+
+  const openRegisterModal = (tournament) => {
+    setRegisteringTournament(tournament);
+    setRegisterModalOpen(true);
   };
 
   const handleBack = () => {
@@ -1594,24 +1700,30 @@ function TournamentFinder() {
           <h3>🔴 Live Now</h3>
           <div className="live-tournament-list">
             {liveTournaments.map((t) => (
-              <div key={t.id} className="live-tournament-card" onClick={() => viewTournamentDetails(t)}>
+              <div key={t.id} className="live-tournament-card">
                 <div className="live-indicator">
                   <span className="live-pulse"></span>
                   <span>LIVE</span>
                 </div>
                 <h4>{t.name}</h4>
                 <p className="live-host">by {t.host_name}</p>
-                {t.tiktok_live_url && (
-                  <a
-                    href={t.tiktok_live_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="live-link"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    🎵 Watch on TikTok
-                  </a>
-                )}
+                <div className="card-actions">
+                  {t.tiktok_live_url && (
+                    <a
+                      href={t.tiktok_live_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="card-action-btn watch-btn"
+                    >
+                      🎵 Watch Live
+                    </a>
+                  )}
+                  {adminKey && (
+                    <button className="card-action-btn edit-btn-sm" onClick={() => viewTournamentDetails(t)}>
+                      ✏️ Edit
+                    </button>
+                  )}
+                </div>
                 {t.prize && <span className="live-prize">🏆 {t.prize}</span>}
               </div>
             ))}
@@ -1635,29 +1747,44 @@ function TournamentFinder() {
           </div>
         ) : upcomingTournaments.length > 0 ? (
           <div className="community-tournament-list">
-            {upcomingTournaments.map((t) => (
-              <div key={t.id} className="community-tournament-card" onClick={() => viewTournamentDetails(t)}>
-                <div className="ct-card-header">
-                  <TournamentStatusBadge status={t.status} />
-                  <CountdownTimer targetDate={t.start_date} />
-                </div>
-                <h4 className="ct-name">{t.name}</h4>
-                <p className="ct-host">Organized by {t.host_name}</p>
-                {t.description && <p className="ct-desc">{t.description}</p>}
-                <div className="ct-meta">
-                  <span>📅 {formatDate(t.start_date)}</span>
-                  <span>🎮 {t.format || '1v1'}</span>
-                  {t.max_players && <span>👥 Max {t.max_players}</span>}
-                  {t.prize && <span>🏆 {t.prize}</span>}
-                  {t.registration_deadline && <span>⏰ Deadline: {formatDate(t.registration_deadline)}</span>}
-                </div>
-                {t.tiktok_username && (
-                  <div className="ct-tiktok">
-                    🎵 @{t.tiktok_username}
+            {upcomingTournaments.map((t) => {
+              const canRegister = t.status === 'approved' || t.status === 'registration_open';
+              return (
+                <div key={t.id} className="community-tournament-card">
+                  <div className="ct-card-header">
+                    <TournamentStatusBadge status={t.status} />
+                    <CountdownTimer targetDate={t.start_date} />
                   </div>
-                )}
-              </div>
-            ))}
+                  <h4 className="ct-name">{t.name}</h4>
+                  <p className="ct-host">Organized by {t.host_name}</p>
+                  {t.description && <p className="ct-desc">{t.description}</p>}
+                  <div className="ct-meta">
+                    <span>📅 {formatDate(t.start_date)}</span>
+                    <span>🎮 {t.format || 'Normal Battle'}</span>
+                    {t.max_players && <span>👥 Max {t.max_players}</span>}
+                    {t.prize && <span>🏆 {t.prize}</span>}
+                    {t.registration_deadline && <span>⏰ Deadline: {formatDate(t.registration_deadline)}</span>}
+                  </div>
+                  {t.tiktok_username && (
+                    <div className="ct-tiktok">
+                      🎵 @{t.tiktok_username}
+                    </div>
+                  )}
+                  <div className="card-actions">
+                    {canRegister && (
+                      <button className="card-action-btn register-action-btn" onClick={() => openRegisterModal(t)}>
+                        ✍️ Register Now
+                      </button>
+                    )}
+                    {adminKey && (
+                      <button className="card-action-btn edit-btn-sm" onClick={() => viewTournamentDetails(t)}>
+                        ✏️ Edit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="empty-state-box">
@@ -1754,6 +1881,17 @@ function TournamentFinder() {
       {showSubmitModal && (
         <SubmitModal
           onClose={() => setShowSubmitModal(false)}
+          onSuccess={loadCommunityTournaments}
+        />
+      )}
+
+      {registerModalOpen && registeringTournament && (
+        <RegisterModal
+          tournament={registeringTournament}
+          onClose={() => {
+            setRegisterModalOpen(false);
+            setRegisteringTournament(null);
+          }}
           onSuccess={loadCommunityTournaments}
         />
       )}
@@ -1912,7 +2050,6 @@ function TournamentFinder() {
           border: 1px solid rgba(239, 68, 68, 0.3);
           border-radius: var(--radius-xl);
           padding: var(--spacing-lg);
-          cursor: pointer;
           transition: all 0.2s;
         }
 
@@ -1987,8 +2124,9 @@ function TournamentFinder() {
           border: 1px solid var(--bg-tertiary);
           border-radius: var(--radius-xl);
           padding: var(--spacing-lg);
-          cursor: pointer;
           transition: all 0.2s;
+          display: flex;
+          flex-direction: column;
         }
 
         .community-tournament-card:hover {
@@ -2098,6 +2236,98 @@ function TournamentFinder() {
           color: #ff0050;
           font-weight: 600;
           margin-top: var(--spacing-xs);
+        }
+
+        .card-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-sm);
+          margin-top: var(--spacing-md);
+          padding-top: var(--spacing-md);
+          border-top: 1px solid var(--bg-tertiary);
+        }
+
+        .card-action-btn {
+          padding: var(--spacing-sm) var(--spacing-md);
+          border: none;
+          border-radius: var(--radius-lg);
+          font-weight: 700;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+        }
+
+        .register-action-btn {
+          background: linear-gradient(135deg, var(--accent-primary), #2563eb);
+          color: white;
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+          flex: 1;
+          justify-content: center;
+        }
+
+        .register-action-btn:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+        }
+
+        .edit-btn-sm {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+
+        .edit-btn-sm:hover {
+          background: var(--text-muted);
+          color: white;
+        }
+
+        .watch-btn {
+          background: #000;
+          color: white;
+        }
+
+        .watch-btn:hover {
+          background: #333;
+          transform: translateY(-1px);
+        }
+
+        .register-modal {
+          max-width: 480px;
+        }
+
+        .register-form-body {
+          padding: var(--spacing-xl);
+        }
+
+        .register-form-body .form-field {
+          margin-bottom: var(--spacing-md);
+        }
+
+        .register-form-body .form-field label {
+          font-size: 0.8125rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          margin-bottom: var(--spacing-xs);
+        }
+
+        .register-form-body .form-field input {
+          width: 100%;
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 0.9375rem;
+          outline: none;
+          transition: all 0.2s;
+        }
+
+        .register-form-body .form-field input:focus {
+          border-color: var(--accent-primary);
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         /* Details View */
