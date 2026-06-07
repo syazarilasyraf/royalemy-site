@@ -958,6 +958,28 @@ app.get('*', (req, res) => {
   });
 });
 
+// ==================== HEALTH / VERSION ====================
+
+let serverVersion = 'unknown';
+try {
+  const versionPath = path.join(__dirname, 'version.txt');
+  if (fs.existsSync(versionPath)) {
+    serverVersion = fs.readFileSync(versionPath, 'utf8').trim();
+  }
+} catch (e) {
+  // ignore
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    version: serverVersion,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    db: dbPath,
+  });
+});
+
 // ==================== GLOBAL ERROR HANDLER ====================
 
 app.use((err, req, res, next) => {
