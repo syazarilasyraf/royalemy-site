@@ -163,7 +163,7 @@ function TournamentStatusBadge({ status }) {
 
 // ==================== ADMIN PANEL ====================
 
-function AdminPanel({ adminKey, onRefresh }) {
+function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
   const [allTournaments, setAllTournaments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -277,8 +277,8 @@ function AdminPanel({ adminKey, onRefresh }) {
           <div className="tournament-admin-list">
             {pending.map((t) => (
               <div key={t.id} className="tournament-admin-item">
-                <div>
-                  <strong>{t.name}</strong>
+                <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                  <strong className="tournament-admin-name">{t.name}</strong>
                   <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
                     {STATUS_LABELS[t.status]}
                   </span>
@@ -309,8 +309,8 @@ function AdminPanel({ adminKey, onRefresh }) {
           <div className="tournament-admin-list">
             {active.map((t) => (
               <div key={t.id} className="tournament-admin-item">
-                <div>
-                  <strong>{t.name}</strong>
+                <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                  <strong className="tournament-admin-name">{t.name}</strong>
                   <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
                     {STATUS_LABELS[t.status]}
                   </span>
@@ -349,8 +349,8 @@ function AdminPanel({ adminKey, onRefresh }) {
             {completed.map((t) => (
               <div key={t.id} className="tournament-admin-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <div>
-                    <strong>{t.name}</strong>
+                  <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                    <strong className="tournament-admin-name">{t.name}</strong>
                     <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
                       {STATUS_LABELS[t.status]}
                     </span>
@@ -404,8 +404,8 @@ function AdminPanel({ adminKey, onRefresh }) {
           <div className="tournament-admin-list">
             {other.map((t) => (
               <div key={t.id} className="tournament-admin-item">
-                <div>
-                  <strong>{t.name}</strong>
+                <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                  <strong className="tournament-admin-name">{t.name}</strong>
                   <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
                     {STATUS_LABELS[t.status]}
                   </span>
@@ -1529,7 +1529,7 @@ function TournamentFinder() {
           onRefresh={loadCommunityTournaments}
           adminKey={adminKey}
         />
-        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} onViewDetails={viewTournamentDetails} />}
       </div>
     );
   }
@@ -1538,7 +1538,7 @@ function TournamentFinder() {
     return (
       <div className="tournament-finder">
         <OfficialTournamentDetail tournament={selectedOfficialTournament} onBack={handleBack} />
-        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} onViewDetails={viewTournamentDetails} />}
       </div>
     );
   }
@@ -1547,7 +1547,7 @@ function TournamentFinder() {
     return (
       <div className="tournament-finder">
         <ArchiveView onBack={handleBack} onViewDetails={viewTournamentDetails} />
-        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} onViewDetails={viewTournamentDetails} />}
       </div>
     );
   }
@@ -1556,7 +1556,7 @@ function TournamentFinder() {
     return (
       <div className="tournament-finder">
         <HallOfFameView onBack={handleBack} />
-        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} onViewDetails={viewTournamentDetails} />}
       </div>
     );
   }
@@ -3305,6 +3305,20 @@ function TournamentFinder() {
           background: var(--bg-secondary);
           border: 1px solid var(--bg-tertiary);
           border-radius: var(--radius-lg);
+        }
+
+        .tournament-admin-info {
+          cursor: pointer;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .tournament-admin-name {
+          transition: color 0.2s;
+        }
+
+        .tournament-admin-info:hover .tournament-admin-name {
+          color: var(--accent-primary);
         }
 
         .tournament-admin-actions {
