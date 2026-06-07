@@ -2133,6 +2133,8 @@ function TournamentFinder() {
           border-radius: var(--radius-xl);
           border: 1px solid var(--bg-tertiary);
           overflow: hidden;
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+          transition: box-shadow 0.3s ease;
         }
 
         .details-hero {
