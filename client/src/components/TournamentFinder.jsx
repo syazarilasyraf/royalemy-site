@@ -730,67 +730,73 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey }) {
         )}
 
         {canRegister && (
-          <div className="registration-box">
+          <div className="registration-area">
             {!showRegister ? (
-              <button
-                className="register-btn"
-                onClick={() => setShowRegister(true)}
-                disabled={isFull}
-              >
-                <span className="register-btn-icon">✍️</span>
-                <span>{isFull ? 'Tournament Full' : 'Register Now'}</span>
-              </button>
+              <div className="registration-card">
+                <div className="rc-icon">🏆</div>
+                <h4>Want to compete?</h4>
+                <p>Register now to secure your spot in this tournament.</p>
+                <button
+                  className="register-btn"
+                  onClick={() => setShowRegister(true)}
+                  disabled={isFull}
+                >
+                  <span>{isFull ? 'Tournament Full' : 'Register Now'}</span>
+                </button>
+              </div>
             ) : (
-              <form onSubmit={handleRegister} className="register-form">
-                <div className="register-form-header">
-                  <span className="register-form-icon">📝</span>
+              <div className="registration-card active">
+                <div className="rc-header">
+                  <span className="rc-header-icon">📝</span>
                   <h4>Register for Tournament</h4>
                 </div>
                 {registerSuccess && <div className="submit-success">{registerSuccess}</div>}
                 {registerError && <div className="submit-error">{registerError}</div>}
-                <div className="form-grid" style={{ marginBottom: 0 }}>
-                  <div className="form-field">
-                    <label>Player Name *</label>
-                    <input
-                      type="text"
-                      value={registerForm.player_name}
-                      onChange={(e) => setRegisterForm((p) => ({ ...p, player_name: e.target.value }))}
-                      placeholder="Your in-game name"
-                      required
-                    />
+                <form onSubmit={handleRegister}>
+                  <div className="form-grid" style={{ marginBottom: 0 }}>
+                    <div className="form-field">
+                      <label>Player Name *</label>
+                      <input
+                        type="text"
+                        value={registerForm.player_name}
+                        onChange={(e) => setRegisterForm((p) => ({ ...p, player_name: e.target.value }))}
+                        placeholder="Your in-game name"
+                        required
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Clash Royale Player Tag *</label>
+                      <input
+                        type="text"
+                        value={registerForm.player_tag}
+                        onChange={(e) => setRegisterForm((p) => ({ ...p, player_tag: e.target.value }))}
+                        placeholder="e.g. #2P0JJQ0Y"
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="form-field">
-                    <label>Clash Royale Player Tag *</label>
-                    <input
-                      type="text"
-                      value={registerForm.player_tag}
-                      onChange={(e) => setRegisterForm((p) => ({ ...p, player_tag: e.target.value }))}
-                      placeholder="e.g. #2P0JJQ0Y"
-                      required
-                    />
+                  <div className="form-field full-width">
+                    <label>TikTok Username (optional)</label>
+                    <div className="tiktok-input-wrapper">
+                      <span className="tiktok-at">@</span>
+                      <input
+                        type="text"
+                        value={registerForm.tiktok_username}
+                        onChange={(e) => setRegisterForm((p) => ({ ...p, tiktok_username: e.target.value.replace(/^@+/, '') }))}
+                        placeholder="username"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="form-field full-width">
-                  <label>TikTok Username (optional)</label>
-                  <div className="tiktok-input-wrapper">
-                    <span className="tiktok-at">@</span>
-                    <input
-                      type="text"
-                      value={registerForm.tiktok_username}
-                      onChange={(e) => setRegisterForm((p) => ({ ...p, tiktok_username: e.target.value.replace(/^@+/, '') }))}
-                      placeholder="username"
-                    />
+                  <div className="form-actions">
+                    <button type="submit" className="submit-btn" disabled={registerLoading}>
+                      {registerLoading ? 'Registering...' : '✓ Confirm Registration'}
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowRegister(false)}>
+                      Cancel
+                    </button>
                   </div>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="submit-btn" disabled={registerLoading}>
-                    {registerLoading ? 'Registering...' : '✓ Confirm Registration'}
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowRegister(false)}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
+                </form>
+              </div>
             )}
           </div>
         )}
@@ -849,7 +855,7 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey }) {
                 <h3>✏️ Edit Tournament</h3>
                 <button className="modal-close" onClick={() => setIsEditing(false)}>✕</button>
               </div>
-              <form onSubmit={handleEditSubmit} className="submit-form">
+              <form onSubmit={handleEditSubmit} className="submit-form edit-form">
                 {editSuccess && <div className="submit-success">{editSuccess}</div>}
                 {editError && <div className="submit-error">{editError}</div>}
                 <div className="form-grid">
@@ -2420,31 +2426,87 @@ function TournamentFinder() {
         .ps-contacted { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
         .ps-paid { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
 
-        .registration-box {
+        .registration-area {
           padding: 0 var(--spacing-lg) var(--spacing-lg);
+        }
+
+        .registration-card {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), var(--bg-primary));
+          border: 1px solid rgba(59, 130, 246, 0.2);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-xl);
+          text-align: center;
+          transition: all 0.2s;
+        }
+
+        .registration-card:hover {
+          border-color: rgba(59, 130, 246, 0.35);
+          box-shadow: 0 8px 32px rgba(59, 130, 246, 0.12);
+          transform: translateY(-2px);
+        }
+
+        .registration-card.active {
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          text-align: left;
+        }
+
+        .registration-card.active:hover {
+          transform: none;
+          box-shadow: none;
+          border-color: var(--bg-tertiary);
+        }
+
+        .rc-icon {
+          font-size: 2.5rem;
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .registration-card h4 {
+          margin: 0 0 var(--spacing-xs);
+          color: var(--text-primary);
+          font-size: 1.15rem;
+        }
+
+        .registration-card p {
+          margin: 0 0 var(--spacing-md);
+          color: var(--text-secondary);
+          font-size: 0.9375rem;
+        }
+
+        .rc-header {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .rc-header-icon {
+          font-size: 1.25rem;
+        }
+
+        .rc-header h4 {
+          margin: 0;
+          font-size: 1.125rem;
         }
 
         .register-btn {
           width: 100%;
-          padding: var(--spacing-lg);
+          padding: var(--spacing-md) var(--spacing-lg);
           background: linear-gradient(135deg, var(--accent-primary), #2563eb);
           color: white;
           border: none;
-          border-radius: var(--radius-xl);
-          font-weight: 800;
-          font-size: 1.1rem;
+          border-radius: var(--radius-lg);
+          font-weight: 700;
+          font-size: 1rem;
           cursor: pointer;
           transition: all 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: var(--spacing-sm);
           box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
         }
 
         .register-btn:hover:not(:disabled) {
           filter: brightness(1.1);
-          transform: translateY(-2px);
+          transform: translateY(-1px);
           box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
         }
 
@@ -2453,34 +2515,6 @@ function TournamentFinder() {
           opacity: 0.7;
           cursor: not-allowed;
           box-shadow: none;
-        }
-
-        .register-btn-icon {
-          font-size: 1.25rem;
-        }
-
-        .register-form {
-          background: var(--bg-primary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-xl);
-        }
-
-        .register-form-header {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .register-form-header h4 {
-          margin: 0;
-          color: var(--text-primary);
-          font-size: 1.125rem;
-        }
-
-        .register-form-icon {
-          font-size: 1.25rem;
         }
 
         .tiktok-input-wrapper {
@@ -3197,6 +3231,33 @@ function TournamentFinder() {
 
         .submit-form {
           padding: var(--spacing-lg);
+        }
+
+        .edit-form {
+          background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+          border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+        }
+
+        .edit-form .form-field label {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          color: var(--text-muted);
+        }
+
+        .edit-form .form-field input,
+        .edit-form .form-field select,
+        .edit-form .form-field textarea {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          transition: all 0.2s;
+        }
+
+        .edit-form .form-field input:focus,
+        .edit-form .form-field select:focus,
+        .edit-form .form-field textarea:focus {
+          border-color: var(--accent-primary);
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .submit-success {
