@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById } from '../utils/cardMapping';
 import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck } from '../services/api';
+import AdminDecks from './AdminDecks';
 import { isChampionCard } from '../data/deckSources';
 import DeckPreview from './DeckPreview';
 
@@ -123,6 +125,13 @@ function CommunityDeckFeed() {
       console.error('Vote failed:', err);
     }
   };
+
+  const [searchParams] = useSearchParams();
+  const adminKey = searchParams.get('admin');
+
+  if (adminKey) {
+    return <AdminDecks />;
+  }
 
   return (
     <div className="community-deck-feed-page">

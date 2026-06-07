@@ -11,7 +11,6 @@ import MYRankings from './components/MYRankings';
 import More from './components/More';
 import Roadmap from './components/Roadmap';
 import AdminLogs from './components/AdminLogs';
-import AdminDecks from './components/AdminDecks';
 import InstallButton from './components/InstallButton';
 import InstallBanner from './components/InstallBanner';
 
@@ -89,7 +88,6 @@ function App() {
           <Route path="/more" element={<More />} />
           <Route path="/roadmap" element={<Roadmap />} />
           <Route path="/admin/logs" element={<AdminLogs />} />
-          <Route path="/admin/decks" element={<AdminDecks />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
