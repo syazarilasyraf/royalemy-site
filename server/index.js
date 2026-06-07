@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
@@ -12,10 +12,8 @@ import statePlayerRouter from './routes/statePlayers.js';
 import communityDeckRouter from './routes/communityDecks.js';
 import adminRouter from './routes/admin.js';
 import { log, logRequest, logError } from './logger.js';
-import { db } from './db.js';
+import { db, getDbDiagnostics } from './db.js';
 import fs from 'fs';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -250,32 +248,26 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Debug: database diagnostics
-app.get('/api/debug/db', (req, res) => {
+// Admin: database diagnostics (protected by admin key)
+function validateAdminKeyForEndpoint(req, res, next) {
+  const key = req.query.key;
+  const adminKey = process.env.ROADMAP_ADMIN_KEY;
+  if (!adminKey) {
+    return res.status(500).json({ error: 'Admin key not configured on server' });
+  }
+  if (key !== adminKey) {
+    log('warn', `Invalid admin key attempt on ${req.path} from ${req.ip}`);
+    return res.status(403).json({ error: 'Invalid admin key' });
+  }
+  next();
+}
+
+app.get('/admin/db-info', validateAdminKeyForEndpoint, (req, res) => {
   try {
-    const dbPath = db.name;
-    const exists = fs.existsSync(dbPath);
-    const stats = exists ? fs.statSync(dbPath) : null;
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(r => r.name);
-    const counts = {};
-    for (const table of tables) {
-      try {
-        counts[table] = db.prepare(`SELECT COUNT(*) as c FROM ${table}`).get().c;
-      } catch (e) {
-        counts[table] = 'error';
-      }
-    }
-    res.json({
-      dbPath,
-      exists,
-      sizeBytes: stats ? stats.size : 0,
-      sizeKB: stats ? Math.round(stats.size / 1024) : 0,
-      modifiedAt: stats ? new Date(stats.mtime).toISOString() : null,
-      tables,
-      counts,
-      dbDir: process.env.DB_DIR || '(not set, using default)'
-    });
+    const diagnostics = getDbDiagnostics();
+    res.json(diagnostics);
   } catch (error) {
+    log('error', `Admin db-info failed: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });

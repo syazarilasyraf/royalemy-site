@@ -12,10 +12,75 @@ const dbPath = path.join(dbDir, 'roadmap.db');
 // Ensure database directory exists (needed for persistent volume mounts)
 fs.mkdirSync(dbDir, { recursive: true });
 
+console.log(`[DB] ==========================================`);
+console.log(`[DB] DB_DIR env var: ${process.env.DB_DIR || '(not set)'}`);
 console.log(`[DB] Database directory: ${dbDir}`);
 console.log(`[DB] Database file: ${dbPath}`);
+console.log(`[DB] File exists before open: ${fs.existsSync(dbPath)}`);
+
+// Search for any .db files on relevant paths to detect misconfigurations
+// Only checks expected app paths, NOT the entire filesystem
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'coverage', 'logs']);
+function findDbFiles(dir, depth = 0) {
+  if (depth > 2) return [];
+  const found = [];
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isFile() && entry.name.endsWith('.db')) {
+        const stat = fs.statSync(fullPath);
+        found.push({ path: fullPath, size: stat.size, modified: stat.mtime.toISOString() });
+      } else if (entry.isDirectory() && !entry.name.startsWith('.')) {
+        found.push(...findDbFiles(fullPath, depth + 1));
+      }
+    }
+  } catch (e) {
+    // permission denied or directory doesn't exist
+  }
+  return found;
+}
+
+// Only scan paths that are relevant to this application
+const relevantPaths = [
+  dbDir,
+  path.join(__dirname, 'data'),
+  '/data',
+  '/app',
+  '/app/server/data',
+  process.cwd(),
+  __dirname,
+].filter(Boolean);
+
+const uniqueRoots = [...new Set(relevantPaths.map(p => path.resolve(p)))];
+const allDbFiles = [];
+const seenPaths = new Set();
+for (const root of uniqueRoots) {
+  if (fs.existsSync(root)) {
+    for (const file of findDbFiles(root)) {
+      const normalized = path.resolve(file.path);
+      if (!seenPaths.has(normalized)) {
+        seenPaths.add(normalized);
+        allDbFiles.push(file);
+      }
+    }
+  }
+}
+
+if (allDbFiles.length === 0) {
+  console.log(`[DB] No .db files found on filesystem`);
+} else {
+  console.log(`[DB] Found ${allDbFiles.length} .db file(s) on filesystem:`);
+  for (const f of allDbFiles) {
+    console.log(`[DB]   - ${f.path} (${f.size} bytes, modified: ${f.modified})`);
+  }
+}
 
 const db = new Database(dbPath);
+
+console.log(`[DB] Database opened successfully`);
+console.log(`[DB] ==========================================`);
 
 // Enable WAL mode for better concurrency
 db.pragma('journal_mode = WAL');
@@ -408,4 +473,33 @@ const statements = {
 
 };
 
-export { db, statements };
+function getDbDiagnostics() {
+  const exists = fs.existsSync(dbPath);
+  const stats = exists ? fs.statSync(dbPath) : null;
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(r => r.name);
+  const counts = {};
+  for (const table of tables) {
+    try {
+      counts[table] = db.prepare(`SELECT COUNT(*) as c FROM ${table}`).get().c;
+    } catch (e) {
+      counts[table] = `error: ${e.message}`;
+    }
+  }
+  return {
+    dbDir,
+    dbPath,
+    dbDirEnvVar: process.env.DB_DIR || null,
+    fileExists: exists,
+    fileSizeBytes: stats ? stats.size : 0,
+    fileSizeKB: stats ? Math.round(stats.size / 1024) : 0,
+    fileModifiedAt: stats ? new Date(stats.mtime).toISOString() : null,
+    fileCreatedAt: stats ? new Date(stats.birthtime).toISOString() : null,
+    tables,
+    counts,
+    allDbFilesOnFilesystem: allDbFiles,
+    serverWorkingDirectory: process.cwd(),
+    scriptDirectory: __dirname,
+  };
+}
+
+export { db, statements, getDbDiagnostics };
