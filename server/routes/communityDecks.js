@@ -45,7 +45,12 @@ const submitLimiter = rateLimit({
 router.get('/admin', validateAdminKey, (req, res) => {
   try {
     const decks = statements.getAllCommunityDecks.all();
-    res.json({ decks });
+    const parsed = decks.map(d => ({
+      ...d,
+      cardIds: JSON.parse(d.card_ids || '[]'),
+      tags: JSON.parse(d.tags || '[]')
+    }));
+    res.json({ decks: parsed });
   } catch (error) {
     log('error', `Admin failed to fetch community decks: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch community decks' });
