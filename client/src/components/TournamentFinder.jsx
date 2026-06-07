@@ -1750,7 +1750,7 @@ function TournamentFinder() {
         />
       )}
 
-      {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+      {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} onViewDetails={viewTournamentDetails} />}
 
       <style>{`
         .tournament-finder {
