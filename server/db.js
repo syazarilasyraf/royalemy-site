@@ -48,11 +48,20 @@ db.exec(`
     tournament_tag TEXT,
     start_date DATETIME NOT NULL,
     end_date DATETIME,
+    registration_deadline DATETIME,
     format TEXT DEFAULT '1v1',
     max_players INTEGER,
     prize TEXT,
     discord_link TEXT,
     contact_info TEXT,
+    tournament_password TEXT,
+    rules TEXT,
+    tiktok_username TEXT,
+    tiktok_live_url TEXT,
+    winner_1st TEXT,
+    winner_2nd TEXT,
+    winner_3rd TEXT,
+    prize_status TEXT DEFAULT 'pending',
     status TEXT NOT NULL DEFAULT 'pending',
     notified_24h INTEGER NOT NULL DEFAULT 0,
     notified_1h INTEGER NOT NULL DEFAULT 0,
@@ -61,6 +70,41 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_tournaments_status ON community_tournaments(status);
   CREATE INDEX IF NOT EXISTS idx_tournaments_start ON community_tournaments(start_date);
+
+  CREATE TABLE IF NOT EXISTS tournament_registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
+    player_name TEXT NOT NULL,
+    player_tag TEXT NOT NULL,
+    tiktok_username TEXT,
+    registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tournament_id, player_tag)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_registrations_tournament ON tournament_registrations(tournament_id);
+  CREATE INDEX IF NOT EXISTS idx_registrations_player ON tournament_registrations(player_tag);
+
+  CREATE TABLE IF NOT EXISTS tournament_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER REFERENCES community_tournaments(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_notifications_tournament ON tournament_notifications(tournament_id);
+
+  CREATE TABLE IF NOT EXISTS player_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_tag TEXT NOT NULL UNIQUE,
+    player_name TEXT NOT NULL,
+    tournament_wins INTEGER NOT NULL DEFAULT 0,
+    top_3_finishes INTEGER NOT NULL DEFAULT 0,
+    total_participations INTEGER NOT NULL DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_player_stats_tag ON player_stats(player_tag);
 
   CREATE TABLE IF NOT EXISTS community_clans (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,6 +164,30 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
 `);
 
+// Migration: add new columns if they don't exist (idempotent)
+function columnExists(table, column) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  return cols.some(c => c.name === column);
+}
+
+const tournamentCols = [
+  { name: 'registration_deadline', type: 'DATETIME' },
+  { name: 'tournament_password', type: 'TEXT' },
+  { name: 'rules', type: 'TEXT' },
+  { name: 'tiktok_username', type: 'TEXT' },
+  { name: 'tiktok_live_url', type: 'TEXT' },
+  { name: 'winner_1st', type: 'TEXT' },
+  { name: 'winner_2nd', type: 'TEXT' },
+  { name: 'winner_3rd', type: 'TEXT' },
+  { name: 'prize_status', type: 'TEXT DEFAULT \'pending\'' },
+];
+
+for (const col of tournamentCols) {
+  if (!columnExists('community_tournaments', col.name)) {
+    db.exec(`ALTER TABLE community_tournaments ADD COLUMN ${col.name} ${col.type}`);
+  }
+}
+
 // Prepared statements
 const statements = {
   // Features
@@ -170,11 +238,15 @@ const statements = {
 
   // Community Tournaments
   insertTournament: db.prepare(
-    `INSERT INTO community_tournaments (name, description, host_name, tournament_tag, start_date, end_date, format, max_players, prize, discord_link, contact_info, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO community_tournaments 
+     (name, description, host_name, start_date, end_date, registration_deadline, format, max_players, prize, rules, tiktok_username, tiktok_live_url, tournament_password, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ),
   getApprovedTournaments: db.prepare(
-    `SELECT * FROM community_tournaments WHERE status = 'approved' AND (end_date > datetime('now') OR (end_date IS NULL AND start_date > datetime('now', '-6 hours'))) ORDER BY start_date ASC`
+    `SELECT * FROM community_tournaments WHERE status IN ('approved', 'registration_open', 'registration_closed', 'live') ORDER BY start_date ASC`
+  ),
+  getArchiveTournaments: db.prepare(
+    `SELECT * FROM community_tournaments WHERE status = 'completed' ORDER BY start_date DESC`
   ),
   getAllTournaments: db.prepare(
     `SELECT * FROM community_tournaments ORDER BY created_at DESC`
@@ -185,11 +257,59 @@ const statements = {
   updateTournamentStatus: db.prepare(
     `UPDATE community_tournaments SET status = ? WHERE id = ?`
   ),
+  updateTournamentWinners: db.prepare(
+    `UPDATE community_tournaments SET winner_1st = ?, winner_2nd = ?, winner_3rd = ? WHERE id = ?`
+  ),
+  updateTournamentPrizeStatus: db.prepare(
+    `UPDATE community_tournaments SET prize_status = ? WHERE id = ?`
+  ),
   updateTournamentNotified: db.prepare(
     `UPDATE community_tournaments SET notified_24h = ?, notified_1h = ? WHERE id = ?`
   ),
   deleteTournament: db.prepare(
     `DELETE FROM community_tournaments WHERE id = ?`
+  ),
+
+  // Tournament Registrations
+  insertRegistration: db.prepare(
+    `INSERT INTO tournament_registrations (tournament_id, player_name, player_tag, tiktok_username) VALUES (?, ?, ?, ?)`
+  ),
+  getRegistrationsByTournament: db.prepare(
+    `SELECT * FROM tournament_registrations WHERE tournament_id = ? ORDER BY registered_at ASC`
+  ),
+  getRegistrationCount: db.prepare(
+    `SELECT COUNT(*) as count FROM tournament_registrations WHERE tournament_id = ?`
+  ),
+  getRegistrationByPlayer: db.prepare(
+    `SELECT * FROM tournament_registrations WHERE tournament_id = ? AND player_tag = ?`
+  ),
+  deleteRegistration: db.prepare(
+    `DELETE FROM tournament_registrations WHERE id = ?`
+  ),
+
+  // Tournament Notifications
+  insertNotification: db.prepare(
+    `INSERT INTO tournament_notifications (tournament_id, type, message) VALUES (?, ?, ?)`
+  ),
+  getNotificationsByTournament: db.prepare(
+    `SELECT * FROM tournament_notifications WHERE tournament_id = ? ORDER BY created_at DESC`
+  ),
+
+  // Player Stats (Hall of Fame foundation)
+  insertPlayerStat: db.prepare(
+    `INSERT INTO player_stats (player_tag, player_name, tournament_wins, top_3_finishes, total_participations) VALUES (?, ?, ?, ?, ?)`
+  ),
+  getPlayerStat: db.prepare(
+    `SELECT * FROM player_stats WHERE player_tag = ?`
+  ),
+  updatePlayerStat: db.prepare(
+    `UPDATE player_stats SET player_name = ?, tournament_wins = ?, top_3_finishes = ?, total_participations = ?, updated_at = CURRENT_TIMESTAMP WHERE player_tag = ?`
+  ),
+  incrementPlayerStat: db.prepare(
+    `UPDATE player_stats SET tournament_wins = tournament_wins + ?, top_3_finishes = top_3_finishes + ?, total_participations = total_participations + ?, updated_at = CURRENT_TIMESTAMP WHERE player_tag = ?`
+  ),
+  getTopPlayerStats: db.prepare(
+    `SELECT * FROM player_stats ORDER BY tournament_wins DESC, top_3_finishes DESC, total_participations DESC LIMIT ?`
   ),
 
   // Community Clans

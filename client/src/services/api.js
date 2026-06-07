@@ -209,6 +209,10 @@ export function getCommunityTournament(id) {
   return fetchAPI(`/community-tournaments/${id}`);
 }
 
+export function getTournamentArchive() {
+  return fetchAPI('/community-tournaments/archive');
+}
+
 export function submitCommunityTournament(data) {
   return fetchAPI('/community-tournaments', {
     method: 'POST',
@@ -216,6 +220,22 @@ export function submitCommunityTournament(data) {
   });
 }
 
+export function registerForTournament(id, data) {
+  return fetchAPI(`/community-tournaments/${id}/register`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function getTournamentRegistrations(id) {
+  return fetchAPI(`/community-tournaments/${id}/registrations`);
+}
+
+export function getHallOfFame(limit = 50) {
+  return fetchAPI(`/community-tournaments/hall-of-fame?limit=${limit}`);
+}
+
+// Admin Tournament APIs
 export function getAdminTournaments(key) {
   return fetchAPI(`/community-tournaments/admin?key=${encodeURIComponent(key)}`);
 }
@@ -236,6 +256,20 @@ export function updateTournamentStatus(id, status, key) {
   return fetchAPI(`/community-tournaments/admin/${id}/status?key=${encodeURIComponent(key)}`, {
     method: 'POST',
     body: JSON.stringify({ status })
+  });
+}
+
+export function updateTournamentWinners(id, winners, key) {
+  return fetchAPI(`/community-tournaments/admin/${id}/winners?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify(winners)
+  });
+}
+
+export function updateTournamentPrizeStatus(id, prizeStatus, key) {
+  return fetchAPI(`/community-tournaments/admin/${id}/prize-status?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify({ prize_status: prizeStatus })
   });
 }
 

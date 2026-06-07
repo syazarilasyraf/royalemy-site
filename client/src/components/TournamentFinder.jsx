@@ -1,26 +1,166 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   getCommunityTournaments,
+  getCommunityTournament,
+  getTournamentArchive,
   submitCommunityTournament,
+  registerForTournament,
+  getTournamentRegistrations,
+  getHallOfFame,
   getAdminTournaments,
   approveTournament,
   rejectTournament,
   updateTournamentStatus,
+  updateTournamentWinners,
+  updateTournamentPrizeStatus,
   deleteTournament,
+  searchTournaments,
+  getTournament,
 } from '../services/api';
 
+// ==================== CONSTANTS ====================
+
 const STATUS_LABELS = {
-  pending: 'Pending',
+  pending: 'Pending Approval',
   approved: 'Approved',
   rejected: 'Rejected',
+  registration_open: 'Registration Open',
+  registration_closed: 'Registration Closed',
+  live: 'Live',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
 };
 
 const STATUS_BADGES = {
   pending: 'badge-warning',
-  approved: 'badge-success',
+  approved: 'badge-info',
   rejected: 'badge-danger',
+  registration_open: 'badge-success',
+  registration_closed: 'badge-secondary',
+  live: 'badge-live',
+  completed: 'badge-success',
+  cancelled: 'badge-danger',
 };
+
+const PUBLIC_STATUSES = ['approved', 'registration_open', 'registration_closed', 'live'];
+
+const TOURNAMENT_FORMATS = [
+  '1v1 Single Elimination',
+  '1v1 Double Elimination',
+  '1v1 Swiss',
+  '1v1 Round Robin',
+  '1v1 Best of 3',
+  '1v1 Best of 5',
+  '2v2',
+  'Triple Elixir',
+  'Sudden Death',
+  'Ramp Up',
+  'Draft Mode',
+  'Mirror Mode',
+  'Rage Mode',
+  'Classic Decks',
+  'Mega Deck',
+  '7x Elixir',
+  'Infinite Elixir',
+  'Lumberjack Rush',
+];
+
+const PRIZE_STATUS_LABELS = {
+  pending: 'Pending',
+  contacted: 'Contacted',
+  paid: 'Paid',
+};
+
+// ==================== HELPER FUNCTIONS ====================
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatDateOnly(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function getCountdown(targetDate) {
+  if (!targetDate) return null;
+  const now = new Date();
+  const target = new Date(targetDate);
+  const diff = target - now;
+
+  if (diff <= 0) return { expired: true, text: 'Started' };
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  if (days > 0) return { expired: false, text: `${days}d ${hours}h ${minutes}m` };
+  if (hours > 0) return { expired: false, text: `${hours}h ${minutes}m ${seconds}s` };
+  return { expired: false, text: `${minutes}m ${seconds}s` };
+}
+
+function useCountdown(targetDate) {
+  const [countdown, setCountdown] = useState(getCountdown(targetDate));
+
+  useEffect(() => {
+    if (!targetDate) return;
+    setCountdown(getCountdown(targetDate));
+    const interval = setInterval(() => {
+      setCountdown(getCountdown(targetDate));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  return countdown;
+}
+
+function validatePlayerTag(tag) {
+  if (!tag) return false;
+  const clean = tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  return clean.length >= 3 && clean.length <= 10 ? clean : false;
+}
+
+function getStatusConfig(status) {
+  switch (status?.toLowerCase()) {
+    case 'inprogress': return { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)', label: 'Active', dot: '🟢' };
+    case 'upcoming': return { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', label: 'Upcoming', dot: '🔵' };
+    case 'ended': return { color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)', label: 'Finished', dot: '⚪' };
+    default: return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', label: 'Unknown', dot: '🟡' };
+  }
+}
+
+// ==================== COMPONENTS ====================
+
+function CountdownTimer({ targetDate, className = '' }) {
+  const countdown = useCountdown(targetDate);
+  if (!countdown) return null;
+  return (
+    <span className={`countdown-timer ${countdown.expired ? 'expired' : ''} ${className}`}>
+      {countdown.expired ? countdown.text : `Starts in: ${countdown.text}`}
+    </span>
+  );
+}
+
+function TournamentStatusBadge({ status }) {
+  const label = STATUS_LABELS[status] || status;
+  const badgeClass = STATUS_BADGES[status] || 'badge-secondary';
+  return <span className={`badge ${badgeClass}`}>{label}</span>;
+}
 
 // ==================== ADMIN PANEL ====================
 
@@ -28,6 +168,7 @@ function AdminPanel({ adminKey, onRefresh }) {
   const [allTournaments, setAllTournaments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [winnerForm, setWinnerForm] = useState({ id: null, winner_1st: '', winner_2nd: '', winner_3rd: '' });
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -90,11 +231,41 @@ function AdminPanel({ adminKey, onRefresh }) {
     }
   };
 
+  const handlePrizeStatus = async (id, prizeStatus) => {
+    try {
+      await updateTournamentPrizeStatus(id, prizeStatus, adminKey);
+      setMessage(`Prize status updated to ${PRIZE_STATUS_LABELS[prizeStatus]}`);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleSaveWinners = async () => {
+    if (!winnerForm.id) return;
+    try {
+      await updateTournamentWinners(winnerForm.id, {
+        winner_1st: winnerForm.winner_1st,
+        winner_2nd: winnerForm.winner_2nd,
+        winner_3rd: winnerForm.winner_3rd,
+      }, adminKey);
+      setMessage('Winners updated');
+      setWinnerForm({ id: null, winner_1st: '', winner_2nd: '', winner_3rd: '' });
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
   const pending = allTournaments.filter((t) => t.status === 'pending');
+  const active = allTournaments.filter((t) => PUBLIC_STATUSES.includes(t.status));
+  const completed = allTournaments.filter((t) => t.status === 'completed');
+  const other = allTournaments.filter((t) => ['rejected', 'cancelled'].includes(t.status));
 
   return (
     <div className="tournament-admin">
-      <h2 className="tournament-admin-title">🛡️ Admin Panel</h2>
+      <h2 className="tournament-admin-title"> Admin Panel</h2>
       {message && (
         <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
           {message}
@@ -109,8 +280,11 @@ function AdminPanel({ adminKey, onRefresh }) {
               <div key={t.id} className="tournament-admin-item">
                 <div>
                   <strong>{t.name}</strong>
+                  <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                    {STATUS_LABELS[t.status]}
+                  </span>
                   <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {t.host_name} — {t.start_date}
+                    {t.host_name} — {formatDate(t.start_date)}
                   </p>
                 </div>
                 <div className="tournament-admin-actions">
@@ -130,40 +304,829 @@ function AdminPanel({ adminKey, onRefresh }) {
         </div>
       )}
 
-      <div className="tournament-admin-section">
-        <h3>All Tournaments</h3>
-        <div className="tournament-admin-list">
-          {allTournaments.map((t) => (
-            <div key={t.id} className="tournament-admin-item">
-              <div>
-                <strong>{t.name}</strong>
-                <span
-                  className={`badge ${STATUS_BADGES[t.status] || 'badge-secondary'}`}
-                  style={{ marginLeft: '8px' }}
-                >
-                  {STATUS_LABELS[t.status]}
-                </span>
-                <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                  {t.host_name} — {t.start_date}
-                </p>
+      {active.length > 0 && (
+        <div className="tournament-admin-section">
+          <h3>Active Tournaments ({active.length})</h3>
+          <div className="tournament-admin-list">
+            {active.map((t) => (
+              <div key={t.id} className="tournament-admin-item">
+                <div>
+                  <strong>{t.name}</strong>
+                  <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                    {STATUS_LABELS[t.status]}
+                  </span>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    {t.host_name} — {formatDate(t.start_date)}
+                  </p>
+                </div>
+                <div className="tournament-admin-actions">
+                  <select
+                    className="input"
+                    style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}
+                    value={t.status}
+                    onChange={(e) => handleStatusChange(t.id, e.target.value)}
+                  >
+                    <option value="approved">Approved</option>
+                    <option value="registration_open">Open Registration</option>
+                    <option value="registration_closed">Close Registration</option>
+                    <option value="live">Start Tournament</option>
+                    <option value="completed">Complete</option>
+                    <option value="cancelled">Cancel</option>
+                  </select>
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
+                    🗑️
+                  </button>
+                </div>
               </div>
-              <div className="tournament-admin-actions">
-                <select
-                  className="input"
-                  style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}
-                  value={t.status}
-                  onChange={(e) => handleStatusChange(t.id, e.target.value)}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
-                  🗑️
-                </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {completed.length > 0 && (
+        <div className="tournament-admin-section">
+          <h3>Completed Tournaments ({completed.length})</h3>
+          <div className="tournament-admin-list">
+            {completed.map((t) => (
+              <div key={t.id} className="tournament-admin-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                  <div>
+                    <strong>{t.name}</strong>
+                    <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                      {STATUS_LABELS[t.status]}
+                    </span>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      Prize: {PRIZE_STATUS_LABELS[t.prize_status] || 'Pending'}
+                    </p>
+                  </div>
+                  <div className="tournament-admin-actions">
+                    <select
+                      className="input"
+                      style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}
+                      value={t.prize_status || 'pending'}
+                      onChange={(e) => handlePrizeStatus(t.id, e.target.value)}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="paid">Paid</option>
+                    </select>
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={() => setWinnerForm({
+                        id: t.id,
+                        winner_1st: t.winner_1st || '',
+                        winner_2nd: t.winner_2nd || '',
+                        winner_3rd: t.winner_3rd || '',
+                      })}
+                    >
+                      🏆 Winners
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+                {(t.winner_1st || t.winner_2nd || t.winner_3rd) && (
+                  <div style={{ marginTop: '8px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    {t.winner_1st && <span>🥇 {t.winner_1st} </span>}
+                    {t.winner_2nd && <span>🥈 {t.winner_2nd} </span>}
+                    {t.winner_3rd && <span>🥉 {t.winner_3rd}</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {other.length > 0 && (
+        <div className="tournament-admin-section">
+          <h3>Rejected / Cancelled ({other.length})</h3>
+          <div className="tournament-admin-list">
+            {other.map((t) => (
+              <div key={t.id} className="tournament-admin-item">
+                <div>
+                  <strong>{t.name}</strong>
+                  <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                    {STATUS_LABELS[t.status]}
+                  </span>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    {t.host_name} — {formatDate(t.start_date)}
+                  </p>
+                </div>
+                <div className="tournament-admin-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {winnerForm.id && (
+        <div className="modal-overlay" onClick={() => setWinnerForm({ id: null, winner_1st: '', winner_2nd: '', winner_3rd: '' })}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3>🏆 Enter Winners</h3>
+              <button className="modal-close" onClick={() => setWinnerForm({ id: null, winner_1st: '', winner_2nd: '', winner_3rd: '' })}>✕</button>
+            </div>
+            <div className="submit-form">
+              <div className="form-field full-width">
+                <label>Champion (Player Tag)</label>
+                <input
+                  type="text"
+                  value={winnerForm.winner_1st}
+                  onChange={(e) => setWinnerForm((p) => ({ ...p, winner_1st: e.target.value }))}
+                  placeholder="e.g. #2P0JJQ0Y"
+                />
+              </div>
+              <div className="form-field full-width">
+                <label>Runner-up (Player Tag)</label>
+                <input
+                  type="text"
+                  value={winnerForm.winner_2nd}
+                  onChange={(e) => setWinnerForm((p) => ({ ...p, winner_2nd: e.target.value }))}
+                  placeholder="e.g. #2P0JJQ0Y"
+                />
+              </div>
+              <div className="form-field full-width">
+                <label>Third Place (Player Tag)</label>
+                <input
+                  type="text"
+                  value={winnerForm.winner_3rd}
+                  onChange={(e) => setWinnerForm((p) => ({ ...p, winner_3rd: e.target.value }))}
+                  placeholder="e.g. #2P0JJQ0Y"
+                />
+              </div>
+              <button className="submit-btn" onClick={handleSaveWinners}>
+                Save Winners
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== TOURNAMENT DETAIL ====================
+
+function TournamentDetail({ tournament, onBack, onRefresh }) {
+  const [registrations, setRegistrations] = useState([]);
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerForm, setRegisterForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState('');
+  const [registerSuccess, setRegisterSuccess] = useState('');
+  const [showParticipants, setShowParticipants] = useState(false);
+
+  const countdown = useCountdown(tournament.start_date);
+
+  useEffect(() => {
+    loadRegistrations();
+  }, [tournament.id]);
+
+  const loadRegistrations = async () => {
+    try {
+      const data = await getTournamentRegistrations(tournament.id);
+      setRegistrations(data.registrations || []);
+    } catch (err) {
+      console.error('Failed to load registrations:', err);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setRegisterError('');
+    setRegisterSuccess('');
+
+    if (!registerForm.player_name || !registerForm.player_tag) {
+      setRegisterError('Player name and tag are required');
+      return;
+    }
+
+    const cleanTag = validatePlayerTag(registerForm.player_tag);
+    if (!cleanTag) {
+      setRegisterError('Invalid player tag. Must be 3-10 alphanumeric characters.');
+      return;
+    }
+
+    setRegisterLoading(true);
+    try {
+      await registerForTournament(tournament.id, {
+        player_name: registerForm.player_name,
+        player_tag: cleanTag,
+        tiktok_username: registerForm.tiktok_username,
+      });
+      setRegisterSuccess('Registration successful!');
+      setRegisterForm({ player_name: '', player_tag: '', tiktok_username: '' });
+      loadRegistrations();
+      onRefresh();
+    } catch (err) {
+      setRegisterError(err.message);
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const canRegister = tournament.status === 'approved' || tournament.status === 'registration_open';
+  const isFull = tournament.max_players && registrations.length >= tournament.max_players;
+
+  return (
+    <div className="tournament-details">
+      <button className="back-btn" onClick={onBack}>← Back to Tournaments</button>
+
+      <div className="details-card">
+        <div className="details-header">
+          <TournamentStatusBadge status={tournament.status} />
+          {countdown && !countdown.expired && (
+            <CountdownTimer targetDate={tournament.start_date} className="details-countdown" />
+          )}
+        </div>
+
+        <h2>{tournament.name}</h2>
+        <p className="details-organizer">Organized by {tournament.host_name}</p>
+
+        {tournament.tiktok_username && (
+          <div className="tiktok-banner">
+            <span className="tiktok-icon">🎵</span>
+            <div>
+              <p className="tiktok-label">Tournament Organizer on TikTok</p>
+              <p className="tiktok-user">@{tournament.tiktok_username}</p>
+            </div>
+          </div>
+        )}
+
+        {tournament.tiktok_live_url && tournament.status === 'live' && (
+          <a
+            href={tournament.tiktok_live_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="live-banner"
+          >
+            <span className="live-dot"></span>
+            Watch Live on TikTok
+          </a>
+        )}
+
+        <div className="details-stats">
+          <div className="ds-item">
+            <span className="ds-value">{formatDate(tournament.start_date)}</span>
+            <span className="ds-label">Start Date</span>
+          </div>
+          {tournament.end_date && (
+            <div className="ds-item">
+              <span className="ds-value">{formatDate(tournament.end_date)}</span>
+              <span className="ds-label">End Date</span>
+            </div>
+          )}
+          {tournament.registration_deadline && (
+            <div className="ds-item">
+              <span className="ds-value">{formatDate(tournament.registration_deadline)}</span>
+              <span className="ds-label">Registration Deadline</span>
+            </div>
+          )}
+          <div className="ds-item">
+            <span className="ds-value">{tournament.format || '1v1'}</span>
+            <span className="ds-label">Format</span>
+          </div>
+          <div className="ds-item">
+            <span className="ds-value">{registrations.length}{tournament.max_players ? ` / ${tournament.max_players}` : ''}</span>
+            <span className="ds-label">Participants</span>
+          </div>
+          {tournament.prize && (
+            <div className="ds-item prize">
+              <span className="ds-value">{tournament.prize}</span>
+              <span className="ds-label">Prize Pool</span>
+            </div>
+          )}
+        </div>
+
+        {tournament.description && (
+          <div className="details-section">
+            <h4>Description</h4>
+            <p>{tournament.description}</p>
+          </div>
+        )}
+
+        {tournament.rules && (
+          <div className="details-section">
+            <h4>Rules</h4>
+            <p className="rules-text">{tournament.rules}</p>
+          </div>
+        )}
+
+        {tournament.status === 'completed' && (
+          <div className="details-section winners-section">
+            <h4>🏆 Tournament Results</h4>
+            <div className="winners-grid">
+              {tournament.winner_1st && (
+                <div className="winner-card first">
+                  <span className="winner-medal">🥇</span>
+                  <span className="winner-title">Champion</span>
+                  <span className="winner-tag">{tournament.winner_1st}</span>
+                </div>
+              )}
+              {tournament.winner_2nd && (
+                <div className="winner-card second">
+                  <span className="winner-medal">🥈</span>
+                  <span className="winner-title">Runner-up</span>
+                  <span className="winner-tag">{tournament.winner_2nd}</span>
+                </div>
+              )}
+              {tournament.winner_3rd && (
+                <div className="winner-card third">
+                  <span className="winner-medal">🥉</span>
+                  <span className="winner-title">Third Place</span>
+                  <span className="winner-tag">{tournament.winner_3rd}</span>
+                </div>
+              )}
+            </div>
+            <div className="prize-status">
+              Prize Status: <strong>{PRIZE_STATUS_LABELS[tournament.prize_status] || 'Pending'}</strong>
+            </div>
+          </div>
+        )}
+
+        {canRegister && (
+          <div className="registration-box">
+            {!showRegister ? (
+              <button
+                className="submit-btn"
+                onClick={() => setShowRegister(true)}
+                disabled={isFull}
+              >
+                {isFull ? 'Tournament Full' : 'Register Now'}
+              </button>
+            ) : (
+              <form onSubmit={handleRegister} className="register-form">
+                <h4>Register for Tournament</h4>
+                {registerSuccess && <div className="submit-success">{registerSuccess}</div>}
+                {registerError && <div className="submit-error">{registerError}</div>}
+                <div className="form-field">
+                  <label>Player Name *</label>
+                  <input
+                    type="text"
+                    value={registerForm.player_name}
+                    onChange={(e) => setRegisterForm((p) => ({ ...p, player_name: e.target.value }))}
+                    placeholder="Your name"
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Clash Royale Player Tag *</label>
+                  <input
+                    type="text"
+                    value={registerForm.player_tag}
+                    onChange={(e) => setRegisterForm((p) => ({ ...p, player_tag: e.target.value }))}
+                    placeholder="e.g. #2P0JJQ0Y"
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>TikTok Username</label>
+                  <input
+                    type="text"
+                    value={registerForm.tiktok_username}
+                    onChange={(e) => setRegisterForm((p) => ({ ...p, tiktok_username: e.target.value }))}
+                    placeholder="@username"
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="submit-btn" disabled={registerLoading}>
+                    {registerLoading ? 'Registering...' : 'Confirm Registration'}
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowRegister(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {registrations.length > 0 && (
+          <div className="details-section">
+            <div className="participants-header" onClick={() => setShowParticipants((p) => !p)}>
+              <h4>Participants ({registrations.length})</h4>
+              <span>{showParticipants ? '▲' : '▼'}</span>
+            </div>
+            {showParticipants && (
+              <div className="participants-list">
+                {registrations.map((reg, idx) => (
+                  <div key={reg.id} className="participant-row">
+                    <span className="participant-rank">#{idx + 1}</span>
+                    <span className="participant-name">{reg.player_name}</span>
+                    <span className="participant-tag">{reg.player_tag}</span>
+                    {reg.tiktok_username && <span className="participant-tiktok">🎵 {reg.tiktok_username}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==================== ARCHIVE VIEW ====================
+
+function ArchiveView({ onBack }) {
+  const [tournaments, setTournaments] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadArchive();
+  }, []);
+
+  const loadArchive = async () => {
+    setLoading(true);
+    try {
+      const data = await getTournamentArchive();
+      setTournaments(data.tournaments || []);
+    } catch (err) {
+      console.error('Failed to load archive:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="tournament-archive">
+      <button className="back-btn" onClick={onBack}>← Back</button>
+      <h2 className="section-title">🏛️ Tournament Archive</h2>
+      <p className="section-desc">Completed tournaments and their results</p>
+
+      {loading ? (
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Loading archive...</p>
+        </div>
+      ) : tournaments.length > 0 ? (
+        <div className="archive-list">
+          {tournaments.map((t) => (
+            <div key={t.id} className="archive-card">
+              <div className="archive-header">
+                <h4>{t.name}</h4>
+                <span className="archive-date">{formatDateOnly(t.start_date)}</span>
+              </div>
+              <div className="archive-meta">
+                <span>{t.format}</span>
+                <span>{t.max_players ? `${t.max_players} max` : 'Unlimited'} players</span>
+                {t.prize && <span className="archive-prize">{t.prize}</span>}
+              </div>
+              <div className="archive-winners">
+                {t.winner_1st && (
+                  <div className="archive-winner">
+                    <span>🥇</span>
+                    <span>{t.winner_1st}</span>
+                  </div>
+                )}
+                {t.winner_2nd && (
+                  <div className="archive-winner">
+                    <span>🥈</span>
+                    <span>{t.winner_2nd}</span>
+                  </div>
+                )}
+                {t.winner_3rd && (
+                  <div className="archive-winner">
+                    <span>🥉</span>
+                    <span>{t.winner_3rd}</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="empty-state-box">
+          <div className="empty-icon">🏛️</div>
+          <h4>No completed tournaments yet</h4>
+          <p className="empty-helper">Check back after tournaments conclude!</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== HALL OF FAME ====================
+
+function HallOfFameView({ onBack }) {
+  const [stats, setStats] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    setLoading(true);
+    try {
+      const data = await getHallOfFame(50);
+      setStats(data.stats || []);
+    } catch (err) {
+      console.error('Failed to load hall of fame:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="hall-of-fame">
+      <button className="back-btn" onClick={onBack}>← Back</button>
+      <h2 className="section-title">🏆 Hall of Fame</h2>
+      <p className="section-desc">Top tournament performers</p>
+
+      {loading ? (
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Loading rankings...</p>
+        </div>
+      ) : stats.length > 0 ? (
+        <div className="hof-table-wrapper">
+          <table className="hof-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Tag</th>
+                <th>Wins</th>
+                <th>Top 3</th>
+                <th>Participations</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.map((s, idx) => (
+                <tr key={s.id}>
+                  <td className="hof-rank">#{idx + 1}</td>
+                  <td className="hof-name">{s.player_name}</td>
+                  <td className="hof-tag">{s.player_tag}</td>
+                  <td className="hof-wins">{s.tournament_wins}</td>
+                  <td className="hof-top3">{s.top_3_finishes}</td>
+                  <td className="hof-participations">{s.total_participations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-state-box">
+          <div className="empty-icon">🏆</div>
+          <h4>No rankings yet</h4>
+          <p className="empty-helper">Complete tournaments to build the Hall of Fame!</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== SUBMIT MODAL ====================
+
+function SubmitModal({ onClose, onSuccess }) {
+  const [form, setForm] = useState({
+    name: '',
+    host_name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    registration_deadline: '',
+    format: '1v1 Single Elimination',
+    max_players: '',
+    prize: '',
+    rules: '',
+    tiktok_username: '',
+    tiktok_live_url: '',
+    tournament_password: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+
+  const handleChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.host_name || !form.start_date) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await submitCommunityTournament(form);
+      setSuccess('Tournament submitted for review! It will appear after admin approval.');
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1500);
+    } catch (err) {
+      alert('Failed to submit tournament. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>➕ Submit Tournament</h3>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="submit-form">
+          {success && <div className="submit-success">{success}</div>}
+          <div className="form-grid">
+            <div className="form-field">
+              <label>Tournament Name *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="e.g. RoyaleMY Weekly Cup"
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label>Organizer *</label>
+              <input
+                type="text"
+                value={form.host_name}
+                onChange={(e) => handleChange('host_name', e.target.value)}
+                placeholder="Your name or organization"
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label>Start Date & Time *</label>
+              <input
+                type="datetime-local"
+                value={form.start_date}
+                onChange={(e) => handleChange('start_date', e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label>End Date & Time (optional)</label>
+              <input
+                type="datetime-local"
+                value={form.end_date}
+                onChange={(e) => handleChange('end_date', e.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <label>Registration Deadline (optional)</label>
+              <input
+                type="datetime-local"
+                value={form.registration_deadline}
+                onChange={(e) => handleChange('registration_deadline', e.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <label>Format</label>
+              <select value={form.format} onChange={(e) => handleChange('format', e.target.value)}>
+                {TOURNAMENT_FORMATS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>Max Players</label>
+              <input
+                type="number"
+                value={form.max_players}
+                onChange={(e) => handleChange('max_players', e.target.value)}
+                placeholder="e.g. 50"
+                min="2"
+              />
+            </div>
+            <div className="form-field">
+              <label>Prize Pool</label>
+              <input
+                type="text"
+                value={form.prize}
+                onChange={(e) => handleChange('prize', e.target.value)}
+                placeholder="e.g. 1000 Gems"
+              />
+            </div>
+            <div className="form-field">
+              <label>TikTok Username</label>
+              <input
+                type="text"
+                value={form.tiktok_username}
+                onChange={(e) => handleChange('tiktok_username', e.target.value)}
+                placeholder="@username"
+              />
+            </div>
+            <div className="form-field">
+              <label>TikTok Live URL (optional)</label>
+              <input
+                type="url"
+                value={form.tiktok_live_url}
+                onChange={(e) => handleChange('tiktok_live_url', e.target.value)}
+                placeholder="https://www.tiktok.com/@username/live"
+              />
+            </div>
+            <div className="form-field full-width">
+              <label>Tournament Password (hidden until start)</label>
+              <input
+                type="text"
+                value={form.tournament_password}
+                onChange={(e) => handleChange('tournament_password', e.target.value)}
+                placeholder="Password for joining the tournament in-game"
+              />
+            </div>
+            <div className="form-field full-width">
+              <label>Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => handleChange('description', e.target.value)}
+                placeholder="Tournament description, requirements, etc."
+                rows={3}
+              />
+            </div>
+            <div className="form-field full-width">
+              <label>Rules</label>
+              <textarea
+                value={form.rules}
+                onChange={(e) => handleChange('rules', e.target.value)}
+                placeholder="Tournament rules and regulations..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit for Review'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ==================== OFFICIAL TOURNAMENT DETAIL ====================
+
+function OfficialTournamentDetail({ tournament, onBack }) {
+  const formatTimeRemaining = (endTime) => {
+    if (!endTime) return '-';
+    const end = new Date(endTime);
+    const now = new Date();
+    const diff = end - now;
+    if (diff <= 0) return 'Ended';
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h left`;
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+  };
+
+  const getStatusConfig = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'inprogress': return { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)', label: 'Active', dot: '🟢' };
+      case 'upcoming': return { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', label: 'Upcoming', dot: '🔵' };
+      case 'ended': return { color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)', label: 'Finished', dot: '⚪' };
+      default: return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', label: 'Unknown', dot: '🟡' };
+    }
+  };
+
+  const status = getStatusConfig(tournament.status);
+
+  return (
+    <div className="tournament-details">
+      <button className="back-btn" onClick={onBack}>← Back</button>
+      <div className="details-card">
+        <div className="details-status" style={{ color: status.color, background: status.bg }}>
+          {status.dot} {status.label}
+        </div>
+        <h2>{tournament.name}</h2>
+        <p className="details-tag">#{tournament.tag}</p>
+        <div className="details-stats">
+          <div className="ds-item">
+            <span className="ds-value">{tournament.capacity}/{tournament.maxCapacity}</span>
+            <span className="ds-label">Players</span>
+          </div>
+          <div className="ds-item">
+            <span className="ds-value">{formatDate(tournament.startTime)}</span>
+            <span className="ds-label">Started</span>
+          </div>
+          <div className="ds-item">
+            <span className="ds-value">{formatDate(tournament.endTime)}</span>
+            <span className="ds-label">Ends</span>
+          </div>
+        </div>
+        <div className="join-box">
+          <h4>How to Join</h4>
+          <ol>
+            <li>Open Clash Royale app</li>
+            <li>Go to Tournament tab</li>
+            <li>Search tag: <strong>#{tournament.tag}</strong></li>
+          </ol>
+          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(tournament.tag)}>
+            📋 Copy Tag
+          </button>
         </div>
       </div>
     </div>
@@ -173,40 +1136,27 @@ function AdminPanel({ adminKey, onRefresh }) {
 // ==================== MAIN COMPONENT ====================
 
 function TournamentFinder() {
-  const [searchName, setSearchName] = useState('');
-  const [tournaments, setTournaments] = useState([]);
+  const [communityTournaments, setCommunityTournaments] = useState([]);
+  const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [view, setView] = useState('search');
+  const [selectedTournamentFull, setSelectedTournamentFull] = useState(null);
+  const [view, setView] = useState('list'); // list, detail, archive, halloffame
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [searchParams] = useSearchParams();
   const adminKey = searchParams.get('admin');
-  
-  // Tournament tag checker
+
+  // Official CR tournament search
+  const [searchName, setSearchName] = useState('');
+  const [officialTournaments, setOfficialTournaments] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+
+  // Tag checker
   const [tagInput, setTagInput] = useState('');
   const [tagResult, setTagResult] = useState(null);
   const [tagLoading, setTagLoading] = useState(false);
   const [tagError, setTagError] = useState('');
-
-  // Community tournaments
-  const [communityTournaments, setCommunityTournaments] = useState([]);
-  const [loadingCommunity, setLoadingCommunity] = useState(false);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState('');
-  const [submitForm, setSubmitForm] = useState({
-    name: '',
-    host_name: '',
-    description: '',
-    tournament_tag: '',
-    start_date: '',
-    end_date: '',
-    format: '1v1',
-    max_players: '',
-    prize: '',
-    discord_link: '',
-    contact_info: '',
-  });
+  const [selectedOfficialTournament, setSelectedOfficialTournament] = useState(null);
 
   useEffect(() => {
     loadCommunityTournaments();
@@ -225,141 +1175,48 @@ function TournamentFinder() {
     }
   };
 
-  const handleSubmitFormChange = (field, value) => {
-    setSubmitForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmitTournament = async (e) => {
-    e.preventDefault();
-    if (!submitForm.name || !submitForm.host_name || !submitForm.start_date) {
-      alert('Please fill in all required fields.');
-      return;
-    }
-
-    setSubmitLoading(true);
+  const viewTournamentDetails = async (tournament) => {
+    setSelectedTournament(tournament);
     try {
-      await submitCommunityTournament(submitForm);
-      setSubmitSuccess('Tournament submitted for review! It will appear after admin approval.');
-      setSubmitForm({
-        name: '',
-        host_name: '',
-        description: '',
-        tournament_tag: '',
-        start_date: '',
-        end_date: '',
-        format: '1v1',
-        max_players: '',
-        prize: '',
-        discord_link: '',
-        contact_info: '',
-      });
-      setTimeout(() => {
-        setSubmitSuccess('');
-        setShowSubmitModal(false);
-        loadCommunityTournaments();
-      }, 1500);
+      const data = await getCommunityTournament(tournament.id);
+      setSelectedTournamentFull(data);
+      setView('detail');
     } catch (err) {
-      alert('Failed to submit tournament. Please try again.');
-    } finally {
-      setSubmitLoading(false);
+      console.error('Failed to load tournament details:', err);
+      setSelectedTournamentFull({ tournament, registrations: [], participantCount: 0, notifications: [] });
+      setView('detail');
     }
   };
 
-  const generateICS = (t) => {
-    const formatICSDate = (d) => {
-      const date = new Date(d);
-      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    };
-    const dtStart = formatICSDate(t.start_date);
-    const dtEnd = formatICSDate(t.end_date || t.start_date);
-    const uid = `tournament-${t.id}@royalemy.gg`;
-    const desc = [t.description, t.host_name ? `Host: ${t.host_name}` : '', t.discord_link ? `Discord: ${t.discord_link}` : ''].filter(Boolean).join('\\n');
-
-    return `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//RoyaleMY//Community Tournament//EN
-BEGIN:VEVENT
-UID:${uid}
-DTSTART:${dtStart}
-DTEND:${dtEnd}
-SUMMARY:${t.name}
-DESCRIPTION:${desc}
-LOCATION:${t.discord_link || 'Clash Royale'}
-END:VEVENT
-END:VCALENDAR`;
-  };
-
-  const downloadICS = (t) => {
-    const ics = generateICS(t);
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${t.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const shareTournament = async (t) => {
-    const text = `🏆 ${t.name}
-📅 ${formatDate(t.start_date)}
-👤 Host: ${t.host_name}
-🎮 Format: ${t.format}
-${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discord: ' + t.discord_link + '\n' : ''}🔗 https://royalemy.netlify.app/tournaments`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: t.name, text });
-        return;
-      } catch (e) {
-        // fallback to clipboard
-      }
-    }
-    await navigator.clipboard.writeText(text);
-    alert('Tournament details copied to clipboard!');
-  };
-
-  const getTournamentBadge = (startDate) => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const diff = start - now;
-
-    if (diff <= 0) return { label: 'Live', color: '#22c55e', bg: 'rgba(34,197,94,0.15)' };
-    if (diff < 3600000) return { label: '< 1 hour', color: '#ef4444', bg: 'rgba(239,68,68,0.15)' };
-    if (diff < 86400000) return { label: '< 24 hours', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)' };
-    const days = Math.ceil(diff / 86400000);
-    return { label: `In ${days} days`, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' };
+  const handleBack = () => {
+    setView('list');
+    setSelectedTournament(null);
+    setSelectedTournamentFull(null);
+    setSelectedOfficialTournament(null);
   };
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchName.trim()) return;
-
-    setLoading(true);
-    setError('');
-    setView('search');
-
+    setSearchLoading(true);
+    setSearchError('');
     try {
       const data = await searchTournaments(searchName);
-      setTournaments(data.items || []);
+      setOfficialTournaments(data.items || []);
     } catch (err) {
-      setError('Failed to search tournaments. Please try again.');
-      setTournaments([]);
+      setSearchError('Failed to search tournaments.');
+      setOfficialTournaments([]);
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
     }
   };
 
   const handleTagCheck = async (e) => {
     e.preventDefault();
     if (!tagInput.trim()) return;
-
     setTagLoading(true);
     setTagError('');
     setTagResult(null);
-
     try {
       const data = await getTournament(tagInput.trim());
       setTagResult(data);
@@ -370,410 +1227,243 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
     }
   };
 
-  const viewTournamentDetails = async (tournament) => {
-    setLoading(true);
-    try {
-      const details = await getTournament(tournament.tag);
-      setSelectedTournament(details);
-      setView('details');
-    } catch (err) {
-      console.error('Failed to load tournament details:', err);
-      setSelectedTournament(tournament);
-      setView('details');
-    } finally {
-      setLoading(false);
-    }
+  const viewOfficialDetails = (tournament) => {
+    setSelectedOfficialTournament(tournament);
+    setView('official-detail');
   };
 
-  const getStatusConfig = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'inprogress': 
-        return { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)', label: 'Active', dot: '🟢' };
-      case 'upcoming': 
-        return { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', label: 'Upcoming', dot: '🔵' };
-      case 'ended': 
-        return { color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)', label: 'Finished', dot: '⚪' };
-      default: 
-        return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', label: 'Unknown', dot: '🟡' };
-    }
-  };
+  // Separate active/upcoming from live
+  const liveTournaments = communityTournaments.filter((t) => t.status === 'live');
+  const upcomingTournaments = communityTournaments.filter((t) => t.status !== 'live');
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
+  if (view === 'detail' && selectedTournament) {
+    const t = selectedTournamentFull?.tournament || selectedTournament;
+    return (
+      <div className="tournament-finder">
+        <TournamentDetail
+          tournament={t}
+          onBack={handleBack}
+          onRefresh={loadCommunityTournaments}
+        />
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+      </div>
+    );
+  }
 
-  const formatTimeRemaining = (endTime) => {
-    if (!endTime) return '-';
-    const end = new Date(endTime);
-    const now = new Date();
-    const diff = end - now;
-    
-    if (diff <= 0) return 'Ended';
-    
-    const hours = Math.floor(diff / 3600000);
-    const minutes = Math.floor((diff % 3600000) / 60000);
-    
-    if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h left`;
-    if (hours > 0) return `${hours}h ${minutes}m left`;
-    return `${minutes}m left`;
-  };
+  if (view === 'official-detail' && selectedOfficialTournament) {
+    return (
+      <div className="tournament-finder">
+        <OfficialTournamentDetail tournament={selectedOfficialTournament} onBack={handleBack} />
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+      </div>
+    );
+  }
 
-  // Coming Soon feature cards
-  const ComingSoonCard = ({ icon, title, description }) => (
-    <div className="coming-soon-card">
-      <div className="cs-icon">{icon}</div>
-      <h4>{title}</h4>
-      <p>{description}</p>
-      <span className="cs-badge">🔒 Coming Soon</span>
-    </div>
-  );
+  if (view === 'archive') {
+    return (
+      <div className="tournament-finder">
+        <ArchiveView onBack={handleBack} />
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+      </div>
+    );
+  }
+
+  if (view === 'halloffame') {
+    return (
+      <div className="tournament-finder">
+        <HallOfFameView onBack={handleBack} />
+        {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
+      </div>
+    );
+  }
 
   return (
     <div className="tournament-finder">
-      {view === 'search' ? (
-        <>
-          {/* Header */}
-          <div className="finder-header">
-            <h2 className="section-title">🏆 Community Tournaments</h2>
-            <p className="section-desc">Discover and join tournaments hosted by the community</p>
-            <div style={{ textAlign: 'center', marginTop: 'var(--spacing-md)' }}>
-              <button
-                className="submit-tournament-btn"
-                onClick={() => setShowSubmitModal(true)}
-              >
-                ➕ Add Tournament
-              </button>
+      {/* Header */}
+      <div className="finder-header">
+        <h2 className="section-title">🏆 Community Tournaments</h2>
+        <p className="section-desc">Discover, register, and compete in community tournaments</p>
+        <div className="finder-actions">
+          <button className="submit-tournament-btn" onClick={() => setShowSubmitModal(true)}>
+            ➕ Submit Tournament
+          </button>
+          <button className="archive-btn" onClick={() => setView('archive')}>
+            🏛️ Archive
+          </button>
+          <button className="hof-btn" onClick={() => setView('halloffame')}>
+            🏆 Hall of Fame
+          </button>
+        </div>
+      </div>
+
+      {/* Live Tournaments */}
+      {liveTournaments.length > 0 && (
+        <section className="live-section">
+          <h3>🔴 Live Now</h3>
+          <div className="live-tournament-list">
+            {liveTournaments.map((t) => (
+              <div key={t.id} className="live-tournament-card" onClick={() => viewTournamentDetails(t)}>
+                <div className="live-indicator">
+                  <span className="live-pulse"></span>
+                  <span>LIVE</span>
+                </div>
+                <h4>{t.name}</h4>
+                <p className="live-host">by {t.host_name}</p>
+                {t.tiktok_live_url && (
+                  <a
+                    href={t.tiktok_live_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="live-link"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    🎵 Watch on TikTok
+                  </a>
+                )}
+                {t.prize && <span className="live-prize">🏆 {t.prize}</span>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Upcoming Tournaments */}
+      <section className="community-section">
+        <div className="section-header">
+          <div>
+            <h3>📅 Upcoming Tournaments</h3>
+            <p className="section-subtitle">Register early and mark your calendar</p>
+          </div>
+        </div>
+
+        {loadingCommunity ? (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <p>Loading tournaments...</p>
+          </div>
+        ) : upcomingTournaments.length > 0 ? (
+          <div className="community-tournament-list">
+            {upcomingTournaments.map((t) => (
+              <div key={t.id} className="community-tournament-card" onClick={() => viewTournamentDetails(t)}>
+                <div className="ct-card-header">
+                  <TournamentStatusBadge status={t.status} />
+                  <CountdownTimer targetDate={t.start_date} />
+                </div>
+                <h4 className="ct-name">{t.name}</h4>
+                <p className="ct-host">Organized by {t.host_name}</p>
+                {t.description && <p className="ct-desc">{t.description}</p>}
+                <div className="ct-meta">
+                  <span>📅 {formatDate(t.start_date)}</span>
+                  <span>🎮 {t.format || '1v1'}</span>
+                  {t.max_players && <span>👥 Max {t.max_players}</span>}
+                  {t.prize && <span>🏆 {t.prize}</span>}
+                  {t.registration_deadline && <span>⏰ Deadline: {formatDate(t.registration_deadline)}</span>}
+                </div>
+                {t.tiktok_username && (
+                  <div className="ct-tiktok">
+                    🎵 @{t.tiktok_username}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state-box">
+            <div className="empty-icon">🏆</div>
+            <h4>No upcoming tournaments</h4>
+            <p className="empty-helper">Be the first to submit a tournament!</p>
+          </div>
+        )}
+      </section>
+
+      {/* Official Tournament Search */}
+      <section className="tag-checker-section">
+        <h3>🔎 Find Official Tournaments</h3>
+        <p className="section-subtitle">Search for official Clash Royale tournaments</p>
+
+        <form onSubmit={handleSearch} className="tag-form">
+          <div className="tag-input-wrapper">
+            <input
+              type="text"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              placeholder="Search tournament name..."
+              className="tag-input"
+              style={{ paddingLeft: 'var(--spacing-md)' }}
+            />
+            <button type="submit" className="tag-submit-btn" disabled={searchLoading || !searchName.trim()}>
+              {searchLoading ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+        </form>
+
+        {searchError && (
+          <div className="tag-error">
+            <span>❌</span> {searchError}
+          </div>
+        )}
+
+        {officialTournaments.length > 0 && (
+          <div className="search-results">
+            <h4>Search Results</h4>
+            <div className="tournament-list">
+              {officialTournaments.map((tournament) => (
+                <div key={tournament.tag} className="tournament-card" onClick={() => viewOfficialDetails(tournament)}>
+                  <div className="tc-header">
+                    <span className="tc-status" style={{ color: getStatusConfig(tournament.status).color }}>
+                      {getStatusConfig(tournament.status).dot} {getStatusConfig(tournament.status).label}
+                    </span>
+                  </div>
+                  <h4>{tournament.name}</h4>
+                  <p>#{tournament.tag}</p>
+                </div>
+              ))}
             </div>
           </div>
+        )}
 
-          {/* Community Tournaments -->
-          <section className="community-section">
-            <div className="section-header">
-              <div>
-                <h3>👥 Community Tournaments</h3>
-                <p className="section-subtitle">Upcoming tournaments submitted by the community</p>
-              </div>
-              <div className="community-actions">
-                <button
-                  className="submit-tournament-btn"
-                  onClick={() => setShowSubmitModal(true)}
-                >
-                  ➕ Add Tournament
-                </button>
-              </div>
+        <form onSubmit={handleTagCheck} className="tag-form" style={{ marginTop: 'var(--spacing-lg)' }}>
+          <div className="tag-input-wrapper">
+            <span className="tag-prefix">#</span>
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value.replace('#', ''))}
+              placeholder="Enter tournament tag"
+              className="tag-input"
+            />
+            <button type="submit" className="tag-submit-btn" disabled={tagLoading || !tagInput.trim()}>
+              {tagLoading ? 'Checking...' : 'Check Tag'}
+            </button>
+          </div>
+        </form>
+
+        {tagError && (
+          <div className="tag-error">
+            <span>❌</span> {tagError}
+          </div>
+        )}
+
+        {tagResult && (
+          <div className="tag-result" onClick={() => viewOfficialDetails(tagResult)}>
+            <div className="tr-header">
+              <span className="tr-status" style={{ color: getStatusConfig(tagResult.status).color }}>
+                {getStatusConfig(tagResult.status).dot} {getStatusConfig(tagResult.status).label}
+              </span>
             </div>
+            <h4>{tagResult.name}</h4>
+            <p>👥 {tagResult.capacity}/{tagResult.maxCapacity} players</p>
+            <span className="tr-click">Click to view details →</span>
+          </div>
+        )}
+      </section>
 
-            {loadingCommunity ? (
-              <div className="loading-state">
-                <div className="loading-spinner"></div>
-                <p>Loading community tournaments...</p>
-              </div>
-            ) : communityTournaments.length > 0 ? (
-              <div className="community-tournament-list">
-                {communityTournaments.map((t) => {
-                  const badge = getTournamentBadge(t.start_date);
-                  return (
-                    <div key={t.id} className="community-tournament-card">
-                      <div className="ct-card-header">
-                        <span className="ct-badge" style={{ color: badge.color, background: badge.bg }}>
-                          {badge.label}
-                        </span>
-                        <span className="ct-format">{t.format}</span>
-                      </div>
-                      <h4 className="ct-name">{t.name}</h4>
-                      <p className="ct-host">Hosted by {t.host_name}</p>
-                      {t.description && <p className="ct-desc">{t.description}</p>}
-                      <div className="ct-meta">
-                        <span>📅 {formatDate(t.start_date)}</span>
-                        {t.max_players && <span>👥 {t.max_players} players</span>}
-                        {t.prize && <span>🏆 {t.prize}</span>}
-                      </div>
-                      <div className="ct-actions">
-                        {t.discord_link && (
-                          <a href={t.discord_link} target="_blank" rel="noopener noreferrer" className="ct-discord">
-                            💬 Discord
-                          </a>
-                        )}
-                        <button className="ct-calendar" onClick={() => downloadICS(t)}>
-                          📅 Add to Calendar
-                        </button>
-                        <button className="ct-share" onClick={() => shareTournament(t)}>
-                          🔗 Share
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="empty-state-box">
-                <div className="empty-icon">🏆</div>
-                <h4>No community tournaments yet</h4>
-                <p className="empty-helper">Be the first to submit a tournament!</p>
-              </div>
-            )}
-          </section>
-
-          {/* Check Tournament by Tag */}
-          <section className="tag-checker-section">
-            <h3>🔎 Check Tournament by Tag</h3>
-            <p className="section-subtitle">Enter a tournament tag to view details</p>
-            
-            <form onSubmit={handleTagCheck} className="tag-form">
-              <div className="tag-input-wrapper">
-                <span className="tag-prefix">#</span>
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value.replace('#', ''))}
-                  placeholder="Enter tournament tag"
-                  className="tag-input"
-                />
-                <button 
-                  type="submit" 
-                  className="tag-submit-btn"
-                  disabled={tagLoading || !tagInput.trim()}
-                >
-                  {tagLoading ? 'Checking...' : 'Check Tournament'}
-                </button>
-              </div>
-            </form>
-
-            {tagError && (
-              <div className="tag-error">
-                <span>❌</span> {tagError}
-              </div>
-            )}
-
-            {tagResult && (
-              <div className="tag-result" onClick={() => viewTournamentDetails(tagResult)}>
-                <div className="tr-header">
-                  <span 
-                    className="tr-status"
-                    style={{ color: getStatusConfig(tagResult.status).color }}
-                  >
-                    {getStatusConfig(tagResult.status).dot} {getStatusConfig(tagResult.status).label}
-                  </span>
-                </div>
-                <h4>{tagResult.name}</h4>
-                <p>👥 {tagResult.capacity}/{tagResult.maxCapacity} players</p>
-                <span className="tr-click">Click to view details →</span>
-              </div>
-            )}
-          </section>
-
-          {/* Submit Tournament Modal */}
-          {showSubmitModal && (
-            <div className="modal-overlay" onClick={() => setShowSubmitModal(false)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h3>➕ Add Tournament</h3>
-                  <button className="modal-close" onClick={() => setShowSubmitModal(false)}>✕</button>
-                </div>
-                <form onSubmit={handleSubmitTournament} className="submit-form">
-                  {submitSuccess && <div className="submit-success">{submitSuccess}</div>}
-                  <div className="form-grid">
-                    <div className="form-field">
-                      <label>Tournament Name *</label>
-                      <input
-                        type="text"
-                        value={submitForm.name}
-                        onChange={(e) => handleSubmitFormChange('name', e.target.value)}
-                        placeholder="e.g. RoyaleMY Weekly Cup"
-                        required
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label>Host Name *</label>
-                      <input
-                        type="text"
-                        value={submitForm.host_name}
-                        onChange={(e) => handleSubmitFormChange('host_name', e.target.value)}
-                        placeholder="Your name or clan"
-                        required
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label>Start Date & Time *</label>
-                      <input
-                        type="datetime-local"
-                        value={submitForm.start_date}
-                        onChange={(e) => handleSubmitFormChange('start_date', e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label>End Date & Time (optional)</label>
-                      <input
-                        type="datetime-local"
-                        value={submitForm.end_date}
-                        onChange={(e) => handleSubmitFormChange('end_date', e.target.value)}
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label>Format</label>
-                      <select
-                        value={submitForm.format}
-                        onChange={(e) => handleSubmitFormChange('format', e.target.value)}
-                      >
-                        <option value="1v1">1v1</option>
-                        <option value="2v2">2v2</option>
-                        <option value="Draft">Draft</option>
-                        <option value="Triple Elixir">Triple Elixir</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div className="form-field">
-                      <label>Max Players</label>
-                      <input
-                        type="number"
-                        value={submitForm.max_players}
-                        onChange={(e) => handleSubmitFormChange('max_players', e.target.value)}
-                        placeholder="e.g. 50"
-                      />
-                    </div>
-                    <div className="form-field full-width">
-                      <label>Tournament Tag (optional)</label>
-                      <input
-                        type="text"
-                        value={submitForm.tournament_tag}
-                        onChange={(e) => handleSubmitFormChange('tournament_tag', e.target.value)}
-                        placeholder="Clash Royale tournament tag"
-                      />
-                    </div>
-                    <div className="form-field full-width">
-                      <label>Prize (optional)</label>
-                      <input
-                        type="text"
-                        value={submitForm.prize}
-                        onChange={(e) => handleSubmitFormChange('prize', e.target.value)}
-                        placeholder="e.g. 1000 Gems"
-                      />
-                    </div>
-                    <div className="form-field full-width">
-                      <label>Discord Link (optional)</label>
-                      <input
-                        type="url"
-                        value={submitForm.discord_link}
-                        onChange={(e) => handleSubmitFormChange('discord_link', e.target.value)}
-                        placeholder="https://discord.gg/..."
-                      />
-                    </div>
-                    <div className="form-field full-width">
-                      <label>Contact Info (optional)</label>
-                      <input
-                        type="text"
-                        value={submitForm.contact_info}
-                        onChange={(e) => handleSubmitFormChange('contact_info', e.target.value)}
-                        placeholder="Discord username, email, etc."
-                      />
-                    </div>
-                    <div className="form-field full-width">
-                      <label>Description (optional)</label>
-                      <textarea
-                        value={submitForm.description}
-                        onChange={(e) => handleSubmitFormChange('description', e.target.value)}
-                        placeholder="Rules, requirements, additional info..."
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-                  <button type="submit" className="submit-btn" disabled={submitLoading}>
-                    {submitLoading ? 'Submitting...' : 'Submit for Review'}
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Search Results (if any) */}
-          {tournaments.length > 0 && (
-            <section className="search-results">
-              <h3>Search Results</h3>
-              <div className="tournament-list">
-                {tournaments.map((tournament) => (
-                  <div 
-                    key={tournament.tag} 
-                    className="tournament-card"
-                    onClick={() => viewTournamentDetails(tournament)}
-                  >
-                    <div className="tc-header">
-                      <span 
-                        className="tc-status"
-                        style={{ color: getStatusConfig(tournament.status).color }}
-                      >
-                        {getStatusConfig(tournament.status).dot} {getStatusConfig(tournament.status).label}
-                      </span>
-                    </div>
-                    <h4>{tournament.name}</h4>
-                    <p>#{tournament.tag}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </>
-      ) : (
-        /* Tournament Details View */
-        <div className="tournament-details">
-          <button className="back-btn" onClick={() => setView('search')}>
-            ← Back
-          </button>
-
-          {selectedTournament && (
-            <div className="details-card">
-              <div 
-                className="details-status"
-                style={{ 
-                  color: getStatusConfig(selectedTournament.status).color,
-                  background: getStatusConfig(selectedTournament.status).bg
-                }}
-              >
-                {getStatusConfig(selectedTournament.status).dot} {getStatusConfig(selectedTournament.status).label}
-              </div>
-              
-              <h2>{selectedTournament.name}</h2>
-              <p className="details-tag">#{selectedTournament.tag}</p>
-              
-              <div className="details-stats">
-                <div className="ds-item">
-                  <span className="ds-value">{selectedTournament.capacity}/{selectedTournament.maxCapacity}</span>
-                  <span className="ds-label">Players</span>
-                </div>
-                <div className="ds-item">
-                  <span className="ds-value">{formatDate(selectedTournament.startTime)}</span>
-                  <span className="ds-label">Started</span>
-                </div>
-                <div className="ds-item">
-                  <span className="ds-value">{formatDate(selectedTournament.endTime)}</span>
-                  <span className="ds-label">Ends</span>
-                </div>
-              </div>
-
-              <div className="join-box">
-                <h4>How to Join</h4>
-                <ol>
-                  <li>Open Clash Royale app</li>
-                  <li>Go to Tournament tab</li>
-                  <li>Search tag: <strong>#{selectedTournament.tag}</strong></li>
-                </ol>
-                <button 
-                  className="copy-btn"
-                  onClick={() => navigator.clipboard.writeText(selectedTournament.tag)}
-                >
-                  📋 Copy Tag
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Submit Modal */}
+      {showSubmitModal && (
+        <SubmitModal
+          onClose={() => setShowSubmitModal(false)}
+          onSuccess={loadCommunityTournaments}
+        />
       )}
 
       {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} />}
@@ -801,9 +1491,47 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
 
         .section-desc {
           color: var(--text-secondary);
+          margin-bottom: var(--spacing-md);
         }
 
-        /* Section Styling */
+        .finder-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        .submit-tournament-btn,
+        .archive-btn,
+        .hof-btn {
+          padding: var(--spacing-xs) var(--spacing-md);
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          color: white;
+        }
+
+        .submit-tournament-btn {
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+
+        .archive-btn {
+          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+
+        .hof-btn {
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .submit-tournament-btn:hover,
+        .archive-btn:hover,
+        .hof-btn:hover {
+          filter: brightness(1.1);
+        }
+
         section {
           margin-bottom: var(--spacing-xl);
         }
@@ -828,23 +1556,6 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           color: var(--text-muted);
         }
 
-        .refresh-btn {
-          padding: var(--spacing-xs) var(--spacing-md);
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-md);
-          color: var(--text-primary);
-          font-size: 0.875rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .refresh-btn:hover {
-          background: var(--accent-primary);
-          color: white;
-          border-color: var(--accent-primary);
-        }
-
         /* Loading State */
         .loading-state {
           text-align: center;
@@ -864,121 +1575,6 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
 
         @keyframes spin {
           to { transform: rotate(360deg); }
-        }
-
-        /* Global Tournament Cards */
-        .global-cards {
-          display: grid;
-          gap: var(--spacing-md);
-        }
-
-        .global-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-lg);
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .global-card:hover {
-          border-color: var(--accent-primary);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-        }
-
-        .card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: var(--spacing-sm);
-        }
-
-        .status-badge {
-          padding: 4px 12px;
-          border-radius: var(--radius-full);
-          font-size: 0.8rem;
-          font-weight: 700;
-        }
-
-        .full-badge {
-          background: #ef4444;
-          color: white;
-          padding: 2px 8px;
-          border-radius: var(--radius-sm);
-          font-size: 0.7rem;
-          font-weight: 700;
-        }
-
-        .tournament-name {
-          font-size: 1.2rem;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin-bottom: var(--spacing-md);
-        }
-
-        .player-count {
-          margin-bottom: var(--spacing-md);
-        }
-
-        .progress-bar {
-          height: 8px;
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-full);
-          overflow: hidden;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .progress-fill {
-          height: 100%;
-          border-radius: var(--radius-full);
-          transition: width 0.3s ease;
-        }
-
-        .count-text {
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-        }
-
-        .tournament-meta {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-md);
-        }
-
-        .meta-item {
-          display: flex;
-          flex-direction: column;
-          background: var(--bg-primary);
-          padding: var(--spacing-sm);
-          border-radius: var(--radius-md);
-        }
-
-        .meta-item.prize .meta-value {
-          color: #f59e0b;
-          font-weight: 700;
-        }
-
-        .meta-label {
-          font-size: 0.7rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-        }
-
-        .meta-value {
-          font-size: 0.875rem;
-          color: var(--text-primary);
-          font-weight: 600;
-        }
-
-        .time-remaining {
-          font-size: 0.9rem;
-          font-weight: 700;
-          text-align: center;
-          padding: var(--spacing-sm);
-          background: var(--bg-primary);
-          border-radius: var(--radius-md);
         }
 
         /* Empty State */
@@ -1006,376 +1602,89 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           color: var(--text-muted);
         }
 
-        /* Coming Soon Section */
-        .coming-soon-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: var(--spacing-md);
-        }
-
-        .coming-soon-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-lg);
-          text-align: center;
-          opacity: 0.7;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .coming-soon-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.03) 100%);
-          pointer-events: none;
-        }
-
-        .cs-icon {
-          font-size: 2rem;
-          margin-bottom: var(--spacing-sm);
-          opacity: 0.6;
-        }
-
-        .coming-soon-card h4 {
-          font-size: 1rem;
-          color: var(--text-primary);
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .coming-soon-card p {
-          font-size: 0.8rem;
-          color: var(--text-muted);
-          margin-bottom: var(--spacing-sm);
-        }
-
-        .cs-badge {
-          display: inline-block;
-          padding: 4px 10px;
-          background: var(--bg-tertiary);
-          color: var(--text-muted);
-          font-size: 0.7rem;
-          border-radius: var(--radius-full);
-          font-weight: 600;
-        }
-
-        /* Tag Checker */
-        .tag-form {
-          margin-bottom: var(--spacing-md);
-        }
-
-        .tag-input-wrapper {
-          display: flex;
-          gap: var(--spacing-sm);
-          background: var(--bg-secondary);
-          padding: var(--spacing-sm);
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--bg-tertiary);
-        }
-
-        .tag-prefix {
-          font-size: 1.25rem;
-          color: var(--text-muted);
-          font-weight: 700;
-          padding: var(--spacing-sm);
-        }
-
-        .tag-input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          color: var(--text-primary);
-          font-size: 1rem;
-          outline: none;
-        }
-
-        .tag-input::placeholder {
-          color: var(--text-muted);
-        }
-
-        .tag-submit-btn {
-          padding: var(--spacing-sm) var(--spacing-md);
-          background: var(--accent-primary);
-          color: white;
-          border: none;
-          border-radius: var(--radius-md);
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          white-space: nowrap;
-        }
-
-        .tag-submit-btn:hover:not(:disabled) {
-          filter: brightness(1.1);
-        }
-
-        .tag-submit-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .tag-error {
+        /* Live Section */
+        .live-section h3 {
+          color: #ef4444;
           display: flex;
           align-items: center;
           gap: var(--spacing-sm);
-          padding: var(--spacing-md);
-          background: rgba(239, 68, 68, 0.1);
+        }
+
+        .live-tournament-list {
+          display: grid;
+          gap: var(--spacing-md);
+        }
+
+        .live-tournament-card {
+          background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), var(--bg-secondary));
           border: 1px solid rgba(239, 68, 68, 0.3);
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .live-tournament-card:hover {
+          border-color: #ef4444;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(239, 68, 68, 0.15);
+        }
+
+        .live-indicator {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-sm);
+          font-weight: 700;
           color: #ef4444;
         }
 
-        .tag-result {
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-md);
-          cursor: pointer;
-          transition: all 0.2s;
+        .live-pulse {
+          width: 10px;
+          height: 10px;
+          background: #ef4444;
+          border-radius: 50%;
+          animation: pulse 1.5s infinite;
         }
 
-        .tag-result:hover {
-          border-color: var(--accent-primary);
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
         }
 
-        .tr-header {
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .tr-status {
-          font-size: 0.8rem;
-          font-weight: 700;
-        }
-
-        .tag-result h4 {
-          color: var(--text-primary);
+        .live-tournament-card h4 {
           margin: 0 0 var(--spacing-xs);
+          color: var(--text-primary);
+          font-size: 1.2rem;
         }
 
-        .tag-result p {
+        .live-host {
           color: var(--text-secondary);
           font-size: 0.875rem;
-          margin: 0 0 var(--spacing-xs);
+          margin: 0 0 var(--spacing-sm);
         }
 
-        .tr-click {
-          font-size: 0.8rem;
-          color: var(--accent-primary);
-        }
-
-        /* Malaysia Section */
-        .malaysia-card {
-          display: flex;
+        .live-link {
+          display: inline-flex;
           align-items: center;
-          gap: var(--spacing-md);
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), var(--bg-secondary));
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-lg);
-          opacity: 0.8;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          background: #000;
+          color: white;
+          text-decoration: none;
+          border-radius: var(--radius-md);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          margin-right: var(--spacing-sm);
         }
 
-        .mc-icon {
-          font-size: 2.5rem;
-        }
-
-        .mc-content {
-          flex: 1;
-        }
-
-        .mc-content h4 {
-          color: var(--text-primary);
-          margin: 0 0 var(--spacing-xs);
-        }
-
-        .mc-content p {
-          color: var(--text-secondary);
-          font-size: 0.875rem;
-          margin: 0;
-        }
-
-        .mc-badge {
-          padding: 4px 12px;
-          background: var(--bg-tertiary);
-          color: var(--text-muted);
-          font-size: 0.75rem;
-          border-radius: var(--radius-full);
+        .live-prize {
+          font-size: 0.8125rem;
+          color: #f59e0b;
           font-weight: 600;
         }
 
-        /* Search Results */
-        .tournament-list {
-          display: grid;
-          gap: var(--spacing-md);
-        }
-
-        .tournament-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-md);
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .tournament-card:hover {
-          border-color: var(--accent-primary);
-        }
-
-        .tc-header {
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .tc-status {
-          font-size: 0.8rem;
-          font-weight: 700;
-        }
-
-        /* Details View */
-        .tournament-details {
-          animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .back-btn {
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          color: var(--text-primary);
-          padding: var(--spacing-sm) var(--spacing-md);
-          border-radius: var(--radius-md);
-          cursor: pointer;
-          margin-bottom: var(--spacing-lg);
-          font-size: 0.9rem;
-        }
-
-        .back-btn:hover {
-          background: var(--bg-tertiary);
-        }
-
-        .details-card {
-          background: var(--bg-secondary);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-xl);
-          border: 1px solid var(--bg-tertiary);
-          text-align: center;
-        }
-
-        .details-status {
-          display: inline-block;
-          padding: 6px 16px;
-          border-radius: var(--radius-full);
-          font-size: 0.875rem;
-          font-weight: 700;
-          margin-bottom: var(--spacing-md);
-        }
-
-        .details-card h2 {
-          color: var(--text-primary);
-          margin: 0 0 var(--spacing-xs);
-        }
-
-        .details-tag {
-          color: var(--text-muted);
-          font-family: monospace;
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .details-stats {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .ds-item {
-          background: var(--bg-primary);
-          padding: var(--spacing-md);
-          border-radius: var(--radius-lg);
-        }
-
-        .ds-value {
-          display: block;
-          font-size: 1rem;
-          font-weight: 700;
-          color: var(--accent-primary);
-        }
-
-        .ds-label {
-          font-size: 0.7rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-        }
-
-        .join-box {
-          background: var(--bg-primary);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-lg);
-          text-align: left;
-        }
-
-        .join-box h4 {
-          margin: 0 0 var(--spacing-md);
-          color: var(--text-primary);
-        }
-
-        .join-box ol {
-          margin: 0 0 var(--spacing-md);
-          padding-left: var(--spacing-lg);
-          color: var(--text-secondary);
-        }
-
-        .join-box li {
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .copy-btn {
-          width: 100%;
-          padding: var(--spacing-md);
-          background: linear-gradient(135deg, #22c55e, #16a34a);
-          color: white;
-          border: none;
-          border-radius: var(--radius-lg);
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .copy-btn:hover {
-          filter: brightness(1.1);
-        }
-
-        /* Mobile Responsive */
         /* Community Tournament Cards */
-        .community-actions {
-          display: flex;
-          gap: var(--spacing-sm);
-          flex-wrap: wrap;
-        }
-
-        .submit-tournament-btn {
-          padding: var(--spacing-xs) var(--spacing-md);
-          background: linear-gradient(135deg, #22c55e, #16a34a);
-          border: none;
-          border-radius: var(--radius-md);
-          color: white;
-          font-size: 0.875rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .submit-tournament-btn:hover {
-          filter: brightness(1.1);
-        }
-
         .community-tournament-list {
           display: grid;
           gap: var(--spacing-md);
@@ -1386,6 +1695,7 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           border: 1px solid var(--bg-tertiary);
           border-radius: var(--radius-xl);
           padding: var(--spacing-lg);
+          cursor: pointer;
           transition: all 0.2s;
         }
 
@@ -1400,22 +1710,60 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           justify-content: space-between;
           align-items: center;
           margin-bottom: var(--spacing-sm);
+          flex-wrap: wrap;
+          gap: var(--spacing-xs);
         }
 
-        .ct-badge {
+        .badge {
+          display: inline-block;
           padding: 4px 12px;
           border-radius: var(--radius-full);
           font-size: 0.75rem;
           font-weight: 700;
         }
 
-        .ct-format {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          background: var(--bg-tertiary);
+        .badge-warning {
+          background: rgba(245, 158, 11, 0.15);
+          color: #f59e0b;
+        }
+
+        .badge-success {
+          background: rgba(34, 197, 94, 0.15);
+          color: #22c55e;
+        }
+
+        .badge-info {
+          background: rgba(59, 130, 246, 0.15);
+          color: #3b82f6;
+        }
+
+        .badge-secondary {
+          background: rgba(107, 114, 128, 0.15);
+          color: #6b7280;
+        }
+
+        .badge-danger {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .badge-live {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .countdown-timer {
+          font-size: 0.8125rem;
+          font-weight: 700;
+          color: #3b82f6;
+          background: rgba(59, 130, 246, 0.1);
           padding: 4px 10px;
           border-radius: var(--radius-full);
-          font-weight: 600;
+        }
+
+        .countdown-timer.expired {
+          color: #22c55e;
+          background: rgba(34, 197, 94, 0.1);
         }
 
         .ct-name {
@@ -1453,52 +1801,427 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           border-radius: var(--radius-md);
         }
 
-        .ct-actions {
+        .ct-tiktok {
+          font-size: 0.8125rem;
+          color: #ff0050;
+          font-weight: 600;
+          margin-top: var(--spacing-xs);
+        }
+
+        /* Details View */
+        .tournament-details {
+          animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .back-btn {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          color: var(--text-primary);
+          padding: var(--spacing-sm) var(--spacing-md);
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          margin-bottom: var(--spacing-lg);
+          font-size: 0.9rem;
+        }
+
+        .back-btn:hover {
+          background: var(--bg-tertiary);
+        }
+
+        .details-card {
+          background: var(--bg-secondary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-xl);
+          border: 1px solid var(--bg-tertiary);
+        }
+
+        .details-header {
           display: flex;
-          flex-wrap: wrap;
+          justify-content: space-between;
           align-items: center;
+          margin-bottom: var(--spacing-md);
+          flex-wrap: wrap;
           gap: var(--spacing-sm);
         }
 
-        .ct-discord {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          padding: var(--spacing-xs) var(--spacing-sm);
-          background: #5865f2;
-          color: white;
-          text-decoration: none;
-          border-radius: var(--radius-md);
-          font-size: 0.8125rem;
-          font-weight: 600;
-          transition: all 0.2s;
+        .details-countdown {
+          font-size: 0.9rem !important;
         }
 
-        .ct-discord:hover {
-          background: #4752c4;
+        .details-card h2 {
+          color: var(--text-primary);
+          margin: 0 0 var(--spacing-xs);
+          font-size: 1.5rem;
         }
 
-        .ct-calendar,
-        .ct-share {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          padding: var(--spacing-xs) var(--spacing-sm);
-          background: var(--bg-primary);
-          border: 1px solid var(--bg-tertiary);
+        .details-organizer {
           color: var(--text-secondary);
-          border-radius: var(--radius-md);
-          font-size: 0.8125rem;
-          font-weight: 600;
-          cursor: pointer;
+          font-size: 1rem;
+          margin: 0 0 var(--spacing-lg);
+        }
+
+        .tiktok-banner {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          background: linear-gradient(135deg, rgba(255, 0, 80, 0.1), var(--bg-secondary));
+          border: 1px solid rgba(255, 0, 80, 0.2);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-md);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .tiktok-icon {
+          font-size: 1.5rem;
+        }
+
+        .tiktok-label {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin: 0;
+        }
+
+        .tiktok-user {
+          font-size: 1rem;
+          font-weight: 700;
+          color: #ff0050;
+          margin: 0;
+        }
+
+        .live-banner {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-sm);
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          color: white;
+          padding: var(--spacing-md);
+          border-radius: var(--radius-lg);
+          text-decoration: none;
+          font-weight: 700;
+          margin-bottom: var(--spacing-lg);
           transition: all 0.2s;
         }
 
-        .ct-calendar:hover,
-        .ct-share:hover {
-          background: var(--accent-primary);
-          color: white;
-          border-color: var(--accent-primary);
+        .live-banner:hover {
+          filter: brightness(1.1);
+        }
+
+        .live-dot {
+          width: 10px;
+          height: 10px;
+          background: white;
+          border-radius: 50%;
+          animation: pulse 1.5s infinite;
+        }
+
+        .details-stats {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .ds-item {
+          background: var(--bg-primary);
+          padding: var(--spacing-md);
+          border-radius: var(--radius-lg);
+          text-align: center;
+        }
+
+        .ds-value {
+          display: block;
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--accent-primary);
+        }
+
+        .ds-label {
+          font-size: 0.7rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+        }
+
+        .ds-item.prize .ds-value {
+          color: #f59e0b;
+        }
+
+        .details-section {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .details-section h4 {
+          margin: 0 0 var(--spacing-sm);
+          color: var(--text-primary);
+          font-size: 1rem;
+        }
+
+        .details-section p {
+          color: var(--text-secondary);
+          line-height: 1.6;
+          margin: 0;
+        }
+
+        .rules-text {
+          white-space: pre-wrap;
+        }
+
+        .winners-section {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), var(--bg-primary));
+          border: 1px solid rgba(245, 158, 11, 0.2);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+        }
+
+        .winners-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-md);
+        }
+
+        .winner-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: var(--spacing-md);
+          border-radius: var(--radius-lg);
+          background: var(--bg-secondary);
+        }
+
+        .winner-card.first {
+          border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .winner-medal {
+          font-size: 1.5rem;
+          margin-bottom: var(--spacing-xs);
+        }
+
+        .winner-title {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+        }
+
+        .winner-tag {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .prize-status {
+          text-align: center;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+        }
+
+        .registration-box {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .register-form {
+          background: var(--bg-primary);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+        }
+
+        .register-form h4 {
+          margin: 0 0 var(--spacing-md);
+          color: var(--text-primary);
+        }
+
+        .form-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+          margin-top: var(--spacing-md);
+        }
+
+        .submit-error {
+          background: rgba(239, 68, 68, 0.15);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+          padding: var(--spacing-md);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--spacing-md);
+          font-weight: 600;
+        }
+
+        .participants-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          cursor: pointer;
+          padding: var(--spacing-sm) 0;
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .participants-list {
+          margin-top: var(--spacing-sm);
+        }
+
+        .participant-row {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) 0;
+          border-bottom: 1px solid var(--bg-tertiary);
+          font-size: 0.875rem;
+        }
+
+        .participant-rank {
+          color: var(--text-muted);
+          font-weight: 700;
+          min-width: 30px;
+        }
+
+        .participant-name {
+          color: var(--text-primary);
+          font-weight: 600;
+          flex: 1;
+        }
+
+        .participant-tag {
+          color: var(--text-secondary);
+          font-family: monospace;
+          font-size: 0.8125rem;
+        }
+
+        .participant-tiktok {
+          color: #ff0050;
+          font-size: 0.8125rem;
+        }
+
+        /* Archive */
+        .tournament-archive {
+          animation: fadeIn 0.3s ease;
+        }
+
+        .archive-list {
+          display: grid;
+          gap: var(--spacing-md);
+        }
+
+        .archive-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+        }
+
+        .archive-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .archive-header h4 {
+          margin: 0;
+          color: var(--text-primary);
+          font-size: 1.1rem;
+        }
+
+        .archive-date {
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+        }
+
+        .archive-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .archive-meta span {
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+          background: var(--bg-primary);
+          padding: 4px 10px;
+          border-radius: var(--radius-md);
+        }
+
+        .archive-prize {
+          color: #f59e0b !important;
+          font-weight: 600;
+        }
+
+        .archive-winners {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-md);
+        }
+
+        .archive-winner {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          font-size: 0.875rem;
+          color: var(--text-primary);
+        }
+
+        /* Hall of Fame */
+        .hall-of-fame {
+          animation: fadeIn 0.3s ease;
+        }
+
+        .hof-table-wrapper {
+          overflow-x: auto;
+        }
+
+        .hof-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 0.875rem;
+        }
+
+        .hof-table th,
+        .hof-table td {
+          padding: var(--spacing-sm) var(--spacing-md);
+          text-align: left;
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .hof-table th {
+          color: var(--text-muted);
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          font-weight: 600;
+        }
+
+        .hof-table td {
+          color: var(--text-primary);
+        }
+
+        .hof-rank {
+          font-weight: 700;
+          color: #f59e0b;
+        }
+
+        .hof-name {
+          font-weight: 600;
+        }
+
+        .hof-tag {
+          font-family: monospace;
+          color: var(--text-secondary);
+          font-size: 0.8125rem;
+        }
+
+        .hof-wins {
+          color: #f59e0b;
+          font-weight: 700;
+        }
+
+        .hof-top3 {
+          color: #3b82f6;
+          font-weight: 700;
         }
 
         /* Modal */
@@ -1732,29 +2455,6 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
           color: white;
         }
 
-        .badge {
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: var(--radius-full);
-          font-size: 0.7rem;
-          font-weight: 700;
-        }
-
-        .badge-warning {
-          background: rgba(245, 158, 11, 0.15);
-          color: #f59e0b;
-        }
-
-        .badge-success {
-          background: rgba(34, 197, 94, 0.15);
-          color: #22c55e;
-        }
-
-        .badge-danger {
-          background: rgba(239, 68, 68, 0.15);
-          color: #ef4444;
-        }
-
         .alert-success {
           background: rgba(34, 197, 94, 0.15);
           border: 1px solid rgba(34, 197, 94, 0.3);
@@ -1769,33 +2469,12 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
             flex-direction: column;
           }
 
-          .tournament-meta {
-            grid-template-columns: 1fr;
-          }
-
-          .details-stats {
-            grid-template-columns: 1fr;
-          }
-
-          .tag-input-wrapper {
-            flex-direction: column;
-          }
-
-          .tag-prefix {
-            display: none;
-          }
-
           .form-grid {
             grid-template-columns: 1fr;
           }
 
-          .community-actions {
-            width: 100%;
-            justify-content: stretch;
-          }
-
-          .community-actions button {
-            flex: 1;
+          .details-stats {
+            grid-template-columns: repeat(2, 1fr);
           }
 
           .tournament-admin-item {
@@ -1805,10 +2484,16 @@ ${t.prize ? '🏆 Prize: ' + t.prize + '\n' : ''}${t.discord_link ? '💬 Discor
 
           .tournament-admin-actions {
             width: 100%;
+            flex-wrap: wrap;
           }
 
-          .tournament-admin-actions .btn {
+          .tournament-admin-actions .btn,
+          .tournament-admin-actions select {
             flex: 1;
+          }
+
+          .winners-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
