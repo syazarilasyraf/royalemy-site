@@ -502,4 +502,4 @@ function getDbDiagnostics() {
   };
 }
 
-export { db, statements, getDbDiagnostics };
+export { db, statements, getDbDiagnostics, dbPath, dbDir };

@@ -12,7 +12,7 @@ import statePlayerRouter from './routes/statePlayers.js';
 import communityDeckRouter from './routes/communityDecks.js';
 import adminRouter from './routes/admin.js';
 import { log, logRequest, logError } from './logger.js';
-import { db, getDbDiagnostics } from './db.js';
+import { db, getDbDiagnostics, dbPath, dbDir } from './db.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -268,6 +268,56 @@ app.get('/admin/db-info', validateAdminKeyForEndpoint, (req, res) => {
     res.json(diagnostics);
   } catch (error) {
     log('error', `Admin db-info failed: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: upload and replace database file (protected by admin key)
+// Usage: curl -X POST "https://.../admin/upload-db?key=ADMIN_KEY" \
+//            -H "Content-Type: application/octet-stream" \
+//            --data-binary @server/data/roadmap.db
+app.post('/admin/upload-db', validateAdminKeyForEndpoint, express.raw({ type: 'application/octet-stream', limit: '50mb' }), (req, res) => {
+  try {
+    if (!req.body || req.body.length === 0) {
+      return res.status(400).json({ error: 'No file data received. Send the .db file as raw binary body with Content-Type: application/octet-stream' });
+    }
+
+    // Validate SQLite magic bytes ("SQLite format 3\0")
+    const sqliteMagic = Buffer.from('SQLite format 3\0');
+    if (!req.body.slice(0, sqliteMagic.length).equals(sqliteMagic)) {
+      return res.status(400).json({ error: 'Uploaded file is not a valid SQLite database' });
+    }
+
+    const timestamp = Date.now();
+    const backupPath = path.join(dbDir, `roadmap.db.bak.${timestamp}`);
+    const tempPath = path.join(dbDir, `roadmap.db.tmp.${timestamp}`);
+
+    // Backup existing DB if it exists
+    if (fs.existsSync(dbPath)) {
+      fs.copyFileSync(dbPath, backupPath);
+      log('info', `Database backed up to ${backupPath}`);
+    }
+
+    // Write uploaded data to temp file, then atomically replace
+    fs.writeFileSync(tempPath, req.body);
+    fs.renameSync(tempPath, dbPath);
+    log('info', `Database replaced with uploaded file (${req.body.length} bytes)`);
+
+    res.json({
+      success: true,
+      bytesWritten: req.body.length,
+      backupPath,
+      dbPath,
+      message: 'Database uploaded successfully. Server will restart in 3 seconds to load the new database.'
+    });
+
+    // Exit to force container restart with new database
+    setTimeout(() => {
+      log('info', 'Restarting server to load uploaded database');
+      process.exit(0);
+    }, 3000);
+  } catch (error) {
+    log('error', `Database upload failed: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
