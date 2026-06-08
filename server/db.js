@@ -396,6 +396,9 @@ const statements = {
   deleteRegistration: db.prepare(
     `DELETE FROM tournament_registrations WHERE id = ?`
   ),
+  updateRegistration: db.prepare(
+    `UPDATE tournament_registrations SET player_name = ?, player_tag = ?, tiktok_username = ? WHERE id = ?`
+  ),
 
   // Tournament Notifications
   insertNotification: db.prepare(

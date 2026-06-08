@@ -350,6 +350,58 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
   }
 });
 
+router.delete('/admin/:id/registrations/:regId', validateAdminKey, (req, res) => {
+  try {
+    const { id, regId } = req.params;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const registration = statements.getRegistrationsByTournament.all(id).find(r => r.id === parseInt(regId));
+    if (!registration) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    statements.deleteRegistration.run(regId);
+    createNotification(id, 'updated', `Registration for ${registration.player_name} has been removed by admin.`);
+    log('success', `Registration ${regId} deleted from tournament ${id}`);
+    res.json({ message: 'Registration deleted', id: regId });
+  } catch (error) {
+    log('error', `Failed to delete registration: ${error.message}`);
+    res.status(500).json({ error: 'Failed to delete registration' });
+  }
+});
+
+router.post('/admin/:id/registrations/:regId/edit', validateAdminKey, (req, res) => {
+  try {
+    const { id, regId } = req.params;
+    const { player_name, player_tag, tiktok_username } = req.body;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const registration = statements.getRegistrationsByTournament.all(id).find(r => r.id === parseInt(regId));
+    if (!registration) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    const cleanTag = validatePlayerTag(player_tag);
+    if (player_tag && !cleanTag) {
+      return res.status(400).json({ error: 'Invalid player tag. Must be 3-10 alphanumeric characters.' });
+    }
+    statements.updateRegistration.run(
+      player_name || registration.player_name,
+      cleanTag || registration.player_tag,
+      tiktok_username !== undefined ? tiktok_username : registration.tiktok_username,
+      regId
+    );
+    createNotification(id, 'updated', `Registration for ${player_name || registration.player_name} has been updated by admin.`);
+    log('success', `Registration ${regId} updated in tournament ${id}`);
+    res.json({ message: 'Registration updated', id: regId });
+  } catch (error) {
+    log('error', `Failed to update registration: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update registration' });
+  }
+});
+
 // ==================== PUBLIC ROUTES ====================
 
 router.get('/', (req, res) => {

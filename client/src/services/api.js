@@ -305,6 +305,19 @@ export function deleteTournament(id, key) {
   });
 }
 
+export function deleteRegistration(tournamentId, regId, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/${regId}?key=${encodeURIComponent(key)}`, {
+    method: 'DELETE'
+  });
+}
+
+export function updateRegistration(tournamentId, regId, data, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/${regId}/edit?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
 // ==================== COMMUNITY CLANS ====================
 
 export function getCommunityClans() {

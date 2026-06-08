@@ -16,6 +16,8 @@ import {
   updateTournamentPrizeStatus,
   updateTournament,
   deleteTournament,
+  deleteRegistration,
+  updateRegistration,
   searchTournaments,
   getTournament,
   getVapidPublicKey,
@@ -484,6 +486,11 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [showParticipants, setShowParticipants] = useState(false);
 
+  // Admin participant management state
+  const [editingParticipant, setEditingParticipant] = useState(null);
+  const [participantEditForm, setParticipantEditForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
+  const [participantEditLoading, setParticipantEditLoading] = useState(false);
+
   // Admin edit state
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(() => ({ ...tournament }));
@@ -597,6 +604,40 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
       onRefresh();
     } catch (err) {
       alert(err.message || 'Failed to delete tournament');
+    }
+  };
+
+  const handleDeleteParticipant = async (regId, playerName) => {
+    if (!confirm(`Remove ${playerName} from this tournament?`)) return;
+    try {
+      await deleteRegistration(tournament.id, regId, adminKey);
+      loadRegistrations();
+      onRefresh();
+    } catch (err) {
+      alert(err.message || 'Failed to remove participant');
+    }
+  };
+
+  const handleStartEditParticipant = (reg) => {
+    setEditingParticipant(reg.id);
+    setParticipantEditForm({
+      player_name: reg.player_name,
+      player_tag: reg.player_tag,
+      tiktok_username: reg.tiktok_username || '',
+    });
+  };
+
+  const handleSaveParticipant = async (regId) => {
+    setParticipantEditLoading(true);
+    try {
+      await updateRegistration(tournament.id, regId, participantEditForm, adminKey);
+      setEditingParticipant(null);
+      loadRegistrations();
+      onRefresh();
+    } catch (err) {
+      alert(err.message || 'Failed to update participant');
+    } finally {
+      setParticipantEditLoading(false);
     }
   };
 
@@ -831,10 +872,72 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
               <div className="participants-list">
                 {registrations.map((reg, idx) => (
                   <div key={reg.id} className="participant-row">
-                    <span className="participant-rank">#{idx + 1}</span>
-                    <span className="participant-name">{reg.player_name}</span>
-                    <span className="participant-tag">{reg.player_tag}</span>
-                    {reg.tiktok_username && <span className="participant-tiktok">🎵 @{reg.tiktok_username}</span>}
+                    {editingParticipant === reg.id ? (
+                      <>
+                        <span className="participant-rank">#{idx + 1}</span>
+                        <input
+                          type="text"
+                          className="participant-edit-input"
+                          value={participantEditForm.player_name}
+                          onChange={(e) => setParticipantEditForm((p) => ({ ...p, player_name: e.target.value }))}
+                          placeholder="Name"
+                        />
+                        <input
+                          type="text"
+                          className="participant-edit-input tag-input"
+                          value={participantEditForm.player_tag}
+                          onChange={(e) => setParticipantEditForm((p) => ({ ...p, player_tag: e.target.value }))}
+                          placeholder="Tag"
+                        />
+                        <input
+                          type="text"
+                          className="participant-edit-input tiktok-input"
+                          value={participantEditForm.tiktok_username}
+                          onChange={(e) => setParticipantEditForm((p) => ({ ...p, tiktok_username: e.target.value }))}
+                          placeholder="TikTok"
+                        />
+                        <div className="participant-actions">
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => handleSaveParticipant(reg.id)}
+                            disabled={participantEditLoading}
+                          >
+                            {participantEditLoading ? '...' : '✓'}
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setEditingParticipant(null)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="participant-rank">#{idx + 1}</span>
+                        <span className="participant-name">{reg.player_name}</span>
+                        <span className="participant-tag">{reg.player_tag}</span>
+                        {reg.tiktok_username && <span className="participant-tiktok">🎵 @{reg.tiktok_username}</span>}
+                        {adminKey && (
+                          <div className="participant-actions">
+                            <button
+                              className="btn btn-info btn-sm"
+                              onClick={() => handleStartEditParticipant(reg)}
+                              title="Edit participant"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => handleDeleteParticipant(reg.id, reg.player_name)}
+                              title="Remove participant"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1884,34 +1987,40 @@ function TournamentFinder() {
         <section className="live-section">
           <h3>🔴 Live Now</h3>
           <div className="live-tournament-list">
-            {liveTournaments.map((t) => (
-              <div key={t.id} className="live-tournament-card">
-                <div className="live-indicator">
-                  <span className="live-pulse"></span>
-                  <span>LIVE</span>
+            {liveTournaments.map((t) => {
+              const liveParticipantCount = t.participant_count ?? 0;
+              return (
+                <div key={t.id} className="live-tournament-card">
+                  <div className="live-indicator">
+                    <span className="live-pulse"></span>
+                    <span>LIVE</span>
+                  </div>
+                  <h4>{t.name}</h4>
+                  <p className="live-host">by {t.host_name}</p>
+                  <div className="live-meta">
+                    <span>👥 {liveParticipantCount}{t.max_players ? ` / ${t.max_players}` : ''} players</span>
+                    {t.prize && <span>🏆 {t.prize}</span>}
+                  </div>
+                  <div className="card-actions">
+                    {t.tiktok_live_url && (
+                      <a
+                        href={t.tiktok_live_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="card-action-btn watch-btn"
+                      >
+                        🎵 Watch Live
+                      </a>
+                    )}
+                    {adminKey && (
+                      <button className="card-action-btn edit-btn-sm" onClick={() => viewTournamentDetails(t)}>
+                        ✏️ Edit
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <h4>{t.name}</h4>
-                <p className="live-host">by {t.host_name}</p>
-                <div className="card-actions">
-                  {t.tiktok_live_url && (
-                    <a
-                      href={t.tiktok_live_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="card-action-btn watch-btn"
-                    >
-                      🎵 Watch Live
-                    </a>
-                  )}
-                  {adminKey && (
-                    <button className="card-action-btn edit-btn-sm" onClick={() => viewTournamentDetails(t)}>
-                      ✏️ Edit
-                    </button>
-                  )}
-                </div>
-                {t.prize && <span className="live-prize">🏆 {t.prize}</span>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -1934,7 +2043,7 @@ function TournamentFinder() {
           <div className="community-tournament-list">
             {upcomingTournaments.map((t) => {
               const canRegister = t.status === 'approved' || t.status === 'registration_open';
-              const participantCount = t.participant_count || 0;
+              const participantCount = t.participant_count ?? 0;
               const isFull = t.max_players && participantCount >= t.max_players;
               const fillRatio = t.max_players ? participantCount / t.max_players : 0;
               const almostFull = t.max_players && fillRatio >= 0.8 && !isFull;
@@ -1950,14 +2059,13 @@ function TournamentFinder() {
                   <div className="ct-meta">
                     <span>📅 {formatDate(t.start_date)}</span>
                     <span>🎮 {t.format || 'Normal Battle'}</span>
-                    {t.max_players && (
+                    {t.max_players ? (
                       <span className={isFull ? 'participants-full' : almostFull ? 'participants-almost' : ''}>
                         👥 {participantCount} / {t.max_players}
                         {isFull && ' (Full)'}
                         {almostFull && ' (Almost Full!)'}
                       </span>
-                    )}
-                    {!t.max_players && participantCount > 0 && (
+                    ) : (
                       <span>👥 {participantCount} registered</span>
                     )}
                     {t.prize && <span>🏆 {t.prize}</span>}
@@ -3078,6 +3186,87 @@ function TournamentFinder() {
           background: rgba(255, 0, 80, 0.08);
           padding: 3px 10px;
           border-radius: var(--radius-md);
+        }
+
+        .participant-actions {
+          display: flex;
+          gap: 4px;
+          margin-left: auto;
+        }
+
+        .participant-actions .btn {
+          padding: 4px 8px;
+          font-size: 0.75rem;
+          border-radius: var(--radius-md);
+          border: none;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .participant-actions .btn-info {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+
+        .participant-actions .btn-info:hover {
+          background: var(--accent-primary);
+          color: white;
+        }
+
+        .participant-actions .btn-danger {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+        }
+
+        .participant-actions .btn-danger:hover {
+          background: #ef4444;
+          color: white;
+        }
+
+        .participant-actions .btn-success {
+          background: rgba(34, 197, 94, 0.1);
+          color: #22c55e;
+        }
+
+        .participant-actions .btn-success:hover {
+          background: #22c55e;
+          color: white;
+        }
+
+        .participant-actions .btn-secondary {
+          background: var(--bg-tertiary);
+          color: var(--text-muted);
+        }
+
+        .participant-edit-input {
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          padding: 4px 8px;
+          font-size: 0.8125rem;
+          outline: none;
+        }
+
+        .participant-edit-input:focus {
+          border-color: var(--accent-primary);
+        }
+
+        .participant-edit-input.tag-input {
+          width: 80px;
+          font-family: monospace;
+        }
+
+        .participant-edit-input.tiktok-input {
+          width: 100px;
+        }
+
+        .live-meta {
+          display: flex;
+          gap: var(--spacing-sm);
+          margin: var(--spacing-xs) 0;
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
         }
 
         .join-box {
