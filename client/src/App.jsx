@@ -50,8 +50,7 @@ function Footer() {
           <a href="https://discord.gg/gWXeAqjSYH" target="_blank" rel="noopener noreferrer" className="footer-link">Discord</a>
           <span className="footer-dot">·</span>
           <a href="https://discord.gg/gWXeAqjSYH" target="_blank" rel="noopener noreferrer" className="footer-link">Feature Requests</a>
-          <span className="footer-dot">·</span>
-          <span className="footer-link">Changelog</span>
+
         </div>
         <div className="footer-main">
           <span className="footer-brand">RoyaleMY</span>
