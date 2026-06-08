@@ -203,15 +203,16 @@ export function updateFeatureStatus(id, status, key) {
 // ==================== COMMUNITY TOURNAMENTS ====================
 
 export function getCommunityTournaments() {
-  return fetchAPI('/community-tournaments');
+  // Cache-busting to ensure fresh participant counts
+  return fetchAPI(`/community-tournaments?_t=${Date.now()}`);
 }
 
 export function getCommunityTournament(id) {
-  return fetchAPI(`/community-tournaments/${id}`);
+  return fetchAPI(`/community-tournaments/${id}?_t=${Date.now()}`);
 }
 
 export function getTournamentArchive() {
-  return fetchAPI('/community-tournaments/archive');
+  return fetchAPI(`/community-tournaments/archive?_t=${Date.now()}`);
 }
 
 export function submitCommunityTournament(data) {
@@ -229,7 +230,7 @@ export function registerForTournament(id, data) {
 }
 
 export function getTournamentRegistrations(id) {
-  return fetchAPI(`/community-tournaments/${id}/registrations`);
+  return fetchAPI(`/community-tournaments/${id}/registrations?_t=${Date.now()}`);
 }
 
 export function getHallOfFame(limit = 50) {
