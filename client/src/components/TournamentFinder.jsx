@@ -18,6 +18,9 @@ import {
   deleteTournament,
   searchTournaments,
   getTournament,
+  getVapidPublicKey,
+  subscribeToPush,
+  unsubscribeFromPush,
 } from '../services/api';
 
 // ==================== CONSTANTS ====================
@@ -472,7 +475,7 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
 
 // ==================== TOURNAMENT DETAIL ====================
 
-function TournamentDetail({ tournament, onBack, onRefresh, adminKey }) {
+function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notifications = [] }) {
   const [registrations, setRegistrations] = useState([]);
   const [showRegister, setShowRegister] = useState(false);
   const [registerForm, setRegisterForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
@@ -801,6 +804,23 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey }) {
           </div>
         )}
 
+        {notifications.length > 0 && (
+          <div className="details-section notifications-section">
+            <h4>📢 Tournament Updates</h4>
+            <div className="notifications-list">
+              {notifications.map((n) => (
+                <div key={n.id} className={`notification-item notification-${n.type}`}>
+                  <span className="notification-dot"></span>
+                  <div className="notification-content">
+                    <p className="notification-message">{n.message}</p>
+                    <span className="notification-time">{formatDate(n.created_at)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {registrations.length > 0 && (
           <div className="details-section participants-section">
             <div className="participants-header" onClick={() => setShowParticipants((p) => !p)}>
@@ -1043,7 +1063,7 @@ function ArchiveView({ onBack, onViewDetails }) {
               </div>
               <div className="archive-meta">
                 <span>{t.format}</span>
-                <span>{t.max_players ? `${t.max_players} max` : 'Unlimited'} players</span>
+                <span>{t.participant_count || 0} / {t.max_players || '∞'} players</span>
                 {t.prize && <span className="archive-prize">{t.prize}</span>}
               </div>
               <div className="archive-winners">
@@ -1430,7 +1450,10 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
   const [form, setForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [submittedData, setSubmittedData] = useState(null);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushStatus, setPushStatus] = useState('');
 
   const handleChange = (field, value) => {
     setForm((p) => ({ ...p, [field]: value }));
@@ -1440,7 +1463,7 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
+    setSuccess(false);
 
     if (!form.player_name || !form.player_tag) {
       setError('Player name and tag are required');
@@ -1460,7 +1483,12 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
         player_tag: cleanTag,
         tiktok_username: form.tiktok_username,
       });
-      setSuccess('Registration successful! 🎉');
+      setSubmittedData({
+        player_name: form.player_name,
+        player_tag: cleanTag,
+        tiktok_username: form.tiktok_username,
+      });
+      setSuccess(true);
       setForm({ player_name: '', player_tag: '', tiktok_username: '' });
       onSuccess();
     } catch (err) {
@@ -1470,52 +1498,171 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
     }
   };
 
+  const handleEnablePush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushStatus('Push notifications not supported on this browser.');
+      return;
+    }
+    setPushLoading(true);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        const { publicKey } = await getVapidPublicKey();
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+      }
+      const subJSON = subscription.toJSON();
+      await subscribeToPush(tournament.id, {
+        endpoint: subJSON.endpoint,
+        keys: subJSON.keys,
+      });
+      setPushStatus('🔔 Notifications enabled! You\'ll get updates for this tournament.');
+    } catch (err) {
+      console.error('Push subscription failed:', err);
+      setPushStatus('Could not enable notifications. You can enable them later in your browser settings.');
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content register-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>📝 Register for {tournament.name}</h3>
+          <h3>{success ? '✅ Registration Confirmed' : `📝 Register for ${tournament.name}`}</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-        <form onSubmit={handleSubmit} className="submit-form register-form-body">
-          {success && <div className="submit-success">{success}</div>}
-          {error && <div className="submit-error">{error}</div>}
-          <div className="form-field">
-            <label>Player Name *</label>
-            <input
-              type="text"
-              value={form.player_name}
-              onChange={(e) => handleChange('player_name', e.target.value)}
-              placeholder="Your in-game name"
-              required
-            />
+
+        {success && submittedData ? (
+          <div className="register-form-body register-success-body">
+            <div className="success-hero">
+              <div className="success-icon">🏆</div>
+              <h4>You're Registered!</h4>
+            </div>
+
+            <div className="success-details">
+              <div className="sd-section">
+                <span className="sd-label">Tournament</span>
+                <span className="sd-value">{tournament.name}</span>
+              </div>
+              <div className="sd-row">
+                <div className="sd-section">
+                  <span className="sd-label">Your Name</span>
+                  <span className="sd-value">{submittedData.player_name}</span>
+                </div>
+                <div className="sd-section">
+                  <span className="sd-label">Player Tag</span>
+                  <span className="sd-value">#{submittedData.player_tag}</span>
+                </div>
+              </div>
+              <div className="sd-section">
+                <span className="sd-label">Starts</span>
+                <span className="sd-value">{formatDate(tournament.start_date)}</span>
+              </div>
+              {tournament.registration_deadline && (
+                <div className="sd-section">
+                  <span className="sd-label">Registration Deadline</span>
+                  <span className="sd-value">{formatDate(tournament.registration_deadline)}</span>
+                </div>
+              )}
+            </div>
+
+            {tournament.tiktok_username && (
+              <div className="success-tiktok">
+                <p>📢 Stay updated! Follow the host on TikTok:</p>
+                <a
+                  href={`https://tiktok.com/@${tournament.tiktok_username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tiktok-follow-btn"
+                >
+                  🎵 @{tournament.tiktok_username}
+                </a>
+              </div>
+            )}
+
+            <div className="success-next">
+              <p className="next-title">What's Next?</p>
+              <ul>
+                <li>📅 Save the date — tournament starts soon!</li>
+                <li>🏷️ Keep your player tag handy: <strong>#{submittedData.player_tag}</strong></li>
+                <li>🔔 Enable notifications below to get live updates</li>
+                {tournament.tournament_password && (
+                  <li>🔐 Tournament password will be shared before it begins</li>
+                )}
+              </ul>
+            </div>
+
+            <div className="success-push">
+              {pushStatus ? (
+                <div className={`push-status ${pushStatus.includes('enabled') ? 'push-success' : 'push-info'}`}>
+                  {pushStatus}
+                </div>
+              ) : (
+                <button
+                  className="push-enable-btn"
+                  onClick={handleEnablePush}
+                  disabled={pushLoading}
+                >
+                  {pushLoading ? 'Enabling...' : '🔔 Enable Push Notifications'}
+                </button>
+              )}
+            </div>
+
+            <button className="submit-btn done-btn" onClick={onClose}>
+              ✓ Done
+            </button>
           </div>
-          <div className="form-field">
-            <label>Clash Royale Player Tag *</label>
-            <input
-              type="text"
-              value={form.player_tag}
-              onChange={(e) => handleChange('player_tag', e.target.value)}
-              placeholder="e.g. #2P0JJQ0Y"
-              required
-            />
-          </div>
-          <div className="form-field">
-            <label>TikTok Username (optional)</label>
-            <div className="tiktok-input-wrapper">
-              <span className="tiktok-at">@</span>
+        ) : (
+          <form onSubmit={handleSubmit} className="submit-form register-form-body">
+            {error && <div className="submit-error">{error}</div>}
+            <div className="form-field">
+              <label>Player Name *</label>
               <input
                 type="text"
-                value={form.tiktok_username}
-                onChange={(e) => handleChange('tiktok_username', e.target.value.replace(/^@+/, ''))}
-                placeholder="username"
+                value={form.player_name}
+                onChange={(e) => handleChange('player_name', e.target.value)}
+                placeholder="Your in-game name"
+                required
               />
             </div>
-          </div>
-          <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Registering...' : '✓ Confirm Registration'}
-          </button>
-        </form>
+            <div className="form-field">
+              <label>Clash Royale Player Tag *</label>
+              <input
+                type="text"
+                value={form.player_tag}
+                onChange={(e) => handleChange('player_tag', e.target.value)}
+                placeholder="e.g. #2P0JJQ0Y"
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label>TikTok Username (optional)</label>
+              <div className="tiktok-input-wrapper">
+                <span className="tiktok-at">@</span>
+                <input
+                  type="text"
+                  value={form.tiktok_username}
+                  onChange={(e) => handleChange('tiktok_username', e.target.value.replace(/^@+/, ''))}
+                  placeholder="username"
+                />
+              </div>
+            </div>
+            <button type="submit" className="submit-btn" disabled={loading}>
+              {loading ? 'Registering...' : '✓ Confirm Registration'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -1642,6 +1789,7 @@ function TournamentFinder() {
           onBack={handleBack}
           onRefresh={loadCommunityTournaments}
           adminKey={adminKey}
+          notifications={selectedTournamentFull?.notifications || []}
         />
         {adminKey && <AdminPanel adminKey={adminKey} onRefresh={loadCommunityTournaments} onViewDetails={viewTournamentDetails} />}
       </div>
@@ -1749,6 +1897,10 @@ function TournamentFinder() {
           <div className="community-tournament-list">
             {upcomingTournaments.map((t) => {
               const canRegister = t.status === 'approved' || t.status === 'registration_open';
+              const participantCount = t.participant_count || 0;
+              const isFull = t.max_players && participantCount >= t.max_players;
+              const fillRatio = t.max_players ? participantCount / t.max_players : 0;
+              const almostFull = t.max_players && fillRatio >= 0.8 && !isFull;
               return (
                 <div key={t.id} className="community-tournament-card">
                   <div className="ct-card-header">
@@ -1761,7 +1913,16 @@ function TournamentFinder() {
                   <div className="ct-meta">
                     <span>📅 {formatDate(t.start_date)}</span>
                     <span>🎮 {t.format || 'Normal Battle'}</span>
-                    {t.max_players && <span>👥 Max {t.max_players}</span>}
+                    {t.max_players && (
+                      <span className={isFull ? 'participants-full' : almostFull ? 'participants-almost' : ''}>
+                        👥 {participantCount} / {t.max_players}
+                        {isFull && ' (Full)'}
+                        {almostFull && ' (Almost Full!)'}
+                      </span>
+                    )}
+                    {!t.max_players && participantCount > 0 && (
+                      <span>👥 {participantCount} registered</span>
+                    )}
                     {t.prize && <span>🏆 {t.prize}</span>}
                     {t.registration_deadline && <span>⏰ Deadline: {formatDate(t.registration_deadline)}</span>}
                   </div>
@@ -1771,10 +1932,13 @@ function TournamentFinder() {
                     </div>
                   )}
                   <div className="card-actions">
-                    {canRegister && (
+                    {canRegister && !isFull && (
                       <button className="card-action-btn register-action-btn" onClick={() => openRegisterModal(t)}>
                         ✍️ Register Now
                       </button>
+                    )}
+                    {isFull && (
+                      <span className="card-full-badge">🔒 Full</span>
                     )}
                     {adminKey && (
                       <button className="card-action-btn edit-btn-sm" onClick={() => viewTournamentDetails(t)}>
@@ -3717,6 +3881,283 @@ function TournamentFinder() {
           .winners-grid {
             grid-template-columns: 1fr;
           }
+        }
+
+        /* Registration Success Screen */
+        .register-success-body {
+          padding: var(--spacing-xl);
+          text-align: center;
+        }
+
+        .success-hero {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .success-icon {
+          font-size: 3rem;
+          margin-bottom: var(--spacing-sm);
+          animation: bounceIn 0.5s ease;
+        }
+
+        @keyframes bounceIn {
+          0% { transform: scale(0); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+
+        .success-hero h4 {
+          font-size: 1.25rem;
+          color: var(--accent-primary);
+          margin: 0;
+        }
+
+        .success-details {
+          background: var(--bg-secondary);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+          margin-bottom: var(--spacing-lg);
+          text-align: left;
+        }
+
+        .sd-section {
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .sd-section:last-child {
+          margin-bottom: 0;
+        }
+
+        .sd-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--spacing-md);
+        }
+
+        .sd-label {
+          display: block;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 2px;
+        }
+
+        .sd-value {
+          display: block;
+          font-size: 0.9375rem;
+          color: var(--text-primary);
+          font-weight: 500;
+        }
+
+        .success-tiktok {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .success-tiktok p {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .tiktok-follow-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          background: linear-gradient(135deg, #ff0050, #00f2ea);
+          color: white;
+          padding: var(--spacing-sm) var(--spacing-lg);
+          border-radius: var(--radius-lg);
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 0.875rem;
+          transition: all 0.2s;
+        }
+
+        .tiktok-follow-btn:hover {
+          filter: brightness(1.15);
+          transform: translateY(-1px);
+        }
+
+        .success-next {
+          background: var(--bg-secondary);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+          margin-bottom: var(--spacing-lg);
+          text-align: left;
+        }
+
+        .next-title {
+          font-weight: 700;
+          font-size: 0.875rem;
+          color: var(--text-primary);
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .success-next ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+
+        .success-next li {
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+          padding: var(--spacing-xs) 0;
+          border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .success-next li:last-child {
+          border-bottom: none;
+        }
+
+        .success-push {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .push-enable-btn {
+          width: 100%;
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
+          border: none;
+          border-radius: var(--radius-lg);
+          font-weight: 700;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .push-enable-btn:hover:not(:disabled) {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+
+        .push-enable-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .push-status {
+          font-size: 0.8125rem;
+          padding: var(--spacing-sm);
+          border-radius: var(--radius-md);
+        }
+
+        .push-success {
+          background: rgba(34, 197, 94, 0.1);
+          color: #22c55e;
+        }
+
+        .push-info {
+          background: rgba(245, 158, 11, 0.1);
+          color: #f59e0b;
+        }
+
+        .done-btn {
+          width: 100%;
+        }
+
+        /* Participant count urgency */
+        .participants-full {
+          color: #ef4444 !important;
+          font-weight: 700;
+        }
+
+        .participants-almost {
+          color: #f59e0b !important;
+          font-weight: 700;
+        }
+
+        .card-full-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          background: var(--bg-tertiary);
+          color: var(--text-muted);
+          padding: var(--spacing-sm) var(--spacing-md);
+          border-radius: var(--radius-md);
+          font-size: 0.8125rem;
+          font-weight: 600;
+        }
+
+        /* In-site Notifications */
+        .notifications-section {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), var(--bg-primary));
+          border: 1px solid rgba(59, 130, 246, 0.15);
+          border-radius: var(--radius-xl);
+          padding: var(--spacing-lg);
+        }
+
+        .notifications-section h4 {
+          margin-bottom: var(--spacing-md);
+          font-size: 1rem;
+          color: var(--text-primary);
+        }
+
+        .notifications-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+
+        .notification-item {
+          display: flex;
+          align-items: flex-start;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-secondary);
+          border-radius: var(--radius-lg);
+          border-left: 3px solid var(--accent-primary);
+        }
+
+        .notification-item.notification-status_change {
+          border-left-color: #8b5cf6;
+        }
+
+        .notification-item.notification-updated {
+          border-left-color: #f59e0b;
+        }
+
+        .notification-item.notification-registration {
+          border-left-color: #22c55e;
+        }
+
+        .notification-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--accent-primary);
+          margin-top: 6px;
+          flex-shrink: 0;
+        }
+
+        .notification-status_change .notification-dot {
+          background: #8b5cf6;
+        }
+
+        .notification-updated .notification-dot {
+          background: #f59e0b;
+        }
+
+        .notification-registration .notification-dot {
+          background: #22c55e;
+        }
+
+        .notification-content {
+          flex: 1;
+        }
+
+        .notification-message {
+          font-size: 0.875rem;
+          color: var(--text-primary);
+          margin: 0 0 2px 0;
+          line-height: 1.4;
+        }
+
+        .notification-time {
+          font-size: 0.75rem;
+          color: var(--text-muted);
         }
       `}</style>
     </div>

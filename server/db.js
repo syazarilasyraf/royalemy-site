@@ -234,6 +234,18 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
   CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tournament_id, endpoint)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_push_subscriptions_tournament ON push_subscriptions(tournament_id);
 `);
 
 // Migration: add new columns if they don't exist (idempotent)
@@ -258,6 +270,25 @@ for (const col of tournamentCols) {
   if (!columnExists('community_tournaments', col.name)) {
     db.exec(`ALTER TABLE community_tournaments ADD COLUMN ${col.name} ${col.type}`);
   }
+}
+
+// Migration: push_subscriptions table may exist without tournament_id from earlier versions
+if (!columnExists('push_subscriptions', 'tournament_id')) {
+  // SQLite doesn't support dropping columns, so we recreate the table
+  db.exec(`
+    CREATE TABLE push_subscriptions_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tournament_id, endpoint)
+    );
+    CREATE INDEX idx_push_subscriptions_tournament_new ON push_subscriptions_new(tournament_id);
+    DROP TABLE push_subscriptions;
+    ALTER TABLE push_subscriptions_new RENAME TO push_subscriptions;
+  `);
 }
 
 // Prepared statements
@@ -315,13 +346,13 @@ const statements = {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ),
   getApprovedTournaments: db.prepare(
-    `SELECT * FROM community_tournaments WHERE status IN ('approved', 'registration_open', 'registration_closed', 'live') ORDER BY start_date ASC`
+    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id) as participant_count FROM community_tournaments ct WHERE ct.status IN ('approved', 'registration_open', 'registration_closed', 'live') ORDER BY ct.start_date ASC`
   ),
   getArchiveTournaments: db.prepare(
-    `SELECT * FROM community_tournaments WHERE status = 'completed' ORDER BY start_date DESC`
+    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id) as participant_count FROM community_tournaments ct WHERE ct.status = 'completed' ORDER BY ct.start_date DESC`
   ),
   getAllTournaments: db.prepare(
-    `SELECT * FROM community_tournaments ORDER BY created_at DESC`
+    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id) as participant_count FROM community_tournaments ct ORDER BY ct.created_at DESC`
   ),
   getTournamentById: db.prepare(
     `SELECT * FROM community_tournaments WHERE id = ?`
@@ -372,6 +403,20 @@ const statements = {
   ),
   getNotificationsByTournament: db.prepare(
     `SELECT * FROM tournament_notifications WHERE tournament_id = ? ORDER BY created_at DESC`
+  ),
+
+  // Push Subscriptions
+  insertPushSubscription: db.prepare(
+    `INSERT INTO push_subscriptions (tournament_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?) ON CONFLICT(tournament_id, endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`
+  ),
+  getPushSubscriptionsByTournament: db.prepare(
+    `SELECT * FROM push_subscriptions WHERE tournament_id = ?`
+  ),
+  deletePushSubscription: db.prepare(
+    `DELETE FROM push_subscriptions WHERE tournament_id = ? AND endpoint = ?`
+  ),
+  deletePushSubscriptionsByTournament: db.prepare(
+    `DELETE FROM push_subscriptions WHERE tournament_id = ?`
   ),
 
   // Player Stats (Hall of Fame foundation)

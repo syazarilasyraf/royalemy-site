@@ -236,6 +236,24 @@ export function getHallOfFame(limit = 50) {
   return fetchAPI(`/community-tournaments/hall-of-fame?limit=${limit}`);
 }
 
+export function getVapidPublicKey() {
+  return fetchAPI('/community-tournaments/vapid-public-key');
+}
+
+export function subscribeToPush(tournamentId, subscription) {
+  return fetchAPI(`/community-tournaments/${tournamentId}/subscribe`, {
+    method: 'POST',
+    body: JSON.stringify(subscription)
+  });
+}
+
+export function unsubscribeFromPush(tournamentId, endpoint) {
+  return fetchAPI(`/community-tournaments/${tournamentId}/unsubscribe`, {
+    method: 'POST',
+    body: JSON.stringify({ endpoint })
+  });
+}
+
 // Admin Tournament APIs
 export function getAdminTournaments(key) {
   return fetchAPI(`/community-tournaments/admin?key=${encodeURIComponent(key)}`);

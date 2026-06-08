@@ -1,9 +1,24 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import webpush from 'web-push';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
 
 const router = express.Router();
+
+// Configure web-push if VAPID keys are available
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@royalemy.gg';
+
+if (vapidPublicKey && vapidPrivateKey) {
+  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+  log('info', 'Push notifications configured with VAPID keys');
+} else {
+  log('warn', 'VAPID keys not configured. Push notifications will be disabled.');
+}
+
+const pushEnabled = !!(vapidPublicKey && vapidPrivateKey);
 
 const VALID_STATUSES = [
   'pending',
@@ -46,6 +61,49 @@ function createNotification(tournamentId, type, message) {
     statements.insertNotification.run(tournamentId, type, message);
   } catch (e) {
     log('warn', `Failed to create notification: ${e.message}`);
+  }
+}
+
+async function sendPushNotifications(tournamentId, title, body, icon = '/royalemy.png') {
+  if (!pushEnabled) return;
+  try {
+    const subs = statements.getPushSubscriptionsByTournament.all(tournamentId);
+    if (!subs || subs.length === 0) return;
+
+    const payload = JSON.stringify({ title, body, icon, tournamentId, tag: `tournament-${tournamentId}` });
+    const results = await Promise.allSettled(
+      subs.map((sub) =>
+        webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth }
+          },
+          payload
+        )
+      )
+    );
+
+    let sent = 0;
+    let failed = 0;
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === 'fulfilled') {
+        sent++;
+      } else {
+        failed++;
+        const err = results[i].reason;
+        // Remove expired/invalid subscriptions
+        if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+          try {
+            statements.deletePushSubscription.run(tournamentId, subs[i].endpoint);
+          } catch (delErr) {
+            log('warn', `Failed to delete expired push subscription: ${delErr.message}`);
+          }
+        }
+      }
+    }
+    log('info', `Push notifications for tournament ${tournamentId}: ${sent} sent, ${failed} failed`);
+  } catch (e) {
+    log('warn', `Failed to send push notifications: ${e.message}`);
   }
 }
 
@@ -102,6 +160,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
     }
     statements.updateTournamentStatus.run('approved', id);
     createNotification(id, 'status_change', `Tournament "${tournament.name}" has been approved.`);
+    sendPushNotifications(id, 'Tournament Approved! ✅', `${tournament.name} has been approved. Registration opening soon!`);
     log('success', `Tournament ${id} approved`);
     res.json({ message: 'Tournament approved', id });
   } catch (error) {
@@ -140,6 +199,16 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
     }
     statements.updateTournamentStatus.run(status, id);
     createNotification(id, 'status_change', `Tournament "${tournament.name}" status updated to ${status.replace('_', ' ')}.`);
+    const statusMessages = {
+      approved: 'has been approved.',
+      registration_open: 'registration is now OPEN! Sign up now.',
+      registration_closed: 'registration is now closed.',
+      live: 'is now LIVE! Good luck!',
+      completed: 'has concluded. Check the results!',
+      cancelled: 'has been cancelled.'
+    };
+    const statusMsg = statusMessages[status] || `status updated to ${status.replace('_', ' ')}.`;
+    sendPushNotifications(id, `Tournament Update: ${tournament.name}`, `${tournament.name} ${statusMsg}`);
     log('success', `Tournament ${id} status updated to ${status}`);
     res.json({ message: `Status updated to ${status}`, id });
   } catch (error) {
@@ -192,6 +261,7 @@ router.post('/admin/:id/winners', validateAdminKey, (req, res) => {
       }
     }
 
+    sendPushNotifications(id, `🏆 Winners Announced: ${tournament.name}`, `The winners for ${tournament.name} have been announced! Check out the results.`);
     log('success', `Tournament ${id} winners updated`);
     res.json({ message: 'Winners updated', id });
   } catch (error) {
@@ -213,6 +283,7 @@ router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
     }
     statements.updateTournamentPrizeStatus.run(prize_status, id);
     createNotification(id, 'status_change', `Prize status for "${tournament.name}" updated to ${prize_status}.`);
+    sendPushNotifications(id, `💰 Prize Update: ${tournament.name}`, `Prize status updated to ${prize_status}.`);
     log('success', `Tournament ${id} prize status updated to ${prize_status}`);
     res.json({ message: 'Prize status updated', id });
   } catch (error) {
@@ -253,6 +324,7 @@ router.post('/admin/:id/edit', validateAdminKey, (req, res) => {
     );
 
     createNotification(id, 'updated', `Tournament "${name || tournament.name}" has been updated.`);
+    sendPushNotifications(id, `✏️ Tournament Updated: ${name || tournament.name}`, `Details have been updated. Check the latest info.`);
     log('success', `Tournament ${id} updated by admin`);
     res.json({ message: 'Tournament updated', id });
   } catch (error) {
@@ -268,6 +340,7 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
+    sendPushNotifications(id, `❌ Tournament Cancelled: ${tournament.name}`, `${tournament.name} has been cancelled.`);
     statements.deleteTournament.run(id);
     log('success', `Tournament ${id} deleted by admin`);
     res.json({ message: 'Tournament deleted', id });
@@ -427,6 +500,51 @@ router.get('/:id/registrations', (req, res) => {
 });
 
 // ==================== PLAYER STATS (Hall of Fame Foundation) ====================
+
+// Push notification public key
+router.get('/vapid-public-key', (req, res) => {
+  if (!vapidPublicKey) {
+    return res.status(503).json({ error: 'Push notifications not configured' });
+  }
+  res.json({ publicKey: vapidPublicKey });
+});
+
+// Push subscription endpoints
+router.post('/:id/subscribe', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { endpoint, keys } = req.body;
+    if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+      return res.status(400).json({ error: 'Invalid subscription data' });
+    }
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    statements.insertPushSubscription.run(id, endpoint, keys.p256dh, keys.auth);
+    log('info', `New push subscription for tournament ${id}`);
+    res.json({ message: 'Subscribed to notifications' });
+  } catch (error) {
+    log('error', `Failed to save push subscription: ${error.message}`);
+    res.status(500).json({ error: 'Failed to subscribe' });
+  }
+});
+
+router.post('/:id/unsubscribe', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { endpoint } = req.body;
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Endpoint required' });
+    }
+    statements.deletePushSubscription.run(id, endpoint);
+    log('info', `Push subscription removed for tournament ${id}`);
+    res.json({ message: 'Unsubscribed from notifications' });
+  } catch (error) {
+    log('error', `Failed to remove push subscription: ${error.message}`);
+    res.status(500).json({ error: 'Failed to unsubscribe' });
+  }
+});
 
 router.get('/hall-of-fame', (req, res) => {
   try {
