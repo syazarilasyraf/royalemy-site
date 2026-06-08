@@ -236,18 +236,6 @@ export { fetchFromCR };
 
 // ==================== API ROUTES ====================
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    cacheSize: cache.size,
-    crApiConfigured: !!CR_API_TOKEN,
-    frontendUrl: FRONTEND_URL,
-    uptime: process.uptime()
-  });
-});
-
 // Admin: database diagnostics (protected by admin key)
 function validateAdminKeyForEndpoint(req, res, next) {
   const key = req.query.key;
@@ -977,8 +965,38 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     db: dbPath,
+    cacheSize: cache.size,
+    crApiConfigured: !!CR_API_TOKEN,
+    frontendUrl: FRONTEND_URL,
   });
 });
+
+// Log all registered routes for deploy verification
+function logRegisteredRoutes() {
+  console.log('');
+  console.log('📋 Registered API Routes:');
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      const methods = Object.keys(middleware.route.methods).map(m => m.toUpperCase()).join(',');
+      console.log(`   ${methods.padEnd(6)} ${middleware.route.path}`);
+    } else if (middleware.name === 'router') {
+      const base = middleware.regexp.toString()
+        .replace('/^\\', '')
+        .replace('\\/?(?=\/|$)/i', '')
+        .replace(/\\/g, '/');
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          const methods = Object.keys(handler.route.methods).map(m => m.toUpperCase()).join(',');
+          const path = base + handler.route.path;
+          console.log(`   ${methods.padEnd(6)} ${path}`);
+        }
+      });
+    }
+  });
+  console.log('');
+}
+
+logRegisteredRoutes();
 
 // ==================== GLOBAL ERROR HANDLER ====================
 
