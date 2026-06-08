@@ -1841,6 +1841,19 @@ function TournamentFinder() {
     loadCommunityTournaments();
   }, []);
 
+  // Deep-link: auto-open tournament from ?tournament=ID
+  useEffect(() => {
+    const tournamentId = searchParams.get('tournament');
+    if (!tournamentId || communityTournaments.length === 0) return;
+    const id = parseInt(tournamentId);
+    const tournament = communityTournaments.find(t => t.id === id);
+    if (tournament && view === 'list') {
+      viewTournamentDetails(tournament);
+      // Clean the URL so refresh doesn't re-open
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [communityTournaments, searchParams, view]);
+
   const loadCommunityTournaments = async () => {
     setLoadingCommunity(true);
     try {

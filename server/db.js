@@ -166,6 +166,17 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_notifications_tournament ON tournament_notifications(tournament_id);
 
+  CREATE TABLE IF NOT EXISTS notification_reads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    notification_id INTEGER NOT NULL REFERENCES tournament_notifications(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(notification_id, endpoint)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_notification_reads_endpoint ON notification_reads(endpoint);
+  CREATE INDEX IF NOT EXISTS idx_notification_reads_notification ON notification_reads(notification_id);
+
   CREATE TABLE IF NOT EXISTS player_stats (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     player_tag TEXT NOT NULL UNIQUE,
@@ -523,6 +534,32 @@ if (pushSubscriptionsEnabled) {
   );
   statements.deletePushSubscriptionsByTournament = db.prepare(
     `DELETE FROM push_subscriptions WHERE tournament_id = ?`
+  );
+
+  // Notification read tracking
+  statements.getRecentNotifications = db.prepare(
+    `SELECT tn.id, tn.tournament_id, tn.type, tn.message, tn.created_at,
+            ct.name as tournament_name
+     FROM tournament_notifications tn
+     JOIN community_tournaments ct ON tn.tournament_id = ct.id
+     ORDER BY tn.created_at DESC
+     LIMIT 30`
+  );
+  statements.getUnreadNotificationCount = db.prepare(
+    `SELECT COUNT(*) as count
+     FROM tournament_notifications tn
+     LEFT JOIN notification_reads nr ON tn.id = nr.notification_id AND nr.endpoint = ?
+     WHERE nr.id IS NULL`
+  );
+  statements.markNotificationRead = db.prepare(
+    `INSERT OR IGNORE INTO notification_reads (notification_id, endpoint) VALUES (?, ?)`
+  );
+  statements.markAllNotificationsRead = db.prepare(
+    `INSERT OR IGNORE INTO notification_reads (notification_id, endpoint)
+     SELECT id, ? FROM tournament_notifications`
+  );
+  statements.getNotificationReadsByEndpoint = db.prepare(
+    `SELECT notification_id FROM notification_reads WHERE endpoint = ?`
   );
 }
 

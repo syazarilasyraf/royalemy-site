@@ -205,7 +205,11 @@ self.addEventListener('push', (event) => {
       data: {
         tournamentId: data.tournamentId,
         url: data.url || '/'
-      }
+      },
+      actions: [
+        { action: 'open', title: 'View Tournament' },
+        { action: 'close', title: 'Dismiss' }
+      ]
     };
     event.waitUntil(self.registration.showNotification(title, options));
   } catch (e) {

@@ -255,6 +255,25 @@ export function unsubscribeFromPush(tournamentId, endpoint) {
   });
 }
 
+export function getNotifications(endpoint) {
+  const qs = endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : '';
+  return fetchAPI(`/community-tournaments/notifications${qs}`);
+}
+
+export function markNotificationRead(id, endpoint) {
+  return fetchAPI(`/community-tournaments/notifications/${id}/read`, {
+    method: 'POST',
+    body: JSON.stringify({ endpoint })
+  });
+}
+
+export function markAllNotificationsRead(endpoint) {
+  return fetchAPI(`/community-tournaments/notifications/read-all`, {
+    method: 'POST',
+    body: JSON.stringify({ endpoint })
+  });
+}
+
 // Admin Tournament APIs
 export function getAdminTournaments(key) {
   return fetchAPI(`/community-tournaments/admin?key=${encodeURIComponent(key)}`);

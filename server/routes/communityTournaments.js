@@ -71,7 +71,11 @@ async function sendPushNotifications(tournamentId, title, body, icon = '/royalem
     const subs = statements.getPushSubscriptionsByTournament.all(tournamentId);
     if (!subs || subs.length === 0) return;
 
-    const payload = JSON.stringify({ title, body, icon, tournamentId, tag: `tournament-${tournamentId}` });
+    const payload = JSON.stringify({
+      title, body, icon, tournamentId,
+      tag: `tournament-${tournamentId}`,
+      url: `/tournaments?tournament=${tournamentId}`
+    });
     const results = await Promise.allSettled(
       subs.map((sub) =>
         webpush.sendNotification(
@@ -433,6 +437,72 @@ router.get('/vapid-public-key', (req, res) => {
     return res.status(503).json({ error: 'Push notifications not configured' });
   }
   res.json({ publicKey: vapidPublicKey });
+});
+
+// Global notifications feed (must be before /:id)
+router.get('/notifications', (req, res) => {
+  try {
+    const endpoint = req.query.endpoint || '';
+    const notifications = statements.getRecentNotifications ? statements.getRecentNotifications.all() : [];
+    let unreadCount = 0;
+    if (endpoint && statements.getUnreadNotificationCount) {
+      unreadCount = statements.getUnreadNotificationCount.get(endpoint).count;
+    }
+    const enriched = notifications.map(n => ({
+      id: n.id,
+      tournament_id: n.tournament_id,
+      tournament_name: n.tournament_name,
+      type: n.type,
+      message: n.message,
+      created_at: n.created_at,
+      is_read: endpoint ? false : undefined
+    }));
+    if (endpoint && statements.getNotificationReadsByEndpoint) {
+      const readRows = statements.getNotificationReadsByEndpoint.all(endpoint);
+      const readSet = new Set(readRows.map(r => r.notification_id));
+      enriched.forEach(n => { n.is_read = readSet.has(n.id); });
+    }
+    res.set('Cache-Control', 'no-store');
+    res.json({ notifications: enriched, unreadCount });
+  } catch (error) {
+    log('error', `Failed to fetch notifications: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+router.post('/notifications/:notifId/read', (req, res) => {
+  if (!pushDbEnabled) {
+    return res.status(503).json({ error: 'Push notifications are temporarily unavailable' });
+  }
+  try {
+    const { notifId } = req.params;
+    const { endpoint } = req.body;
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Endpoint required' });
+    }
+    statements.markNotificationRead.run(parseInt(notifId), endpoint);
+    res.json({ message: 'Marked as read' });
+  } catch (error) {
+    log('error', `Failed to mark notification read: ${error.message}`);
+    res.status(500).json({ error: 'Failed to mark as read' });
+  }
+});
+
+router.post('/notifications/read-all', (req, res) => {
+  if (!pushDbEnabled) {
+    return res.status(503).json({ error: 'Push notifications are temporarily unavailable' });
+  }
+  try {
+    const { endpoint } = req.body;
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Endpoint required' });
+    }
+    statements.markAllNotificationsRead.run(endpoint);
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    log('error', `Failed to mark all read: ${error.message}`);
+    res.status(500).json({ error: 'Failed to mark all as read' });
+  }
 });
 
 // Hall of Fame (must be before /:id)
