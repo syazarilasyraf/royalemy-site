@@ -260,6 +260,21 @@ app.get('/admin/db-info', validateAdminKeyForEndpoint, (req, res) => {
   }
 });
 
+// Admin: download current database file
+app.get('/admin/download-db', validateAdminKeyForEndpoint, (req, res) => {
+  try {
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Database file not found' });
+    }
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename=roadmap.db');
+    res.sendFile(path.resolve(dbPath));
+  } catch (error) {
+    log('error', `Database download failed: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin: upload and replace database file (protected by admin key)
 // Usage: curl -X POST "https://.../admin/upload-db?key=ADMIN_KEY" \
 //            -H "Content-Type: application/octet-stream" \
