@@ -1504,25 +1504,62 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
       return;
     }
     setPushLoading(true);
+    setPushStatus('');
+
+    const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms));
+
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        timeout(5000)
+      ]);
+
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
-        const { publicKey } = await getVapidPublicKey();
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        });
+        const perm = await Promise.race([
+          Notification.requestPermission(),
+          timeout(3000)
+        ]);
+        if (perm === 'denied') {
+          setPushStatus('❌ Notifications blocked. Please enable them in your browser settings and try again.');
+          setPushLoading(false);
+          return;
+        }
+
+        const { publicKey } = await Promise.race([
+          getVapidPublicKey(),
+          timeout(5000)
+        ]);
+
+        subscription = await Promise.race([
+          registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey),
+          }),
+          timeout(10000)
+        ]);
       }
       const subJSON = subscription.toJSON();
-      await subscribeToPush(tournament.id, {
-        endpoint: subJSON.endpoint,
-        keys: subJSON.keys,
-      });
+      await Promise.race([
+        subscribeToPush(tournament.id, {
+          endpoint: subJSON.endpoint,
+          keys: subJSON.keys,
+        }),
+        timeout(5000)
+      ]);
       setPushStatus('🔔 Notifications enabled! You\'ll get updates for this tournament.');
     } catch (err) {
       console.error('Push subscription failed:', err);
-      setPushStatus('Could not enable notifications. You can enable them later in your browser settings.');
+      const msg = err?.message || '';
+      if (msg.includes('timed out')) {
+        setPushStatus('⏱️ Request timed out. Please check your connection and try again.');
+      } else if (msg.includes('not configured') || msg.includes('503')) {
+        setPushStatus('🔕 Push notifications are not configured on the server yet.');
+      } else if (msg.includes('denied') || msg.includes('permission')) {
+        setPushStatus('❌ Permission denied. Enable notifications in your browser settings.');
+      } else {
+        setPushStatus('Could not enable notifications. You can try again later.');
+      }
     } finally {
       setPushLoading(false);
     }

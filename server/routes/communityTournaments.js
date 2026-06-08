@@ -355,6 +355,7 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
 router.get('/', (req, res) => {
   try {
     const tournaments = statements.getApprovedTournaments.all();
+    res.set('Cache-Control', 'no-store');
     res.json({ tournaments });
   } catch (error) {
     log('error', `Failed to fetch tournaments: ${error.message}`);
@@ -365,10 +366,31 @@ router.get('/', (req, res) => {
 router.get('/archive', (req, res) => {
   try {
     const tournaments = statements.getArchiveTournaments.all();
+    res.set('Cache-Control', 'no-store');
     res.json({ tournaments });
   } catch (error) {
     log('error', `Failed to fetch archive: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch archive' });
+  }
+});
+
+// Push notification public key (must be before /:id)
+router.get('/vapid-public-key', (req, res) => {
+  if (!vapidPublicKey) {
+    return res.status(503).json({ error: 'Push notifications not configured' });
+  }
+  res.json({ publicKey: vapidPublicKey });
+});
+
+// Hall of Fame (must be before /:id)
+router.get('/hall-of-fame', (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const stats = statements.getTopPlayerStats.all(limit);
+    res.json({ stats });
+  } catch (error) {
+    log('error', `Failed to fetch hall of fame: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch hall of fame' });
   }
 });
 
@@ -422,6 +444,7 @@ router.get('/:id', (req, res) => {
     }
     const registrations = statements.getRegistrationsByTournament.all(req.params.id);
     const notifications = statements.getNotificationsByTournament.all(req.params.id);
+    res.set('Cache-Control', 'no-store');
     res.json({
       tournament,
       registrations,
@@ -499,17 +522,7 @@ router.get('/:id/registrations', (req, res) => {
   }
 });
 
-// ==================== PLAYER STATS (Hall of Fame Foundation) ====================
-
-// Push notification public key
-router.get('/vapid-public-key', (req, res) => {
-  if (!vapidPublicKey) {
-    return res.status(503).json({ error: 'Push notifications not configured' });
-  }
-  res.json({ publicKey: vapidPublicKey });
-});
-
-// Push subscription endpoints
+// Push subscription endpoints (must be after /:id because they use POST/DELETE)
 router.post('/:id/subscribe', (req, res) => {
   try {
     const { id } = req.params;
@@ -543,17 +556,6 @@ router.post('/:id/unsubscribe', (req, res) => {
   } catch (error) {
     log('error', `Failed to remove push subscription: ${error.message}`);
     res.status(500).json({ error: 'Failed to unsubscribe' });
-  }
-});
-
-router.get('/hall-of-fame', (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const stats = statements.getTopPlayerStats.all(limit);
-    res.json({ stats });
-  } catch (error) {
-    log('error', `Failed to fetch hall of fame: ${error.message}`);
-    res.status(500).json({ error: 'Failed to fetch hall of fame' });
   }
 });
 
