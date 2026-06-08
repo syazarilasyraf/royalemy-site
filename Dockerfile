@@ -17,6 +17,10 @@ RUN npm install
 # Copy entire project
 COPY . .
 
+# Write build version for health endpoint verification
+ARG BUILD_ID=unknown
+RUN echo "$BUILD_ID" > server/version.txt
+
 # Build frontend
 RUN npm run build
 
