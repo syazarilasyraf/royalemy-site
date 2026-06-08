@@ -156,7 +156,6 @@ function Header() {
         <Link to="/" className="logo">
           <span className="logo-icon">👑</span>
           <span className="logo-text">RoyaleMY</span>
-          <span style={{background: '#22c55e', color: '#fff', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px'}}>DEPLOY OK</span>
         </Link>
 
         <div className="header-actions">
