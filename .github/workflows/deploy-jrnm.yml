@@ -18,20 +18,16 @@ jobs:
           echo "${{ secrets.JRNM_DOCKER_PASSWORD }}" | docker login \
             -u "${{ secrets.JRNM_DOCKER_USERNAME }}" \
             --password-stdin \
-            jdr-z84fc52po9.justrunmy.app
+            ${{ secrets.JRNM_REGISTRY }}
 
-      - name: Build image (force fresh)
+      - name: Build and push image
         run: |
-          IMAGE="jdr-z84fc52po9.justrunmy.app/z84fc52po9:v16_autodeploy"
+          IMAGE="${{ secrets.JRNM_REGISTRY }}/${{ secrets.JRNM_IMAGE_NAME }}:${{ secrets.JRNM_IMAGE_TAG }}"
 
           docker build \
             --no-cache \
             --pull \
             --build-arg BUILD_ID=${GITHUB_SHA} \
             -t $IMAGE .
-
-      - name: Push image
-        run: |
-          IMAGE="jdr-z84fc52po9.justrunmy.app/z84fc52po9:v16_autodeploy"
 
           docker push $IMAGE
