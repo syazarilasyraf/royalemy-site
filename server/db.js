@@ -234,18 +234,6 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
   CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
-
-  CREATE TABLE IF NOT EXISTS push_subscriptions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
-    endpoint TEXT NOT NULL,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(tournament_id, endpoint)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_push_subscriptions_tournament ON push_subscriptions(tournament_id);
 `);
 
 // Migration: add new columns if they don't exist (idempotent)
@@ -272,23 +260,31 @@ for (const col of tournamentCols) {
   }
 }
 
-// Migration: push_subscriptions table may exist without tournament_id from earlier versions
-if (!columnExists('push_subscriptions', 'tournament_id')) {
-  // Drop any partial migration leftovers and recreate cleanly
-  db.exec(`
-    DROP TABLE IF EXISTS push_subscriptions_new;
-    DROP TABLE IF EXISTS push_subscriptions;
-    CREATE TABLE push_subscriptions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
-      endpoint TEXT NOT NULL,
-      p256dh TEXT NOT NULL,
-      auth TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(tournament_id, endpoint)
-    );
-    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_tournament ON push_subscriptions(tournament_id);
-  `);
+// Setup push_subscriptions table separately with error recovery
+let pushSubscriptionsEnabled = false;
+try {
+  if (!columnExists('push_subscriptions', 'tournament_id')) {
+    db.exec(`
+      DROP TABLE IF EXISTS push_subscriptions_new;
+      DROP TABLE IF EXISTS push_subscriptions;
+      CREATE TABLE push_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
+        endpoint TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(tournament_id, endpoint)
+      );
+      CREATE INDEX IF NOT EXISTS idx_push_subscriptions_tournament ON push_subscriptions(tournament_id);
+    `);
+  } else {
+    // Table exists with correct schema, just ensure index exists
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_push_subscriptions_tournament ON push_subscriptions(tournament_id);`);
+  }
+  pushSubscriptionsEnabled = true;
+} catch (e) {
+  console.error(`[DB] push_subscriptions setup failed: ${e.message}. Push notifications will be disabled.`);
 }
 
 // Prepared statements
@@ -408,20 +404,6 @@ const statements = {
     `SELECT * FROM tournament_notifications WHERE tournament_id = ? ORDER BY created_at DESC`
   ),
 
-  // Push Subscriptions
-  insertPushSubscription: db.prepare(
-    `INSERT INTO push_subscriptions (tournament_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?) ON CONFLICT(tournament_id, endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`
-  ),
-  getPushSubscriptionsByTournament: db.prepare(
-    `SELECT * FROM push_subscriptions WHERE tournament_id = ?`
-  ),
-  deletePushSubscription: db.prepare(
-    `DELETE FROM push_subscriptions WHERE tournament_id = ? AND endpoint = ?`
-  ),
-  deletePushSubscriptionsByTournament: db.prepare(
-    `DELETE FROM push_subscriptions WHERE tournament_id = ?`
-  ),
-
   // Player Stats (Hall of Fame foundation)
   insertPlayerStat: db.prepare(
     `INSERT INTO player_stats (player_tag, player_name, tournament_wins, top_3_finishes, total_participations) VALUES (?, ?, ?, ?, ?)`
@@ -527,6 +509,22 @@ const statements = {
   ),
 
 };
+
+// Conditionally add push subscription statements
+if (pushSubscriptionsEnabled) {
+  statements.insertPushSubscription = db.prepare(
+    `INSERT INTO push_subscriptions (tournament_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?) ON CONFLICT(tournament_id, endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`
+  );
+  statements.getPushSubscriptionsByTournament = db.prepare(
+    `SELECT * FROM push_subscriptions WHERE tournament_id = ?`
+  );
+  statements.deletePushSubscription = db.prepare(
+    `DELETE FROM push_subscriptions WHERE tournament_id = ? AND endpoint = ?`
+  );
+  statements.deletePushSubscriptionsByTournament = db.prepare(
+    `DELETE FROM push_subscriptions WHERE tournament_id = ?`
+  );
+}
 
 function getDbDiagnostics() {
   const exists = fs.existsSync(dbPath);

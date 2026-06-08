@@ -19,6 +19,7 @@ if (vapidPublicKey && vapidPrivateKey) {
 }
 
 const pushEnabled = !!(vapidPublicKey && vapidPrivateKey);
+const pushDbEnabled = !!statements.insertPushSubscription;
 
 const VALID_STATUSES = [
   'pending',
@@ -65,7 +66,7 @@ function createNotification(tournamentId, type, message) {
 }
 
 async function sendPushNotifications(tournamentId, title, body, icon = '/royalemy.png') {
-  if (!pushEnabled) return;
+  if (!pushEnabled || !pushDbEnabled) return;
   try {
     const subs = statements.getPushSubscriptionsByTournament.all(tournamentId);
     if (!subs || subs.length === 0) return;
@@ -576,6 +577,9 @@ router.get('/:id/registrations', (req, res) => {
 
 // Push subscription endpoints (must be after /:id because they use POST/DELETE)
 router.post('/:id/subscribe', (req, res) => {
+  if (!pushDbEnabled) {
+    return res.status(503).json({ error: 'Push notifications are temporarily unavailable' });
+  }
   try {
     const { id } = req.params;
     const { endpoint, keys } = req.body;
@@ -596,6 +600,9 @@ router.post('/:id/subscribe', (req, res) => {
 });
 
 router.post('/:id/unsubscribe', (req, res) => {
+  if (!pushDbEnabled) {
+    return res.status(503).json({ error: 'Push notifications are temporarily unavailable' });
+  }
   try {
     const { id } = req.params;
     const { endpoint } = req.body;
