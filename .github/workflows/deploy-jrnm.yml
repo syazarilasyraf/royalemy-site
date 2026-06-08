@@ -18,11 +18,11 @@ jobs:
           echo "${{ secrets.JRNM_DOCKER_PASSWORD }}" | docker login \
             -u "${{ secrets.JRNM_DOCKER_USERNAME }}" \
             --password-stdin \
-            ${{ secrets.JRNM_REGISTRY }}
+            jdr-q96jo84sc5.justrunmy.app
 
       - name: Build and push image
         run: |
-          IMAGE="${{ secrets.JRNM_REGISTRY }}/${{ secrets.JRNM_IMAGE_NAME }}:${{ secrets.JRNM_IMAGE_TAG }}"
+          IMAGE="jdr-q96jo84sc5.justrunmy.app/q96jo84sc5:v1"
 
           docker build \
             --no-cache \
