@@ -1,7 +1,7 @@
-const SHELL_CACHE = 'royalemy-shell-v2';
-const IMAGE_CACHE = 'royalemy-images-v2';
-const FONT_CACHE = 'royalemy-fonts-v2';
-const API_CACHE = 'royalemy-api-v2';
+const SHELL_CACHE = 'royalemy-shell-v3';
+const IMAGE_CACHE = 'royalemy-images-v3';
+const FONT_CACHE = 'royalemy-fonts-v3';
+const API_CACHE = 'royalemy-api-v3';
 
 const SHELL_ASSETS = [
   '/',
@@ -32,8 +32,8 @@ self.addEventListener('activate', (event) => {
               name !== FONT_CACHE &&
               name !== API_CACHE;
           })
-          .map((name) => caches.delete(name));
-      });
+          .map((name) => caches.delete(name))
+      );
     }).then(() => self.clients.claim())
   );
 });
