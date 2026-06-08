@@ -274,9 +274,11 @@ for (const col of tournamentCols) {
 
 // Migration: push_subscriptions table may exist without tournament_id from earlier versions
 if (!columnExists('push_subscriptions', 'tournament_id')) {
-  // SQLite doesn't support dropping columns, so we recreate the table
+  // Drop any partial migration leftovers and recreate cleanly
   db.exec(`
-    CREATE TABLE push_subscriptions_new (
+    DROP TABLE IF EXISTS push_subscriptions_new;
+    DROP TABLE IF EXISTS push_subscriptions;
+    CREATE TABLE push_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
       endpoint TEXT NOT NULL,
@@ -285,9 +287,7 @@ if (!columnExists('push_subscriptions', 'tournament_id')) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(tournament_id, endpoint)
     );
-    CREATE INDEX idx_push_subscriptions_tournament_new ON push_subscriptions_new(tournament_id);
-    DROP TABLE push_subscriptions;
-    ALTER TABLE push_subscriptions_new RENAME TO push_subscriptions;
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_tournament ON push_subscriptions(tournament_id);
   `);
 }
 
