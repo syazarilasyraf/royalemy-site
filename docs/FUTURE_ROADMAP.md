@@ -8,7 +8,7 @@ This document contains a complete audit of the RoyaleMY codebase, identifying un
 
 ### Recently Completed (2025-06-09)
 
-The following high-impact / low-effort items were implemented:
+#### Batch 1
 
 - ✅ **Security headers** — Added `helmet` middleware to Express
 - ✅ **Authenticated cache clear** — `POST /api/admin/clear-cache` now requires admin key
@@ -20,6 +20,16 @@ The following high-impact / low-effort items were implemented:
 - ✅ **Frontend code splitting** — Route-level `React.lazy()` + `Suspense`; initial bundle dropped from **616KB to 226KB**
 - ✅ **Admin CSV export** — Export tournament registrations from the admin panel
 - ✅ **Unified admin dashboard** — New `/admin` page showing pending counts across all modules
+
+#### Batch 2
+
+- ✅ **Capped in-memory cache** — Max 500 entries with LRU-like eviction
+- ✅ **Async log trimming** — Moved `COUNT(*)` from every write to a 5-minute interval
+- ✅ **XSS input sanitization** — Strip HTML tags from all user-generated content submissions
+- ✅ **Reduced DB upload limit** — 50MB → 10MB
+- ✅ **Graceful shutdown** — SIGTERM/SIGINT handlers close server and DB cleanly
+- ✅ **Dropped unused indexes** — `idx_state_players_state` and `idx_logs_timestamp`
+- ✅ **React.memo** — Wrapped all heavy page components to reduce unnecessary re-renders
 
 ---
 
@@ -115,9 +125,6 @@ Features that naturally extend the existing product without requiring architectu
 
 | Issue | Location | Recommendation | Effort |
 |-------|----------|----------------|--------|
-| **Unbounded in-memory cache** | `server/index.js:33` | Cap cache size and implement LRU eviction, or switch to `lru-cache`. | Small |
-| **Logger COUNT(*) on every write** | `server/logger.js:31` | Move log trimming to a `setInterval` or probabilistic check. | Small |
-| **No component memoization** | All large components | Wrap stable sub-components with `React.memo` and expensive computations with `useMemo`. | Small |
 | **Unbounded SW caches** | `client/public/sw.js` | Implement cache size limits and prune old entries. | Medium |
 
 ### 4.2 Security
@@ -125,9 +132,6 @@ Features that naturally extend the existing product without requiring architectu
 | Issue | Location | Recommendation | Effort |
 |-------|----------|----------------|--------|
 | **Admin key in query params** | All route files + `api.js` | Move to header-based auth. | Medium |
-| **No XSS input sanitization** | `server/routes/community*.js` | Strip/sanitize HTML from user-generated content before storage. | Small |
-| **Large DB upload limit** | `server/index.js:282` | Reduce `express.raw` limit from 50MB to ~10MB. | Small |
-| **No graceful shutdown** | `server/index.js` | Add `SIGTERM`/`SIGINT` handlers to close server and DB connection cleanly. | Small |
 
 ### 4.3 API & Code Organization
 
@@ -143,10 +147,8 @@ Features that naturally extend the existing product without requiring architectu
 
 | Issue | Location | Recommendation | Effort |
 |-------|----------|----------------|--------|
-| **Unused indexes** | `server/db.js` | Drop `idx_state_players_state` and `idx_logs_timestamp`. | Small |
 | **Orphaned columns** | `server/db.js` | Drop `tournament_tag`, `discord_link`, `contact_info`, `notified_24h`, `notified_1h` from `community_tournaments` if no feature is planned. | Small |
 | **Migration drops table** | `server/db.js:274` | Use `ALTER TABLE ADD COLUMN` instead of dropping `push_subscriptions`. | Small |
-| **No explicit DB close** | `server/db.js` | Export `closeDb()` and call during graceful shutdown. | Small |
 
 ### 4.5 Deployment
 
@@ -163,13 +165,14 @@ Features that naturally extend the existing product without requiring architectu
 
 ### High Impact / Low Effort (Quick Wins)
 
-1. **Cap in-memory cache size** — Prevents OOM under high traffic.
-2. **Move log trimming to async/timer** — Reduces SQLite write pressure.
-3. **Add `React.memo` / `useMemo`** — Reduce unnecessary re-renders on large components.
-4. **Add XSS input sanitization** — Strip HTML from user-generated content.
-5. **Reduce DB upload limit** — 50MB → 10MB for safety.
-6. **Add graceful shutdown** — Close server and DB on SIGTERM.
-7. **Drop unused indexes** — `idx_state_players_state` and `idx_logs_timestamp`.
+_All quick wins from the roadmap audit have been implemented._
+
+Remaining small improvements that can be picked up alongside larger features:
+
+1. **Add `useMemo` for expensive computations** — Memoize deck parsing, archetype analysis, and sorting inside heavy components.
+2. **Cap service worker cache sizes** — Add size limits and pruning to `client/public/sw.js` image/font caches.
+3. **Add request correlation IDs** — Generate a request ID in Express middleware and include it in all logs.
+4. **Switch logger to NDJSON in production** — Structured JSON output for easier log aggregation.
 
 ### Medium-Term Improvements
 

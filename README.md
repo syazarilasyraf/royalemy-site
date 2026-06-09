@@ -281,12 +281,11 @@ Current unfinished or partially broken functionality:
 Engineering improvements to increase reliability, performance, and maintainability:
 
 - **Security** — Move admin key from URL query params to `X-Admin-Key` header.
-- **Performance** — Cap the in-memory API cache; add `React.memo` / `useMemo` to large components.
 - **Observability** — Add request correlation IDs; switch to structured JSON logging in production.
 - **Code Organization** — Extract CR proxy and meta-deck logic from `server/index.js` into service modules; consolidate duplicated middleware.
 - **Deployment** — Add Docker health check; use multi-stage builds to exclude dev dependencies; add pre-deploy verification in CI.
 
-**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard.
+**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components.
 
 See `docs/FUTURE_ROADMAP.md` for the complete audit and ranked recommendations.
 
