@@ -1,226 +1,54 @@
 # RoyaleMY 🇲🇾
 
-A fan-made Clash Royale community platform for Malaysian players.
+A fan-made Clash Royale community platform built for Malaysian players. Search players, find clans, discover meta decks, browse community tournaments, and explore Malaysian leaderboards — all in one place.
 
 > **Disclaimer:** This site is not affiliated with, endorsed, sponsored, or specifically approved by Supercell. Clash Royale and all related assets are trademarks of Supercell Oy.
 
 ---
 
-## Architecture
+## Features
 
-| Layer | Platform | URL |
-|-------|----------|-----|
-| **Frontend** | Netlify | `https://royalemy.netlify.app` |
-| **Backend** | JustRunMyApp | `https://gitr_jm64t-613.f.jrnm.app` (example) |
-| **Database** | SQLite (persistent volume) | `/data/roadmap.db` |
+### Player Tools
+- **Player Lookup** — Search any player by tag, view profile stats, current deck, and recent battle log with opponent deck links.
+- **Smart Deck Finder** — Enter your player tag to see live meta decks matched against your card collection, with compatibility scoring.
+- **Deck Stats Analyzer** — Paste any Clash Royale deck link for deep analysis: archetype, elixir distribution, combat strengths/weaknesses, and similar meta decks.
 
-**Frontend** (`client/`) is a Vite + React SPA built and deployed to Netlify.
+### Clan & Community
+- **Clan Finder** — Search clans by name, trophies, or members. Browse featured Malaysian clans and view clan details including River Race.
+- **Community Decks** — Browse, submit, and upvote community-built decks. Admin moderation panel for approving submissions.
+- **MY Rankings** — Malaysian leaderboards for Path of Legend, Top Clans, and Clan Wars.
 
-**Backend** (`server/`) is an Express.js API server deployed to JustRunMyApp via Docker.
+### Tournament System
+- **Tournament Hub** — Public listing of community tournaments with live countdown timers.
+- **Tournament Submission** — Community members submit tournaments for admin approval.
+- **Registration System** — Players register with name, player tag, and optional TikTok username.
+- **Status Workflow** — Full lifecycle: `pending` → `approved` → `registration_open` → `registration_closed` → `live` → `completed`.
+- **TikTok Integration** — Organizers can share TikTok username and live stream URL on tournament pages.
+- **Results Tracking** — Record 1st, 2nd, and 3rd place winners with prize status tracking.
+- **Tournament Archive** — Browse completed tournaments with full results history.
+- **Hall of Fame** — Aggregate player stats across tournaments (wins, top-3 finishes, total participations).
+- **Push Notifications** — Browser push subscriptions for tournament updates (status changes, winner announcements).
 
-**Database** is SQLite (`better-sqlite3`) stored on a persistent volume at `/data` so data survives redeploys.
-
----
-
-## ⚠️ Critical: Database Persistence
-
-Data loss has happened before on redeploy. The following configuration **must** be in place:
-
-### JustRunMyApp Configuration
-
-| Setting | Required Value |
-|---------|---------------|
-| Environment Variable `DB_DIR` | `/data` |
-| Persistent Volume Mount | `/data` |
-
-**How it works:**
-- The server writes the SQLite database to `/data/roadmap.db`
-- JustRunMyApp mounts a persistent volume to `/data`
-- This volume survives container restarts and redeploys
-- **Never** remove the volume or change `DB_DIR` without migrating the database file first
-
-### What was fixed to prevent data loss
-
-1. **WAL files removed from git** — `.db-shm` and `.db-wal` are no longer tracked
-2. **Startup checkpoint** — Server runs `PRAGMA wal_checkpoint(TRUNCATE)` on boot so all committed data is in the main `.db` file
-3. **Database path logging** — Server logs `[DB] Database directory: /data` on startup so you can verify the path
+### Platform Features
+- **Roadmap** — Public feature suggestion board with voting. Admins can approve, reject, and update status of suggestions.
+- **Admin Panel** — Unified admin interface across tournaments, roadmap, community decks, and clans via a single shared key.
+- **Admin Logs** — Server diagnostics, request logs, and system info viewer.
+- **PWA Support** — Installable on Android, iOS, and desktop with offline caching and service worker updates.
+- **In-Site Notifications** — Tournament notification feed with unread counts.
 
 ---
 
-## Backup & Restore
+## Tech Stack
 
-### Before every major update: BACK UP
-
-**Option A: Download from JustRunMyApp Dashboard**
-1. Open JustRunMyApp dashboard
-2. Find your app → Files / Volumes
-3. Download `roadmap.db` from `/data/`
-
-**Option B: Local development backup**
-```bash
-# Copy local database to a backup
-cp server/data/roadmap.db "server/data/roadmap-backup-$(date +%Y%m%d-%H%M%S).db"
-```
-
-### Restore data to deployed server
-
-If data was lost and you have a backup:
-1. Go to JustRunMyApp dashboard → Files / Volumes
-2. Upload your `roadmap.db` backup to `/data/`
-3. Restart the app
-
-### Migrate local data to deployed server
-
-If you developed locally and want to push that data live:
-1. Stop your local server
-2. Go to JustRunMyApp dashboard
-3. Upload `server/data/roadmap.db` to the volume at `/data/`
-4. Restart the deployed app
-5. Verify: `curl https://YOUR-BACKEND/api/community-tournaments`
-
----
-
-## Environment Variables
-
-### Frontend (`client/.env` or Netlify dashboard)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_API_URL` | **Yes** | Full URL to backend API. Example: `https://gitr_jm64t-613.f.jrnm.app/api` |
-
-**Netlify:** Set `VITE_API_URL` in the Netlify dashboard under Site Settings → Environment Variables. The frontend is built with this URL baked in.
-
-### Backend (`server/.env` or JustRunMyApp dashboard)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `CR_API_TOKEN` | **Yes** | Clash Royale API token from [developer.clashroyale.com](https://developer.clashroyale.com/) |
-| `PORT` | No | Server port. Default: `3001` |
-| `FRONTEND_URL` | **Yes** | Netlify URL for CORS. Example: `https://royalemy.netlify.app` |
-| `CORS_ORIGINS` | No | Additional allowed origins (comma-separated) |
-| `ROADMAP_ADMIN_KEY` | **Yes** | Random secret string for admin panel access |
-| `DB_DIR` | No | Database directory path. Default: `server/data/` locally. **Must be `/data` on JustRunMyApp** |
-
----
-
-## Local Development
-
-```bash
-# Install all dependencies
-npm run install:all
-
-# Terminal 1: Start backend
-cd server
-npm start
-
-# Terminal 2: Start frontend dev server
-cd client
-npm run dev
-```
-
-- Backend runs at **http://localhost:3001**
-- Frontend runs at **http://localhost:5173**
-- Vite dev server proxies `/api` to `localhost:3001` automatically
-- Local database is created at `server/data/roadmap.db`
-
-### Health check
-```bash
-curl http://localhost:3001/api/health
-```
-
----
-
-## Deployment
-
-### Frontend → Netlify
-
-1. Push code to GitHub
-2. Netlify auto-deploys from `main` branch
-3. Build settings (if manual):
-   - Base directory: `client`
-   - Build command: `npm run build`
-   - Publish directory: `client/dist`
-4. Add `VITE_API_URL` environment variable pointing to your JustRunMyApp backend
-
-### Backend → JustRunMyApp
-
-1. Push code to GitHub
-2. JustRunMyApp pulls from the `deploy` or `main` branch
-3. Docker image is built using the `Dockerfile`
-4. **Critical:** Ensure these are configured in JustRunMyApp dashboard:
-   - Environment variable: `DB_DIR=/data`
-   - Persistent volume mounted at `/data`
-
----
-
-## Tournament System
-
-The platform includes a full community tournament system:
-
-### Tournament Lifecycle
-```
-Pending Approval → Approved → Registration Open → Registration Closed → Live → Completed
-```
-
-### Features
-- **Tournament submission** — Community members submit tournaments for admin approval
-- **Registration system** — Players register with name, CR tag, and TikTok username
-- **Status workflow** — Admins control progression through the full lifecycle
-- **Live countdown** — Public pages show real-time countdown to tournament start
-- **TikTok integration** — Organizers can share TikTok username and live stream URL
-- **Results tracking** — Champion, runner-up, third place, and prize status tracking
-- **Tournament archive** — Completed tournaments with full results history
-- **Hall of Fame** — Player stats foundation (wins, top 3 finishes, total participations)
-
-### Admin Panel
-Access: `https://royalemy.netlify.app/tournaments?admin=YOUR_ADMIN_KEY`
-
-Admin actions:
-- Approve / reject submissions
-- Open / close registration
-- Start tournament (set Live)
-- Complete tournament
-- Enter winners (1st, 2nd, 3rd)
-- Track prize status (Pending → Contacted → Paid)
-- Delete tournaments
-
-### Tournament Formats
-1v1 Single Elimination, 1v1 Double Elimination, 1v1 Swiss, 1v1 Round Robin, 1v1 Best of 3, 1v1 Best of 5, 2v2, Triple Elixir, Sudden Death, Ramp Up, Draft Mode, Mirror Mode, Rage Mode, Classic Decks, Mega Deck, 7x Elixir, Infinite Elixir, Lumberjack Rush
-
----
-
-## API Endpoints
-
-### Core Data
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/health` | Server health check |
-| `GET /api/players/{tag}` | Player profile |
-| `GET /api/clans?name={name}` | Clan search |
-| `GET /api/cards` | All cards |
-| `GET /api/meta-decks` | Live meta decks |
-
-### Community Features
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/roadmap/features` | Roadmap features |
-| `POST /api/roadmap/features` | Submit feature |
-| `GET /api/community-tournaments` | Active tournaments |
-| `GET /api/community-tournaments/archive` | Completed tournaments |
-| `POST /api/community-tournaments` | Submit tournament |
-| `POST /api/community-tournaments/{id}/register` | Register for tournament |
-| `GET /api/community-decks` | Community decks |
-| `POST /api/community-decks` | Submit deck |
-| `GET /api/community-clans` | Community clans |
-| `GET /api/state-players` | State rankings |
-
-### Admin (requires `?key=ADMIN_KEY`)
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/roadmap/admin/features` | Admin: all features |
-| `GET /api/community-tournaments/admin` | Admin: all tournaments |
-| `POST /api/admin/clear-cache` | Clear server cache |
-| `GET /api/admin/logs` | Server logs |
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, Vite, React Router DOM |
+| **Backend** | Express.js, Node.js 20 |
+| **Database** | SQLite (`better-sqlite3`), WAL mode |
+| **Hosting** | Netlify (frontend), JustRunMyApp (backend) |
+| **Deployment** | Docker, GitHub Actions |
+| **External APIs** | Clash Royale API |
+| **Push Notifications** | Web Push (VAPID) |
 
 ---
 
@@ -230,62 +58,215 @@ Admin actions:
 RoyaleMY/
 ├── client/                  # Vite + React frontend
 │   ├── src/
-│   │   ├── components/      # React components
+│   │   ├── components/      # React pages and UI components
 │   │   ├── services/api.js  # API client
-│   │   └── ...
+│   │   ├── utils/           # Deck parser, archetype analyzer, card mapping
+│   │   └── data/            # Static card data and deck recommendations
 │   ├── public/              # Static assets, PWA manifest, service worker
-│   └── dist/                # Build output (deployed to Netlify)
+│   └── dist/                # Build output (Netlify)
 ├── server/                  # Express backend
 │   ├── data/                # Local SQLite database (dev only)
-│   │   └── roadmap.db       # DO NOT commit to git
-│   ├── routes/              # API route handlers
-│   ├── db.js                # Database initialization & schema
+│   ├── routes/              # API route modules
+│   ├── db.js                # Database init, schema, prepared statements
 │   ├── index.js             # Express server entry
-│   └── .env                 # Backend environment variables
-├── Dockerfile               # Docker image for JustRunMyApp
-├── README.md                # This file
-├── PWA.md                   # PWA documentation
-└── package.json             # Workspace root config
+│   └── logger.js            # Structured logging
+├── scripts/
+│   └── download-cards.ps1   # Card image downloader & cards.json generator
+├── .github/workflows/
+│   └── deploy-jrnm.yml      # Docker image CI/CD for JustRunMyApp
+├── Dockerfile               # Backend Docker image
+├── PWA.md                   # PWA caching & update documentation
+├── AGENTS.md                # Agent/coder context & data safety rules
+└── package.json             # npm workspaces root
 ```
 
 ---
 
-## Data Safety Checklist
+## Local Development
+
+### Prerequisites
+- Node.js 20+
+- npm
+
+### Setup
+
+```bash
+# Install all workspace dependencies
+npm install
+
+# Terminal 1 — Start backend
+cd server
+npm start
+
+# Terminal 2 — Start frontend dev server
+cd client
+npm run dev
+```
+
+- Backend: `http://localhost:3001`
+- Frontend: `http://localhost:5173`
+- Vite proxies `/api` to `localhost:3001` automatically
+- Local database is created at `server/data/roadmap.db`
+
+### Health Check
+```bash
+curl http://localhost:3001/api/health
+```
+
+---
+
+## Environment Variables
+
+### Frontend (`client/.env` or Netlify Dashboard)
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `VITE_API_URL` | **Yes** | Full URL to backend API | `https://your-backend.f.jrnm.app/api` |
+
+### Backend (`server/.env` or JustRunMyApp Dashboard)
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `CR_API_TOKEN` | **Yes** | Clash Royale API token | `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...` |
+| `FRONTEND_URL` | **Yes** | Netlify URL for CORS | `https://royalemy.netlify.app` |
+| `ROADMAP_ADMIN_KEY` | **Yes** | Shared secret for admin endpoints | `your-random-secret-key` |
+| `DB_DIR` | Yes (prod) | Database directory path | `/data` |
+| `VAPID_PUBLIC_KEY` | No* | Web Push public key | `BFCdK...` |
+| `VAPID_PRIVATE_KEY` | No* | Web Push private key | `vLRx7...` |
+| `VAPID_SUBJECT` | No | Contact email for push | `mailto:admin@royalemy.gg` |
+| `CORS_ORIGINS` | No | Additional CORS origins (comma-separated) | `https://deploy-preview-123--royalemy.netlify.app` |
+| `PORT` | No | Server port | `3001` |
+
+\* Required only if using browser push notifications for tournaments.
+
+> **Never commit `.env` files to git.** They are excluded by `.gitignore`.
+
+---
+
+## Database
+
+- **Type:** SQLite (`better-sqlite3`)
+- **Mode:** WAL (Write-Ahead Logging) enabled
+- **Local path:** `server/data/roadmap.db`
+- **Production path:** `/data/roadmap.db` (persistent volume on JustRunMyApp)
+
+### Persistence Strategy
+- On startup, the server runs `PRAGMA wal_checkpoint(TRUNCATE)` to ensure all committed data is in the main `.db` file.
+- The `DB_DIR` environment variable controls the database directory. In production this **must** be `/data` with a persistent volume mounted at the same path.
+- `.db-shm` and `.db-wal` files are excluded from git and should never be committed.
+
+### Backup & Restore
+
+**Backup before major changes:**
+```bash
+cp server/data/roadmap.db "server/data/roadmap-backup-$(date +%Y%m%d-%H%M%S).db"
+```
+
+**Restore to production:**
+1. Download the backup `roadmap.db`
+2. Upload to JustRunMyApp dashboard → Files / Volumes → `/data/`
+3. Restart the app
+
+---
+
+## Deployment
+
+### Frontend → Netlify
+
+1. Push code to GitHub `main` branch.
+2. Netlify auto-builds from the `client/` directory.
+3. Build settings:
+   - Base directory: `client`
+   - Build command: `npm run build`
+   - Publish directory: `client/dist`
+4. Set `VITE_API_URL` in Netlify environment variables pointing to your backend.
+
+### Backend → JustRunMyApp
+
+1. Push code to GitHub `main` branch.
+2. GitHub Actions (`.github/workflows/deploy-jrnm.yml`) builds and pushes the Docker image to the JustRunMyApp registry.
+3. JustRunMyApp pulls the image and starts the container.
+4. **Required dashboard configuration:**
+   - Environment variable: `DB_DIR=/data`
+   - Persistent volume mounted at `/data`
+
+### Data Safety Checklist
 
 Before every deployment, verify:
-
 - [ ] `DB_DIR=/data` is set in JustRunMyApp environment variables
 - [ ] Persistent volume is mounted at `/data`
 - [ ] Server logs show: `[DB] Database directory: /data`
 - [ ] You have a fresh backup of `roadmap.db`
-- [ ] `.db-shm` and `.db-wal` are NOT in git (`git ls-files | grep \\.db`)
+- [ ] `.db-shm` and `.db-wal` are not tracked in git
 
 ---
 
-## Troubleshooting
+## PWA
 
-### "Data lost after deploy"
-1. Check JustRunMyApp dashboard → ensure volume at `/data` still exists
-2. Check server logs → does it say `[DB] Database directory: /data`?
-3. If the path is wrong, fix the `DB_DIR` env var and redeploy
-4. Restore from backup if available
+RoyaleMY is a Progressive Web App. Users can install it on their home screen for a native app-like experience.
 
-### "Cannot connect to server"
-1. Verify backend is running: `curl YOUR_BACKEND/api/health`
-2. Check `FRONTEND_URL` in backend `.env` matches Netlify URL
-3. Check `VITE_API_URL` in Netlify matches backend URL
+### Installation
+- **Android (Chrome/Edge):** Native install prompt or "Add to Home Screen"
+- **iOS (Safari):** Share → "Add to Home Screen"
+- **Desktop (Chrome/Edge):** Address bar install icon
 
-### "CORS error"
-1. Ensure `FRONTEND_URL` includes `https://` (not http)
-2. Add preview URLs to `CORS_ORIGINS` if using Netlify deploy previews
+### Offline Support
+- App shell is cached with a stale-while-revalidate strategy.
+- Card images and fonts are cached with a cache-first strategy.
+- Static card/location data is cached; live player/clan data is network-only.
+- Offline fallback page: `offline.html`
 
-### "Database locked" or SQLite errors
-1. Only one process should access `roadmap.db` at a time
-2. On JustRunMyApp, ensure only one container instance is running
-3. WAL mode is enabled; do not manually delete `.db-wal` files
+### Updating
+When deploying new code, bump the cache version in `client/public/sw.js` (e.g., `royalemy-shell-v1` → `royalemy-shell-v2`) to force browsers to fetch updated assets. See `PWA.md` for full details.
 
 ---
 
-Created by [@wandfk](https://www.tiktok.com/@wandfk)
+## Admin Features
 
-Built for Malaysian Clash Royale players 🇲🇾
+Admin panels are accessed by appending `?admin=YOUR_ADMIN_KEY` to the relevant page URL.
+
+### Tournament Admin (`/tournaments?admin=KEY`)
+- Approve / reject tournament submissions
+- Update tournament status through the full lifecycle
+- Edit tournament details
+- Enter winners (1st, 2nd, 3rd)
+- Track prize status (`pending` → `contacted` → `paid`)
+- Delete tournaments or individual registrations
+
+### Roadmap Admin (`/roadmap?admin=KEY`)
+- View all feature suggestions including pending
+- Approve suggestions → `planned`
+- Reject suggestions
+- Update status to any valid state
+
+### Community Deck Admin (`/communitydecks?admin=KEY`)
+- Approve / reject deck submissions
+- Update deck status
+- Delete decks
+
+### Clan Admin (`/clan?admin=KEY`)
+- Approve / reject community clan submissions
+- Update clan status
+- Delete clans
+
+### Admin Logs (`/admin/logs?admin=KEY`)
+- Query server logs with filtering and pagination
+- View server memory, uptime, and version info
+- Download or upload the database file
+
+---
+
+## Future Improvements
+
+The following items are known areas for future work:
+
+- **State Rankings** — The "By State" tab in MY Rankings is a placeholder and not yet populated with data.
+- **Tournament Notifications** — The `notified_24h` and `notified_1h` columns exist in the schema but automated reminder logic is not implemented.
+- **Chest Tracker** — The Player Lookup component contains partial chest-tracking UI code, but the tab is not reachable and the underlying state is incomplete.
+
+---
+
+## Maintainer
+
+- TikTok: [@wandfk](https://www.tiktok.com/@wandfk)
+- Platform: RoyaleMY — Malaysian Clash Royale community

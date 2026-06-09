@@ -307,9 +307,6 @@ const statements = {
   getFeatureById: db.prepare(
     `SELECT * FROM features WHERE id = ?`
   ),
-  getFeaturesByStatus: db.prepare(
-    `SELECT * FROM features WHERE status = ? ORDER BY votes DESC, created_at DESC`
-  ),
   getAllFeatures: db.prepare(
     `SELECT * FROM features ORDER BY created_at DESC`
   ),
@@ -338,9 +335,6 @@ const statements = {
   ),
   getVote: db.prepare(
     `SELECT * FROM votes WHERE feature_id = ? AND voter_id = ?`
-  ),
-  getVoteCount: db.prepare(
-    `SELECT COUNT(*) as count FROM votes WHERE feature_id = ?`
   ),
   getUserVotes: db.prepare(
     `SELECT feature_id FROM votes WHERE voter_id = ?`
@@ -372,9 +366,6 @@ const statements = {
   ),
   updateTournamentPrizeStatus: db.prepare(
     `UPDATE community_tournaments SET prize_status = ? WHERE id = ?`
-  ),
-  updateTournamentNotified: db.prepare(
-    `UPDATE community_tournaments SET notified_24h = ?, notified_1h = ? WHERE id = ?`
   ),
   deleteTournament: db.prepare(
     `DELETE FROM community_tournaments WHERE id = ?`
@@ -532,10 +523,6 @@ if (pushSubscriptionsEnabled) {
   statements.deletePushSubscription = db.prepare(
     `DELETE FROM push_subscriptions WHERE tournament_id = ? AND endpoint = ?`
   );
-  statements.deletePushSubscriptionsByTournament = db.prepare(
-    `DELETE FROM push_subscriptions WHERE tournament_id = ?`
-  );
-
   // Notification read tracking
   statements.getRecentNotifications = db.prepare(
     `SELECT tn.id, tn.tournament_id, tn.type, tn.message, tn.created_at,
