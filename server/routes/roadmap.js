@@ -1,8 +1,25 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
 
 const router = express.Router();
+
+// Rate limit for voting: 30 per hour per IP
+const voteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: {
+    error: 'You can only cast 30 votes per hour. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    log('warn', `Roadmap vote rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json(options.message);
+  }
+});
 
 function getAdminKey() {
   return process.env.ROADMAP_ADMIN_KEY;
@@ -64,7 +81,7 @@ router.post('/features', (req, res) => {
 });
 
 // Vote for a feature
-router.post('/vote', (req, res) => {
+router.post('/vote', voteLimiter, (req, res) => {
   try {
     const { featureId, voterId } = req.body;
 
@@ -99,7 +116,7 @@ router.post('/vote', (req, res) => {
 });
 
 // Unvote (remove vote)
-router.delete('/vote', (req, res) => {
+router.delete('/vote', voteLimiter, (req, res) => {
   try {
     const { featureId, voterId } = req.body;
 

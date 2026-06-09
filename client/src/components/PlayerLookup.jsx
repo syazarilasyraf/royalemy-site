@@ -59,15 +59,6 @@ function PlayerLookup() {
     }
   };
 
-  const fetchChests = async (tag) => {
-    try {
-      const data = await getPlayerUpcomingChests(tag);
-      setChests(data?.items || []);
-    } catch (err) {
-      setChests([]);
-    }
-  };
-
   const handleSampleClick = (tag) => {
     setPlayerTag(tag);
     fetchPlayerData(tag);
@@ -350,26 +341,7 @@ function PlayerLookup() {
               </div>
             )}
 
-            {activeTab === 'chests' && (
-              <div className="chests-tab">
-                {chests.length === 0 ? (
-                  <div className="empty-tab">
-                    <span className="empty-icon">🎁</span>
-                    <p>No chest data available</p>
-                  </div>
-                ) : (
-                  <div className="chest-list">
-                    {chests.map((chest, index) => (
-                      <div key={index} className="chest-item">
-                        <span className="chest-icon">🎁</span>
-                        <span className="chest-name">{chest.name}</span>
-                        {index === 0 && <span className="chest-next">NEXT</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+
           </div>
         </div>
       )}

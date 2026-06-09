@@ -203,16 +203,15 @@ export function updateFeatureStatus(id, status, key) {
 // ==================== COMMUNITY TOURNAMENTS ====================
 
 export function getCommunityTournaments() {
-  // Cache-busting to ensure fresh participant counts
-  return fetchAPI(`/community-tournaments?_t=${Date.now()}`);
+  return fetchAPI(`/community-tournaments`);
 }
 
 export function getCommunityTournament(id) {
-  return fetchAPI(`/community-tournaments/${id}?_t=${Date.now()}`);
+  return fetchAPI(`/community-tournaments/${id}`);
 }
 
 export function getTournamentArchive() {
-  return fetchAPI(`/community-tournaments/archive?_t=${Date.now()}`);
+  return fetchAPI(`/community-tournaments/archive`);
 }
 
 export function submitCommunityTournament(data) {
@@ -230,7 +229,7 @@ export function registerForTournament(id, data) {
 }
 
 export function getTournamentRegistrations(id) {
-  return fetchAPI(`/community-tournaments/${id}/registrations?_t=${Date.now()}`);
+  return fetchAPI(`/community-tournaments/${id}/registrations`);
 }
 
 export function getHallOfFame(limit = 50) {
@@ -476,6 +475,15 @@ export function deleteCommunityDeck(id, key) {
   return fetchAPI(`/community-decks/admin/${id}?key=${encodeURIComponent(key)}`, {
     method: 'DELETE'
   });
+}
+
+export function exportTournamentRegistrations(id, key) {
+  const url = `/community-tournaments/admin/${id}/registrations/export?key=${encodeURIComponent(key)}`;
+  window.open(`${API_BASE}${url}`, '_blank');
+}
+
+export function getAdminDashboard(key) {
+  return fetchAPI(`/admin/dashboard?key=${encodeURIComponent(key)}`);
 }
 
 // ==================== UTILS ====================

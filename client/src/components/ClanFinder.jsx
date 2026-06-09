@@ -8,9 +8,6 @@ import {
 // Top Malaysian clans - featured recommendations
 const FEATURED_MALAYSIA_CLANS = [
   { tag: 'GGUJU2RC', name: 'RoyaleMY', description: 'Join, chill and play together. - Powered by RoyaleMY - Built by @wandfk on tt.' },
-  // { tag: 'Y9C98GR9', name: 'C.O.M.P.A.S.S.', description: 'You have to go through some bad says to Earn the best day of your life...' },
-  // { tag: 'GQV099GG', name: 'BERITA HARIAN', description: 'Yang Tak Masuk Bontot Kau Berduri.. sape tak on 10 hari auto kick' },
-  // { tag: '800JJGP8', name: 'perak', description: 'welcome to perak clan. happy clashing everyone and FREE PALESTINE!!' },
 ];
 
 const CLAN_STATUS_LABELS = {

@@ -141,6 +141,38 @@ const submitLimiter = rateLimit({
   }
 });
 
+// Rate limit for registrations: 10 per hour per IP
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: {
+    error: 'You can only register for 10 tournaments per hour. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    log('warn', `Tournament registration rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json(options.message);
+  }
+});
+
+// Rate limit for push subscriptions: 10 per hour per IP
+const pushSubscribeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: {
+    error: 'Too many push subscription requests. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    log('warn', `Push subscription rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json(options.message);
+  }
+});
+
 // ==================== ADMIN ROUTES (must be before /:id) ====================
 
 router.get('/admin', validateAdminKey, (req, res) => {
@@ -407,6 +439,33 @@ router.post('/admin/:id/registrations/:regId/edit', validateAdminKey, (req, res)
   }
 });
 
+// Export tournament registrations as CSV
+router.get('/admin/:id/registrations/export', validateAdminKey, (req, res) => {
+  try {
+    const { id } = req.params;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const registrations = statements.getRegistrationsByTournament.all(id);
+    const headers = ['ID', 'Player Name', 'Player Tag', 'TikTok Username', 'Registered At'];
+    const rows = registrations.map(r => [
+      r.id,
+      `"${(r.player_name || '').replace(/"/g, '""')}"`,
+      r.player_tag,
+      `"${(r.tiktok_username || '').replace(/"/g, '""')}"`,
+      r.registered_at
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${tournament.name.replace(/[^a-zA-Z0-9]/g, '_')}_registrations.csv"`);
+    res.send(csv);
+  } catch (error) {
+    log('error', `Failed to export registrations: ${error.message}`);
+    res.status(500).json({ error: 'Failed to export registrations' });
+  }
+});
+
 // ==================== PUBLIC ROUTES ====================
 
 router.get('/', (req, res) => {
@@ -529,6 +588,12 @@ router.post('/', submitLimiter, (req, res) => {
       return res.status(400).json({ error: 'Name, organizer name, and start date are required' });
     }
 
+    // Duplicate detection: same name + host within 24h
+    const duplicate = statements.checkDuplicateTournament.get(name.trim(), host_name.trim());
+    if (duplicate) {
+      return res.status(409).json({ error: 'A tournament with this name and host was already submitted within the last 24 hours.' });
+    }
+
     const startDate = new Date(start_date);
     if (isNaN(startDate.getTime())) {
       return res.status(400).json({ error: 'Invalid start date' });
@@ -582,7 +647,7 @@ router.get('/:id', (req, res) => {
 
 // ==================== REGISTRATION ROUTES ====================
 
-router.post('/:id/register', (req, res) => {
+router.post('/:id/register', registerLimiter, (req, res) => {
   try {
     const { id } = req.params;
     const { player_name, player_tag, tiktok_username } = req.body;
@@ -646,7 +711,7 @@ router.get('/:id/registrations', (req, res) => {
 });
 
 // Push subscription endpoints (must be after /:id because they use POST/DELETE)
-router.post('/:id/subscribe', (req, res) => {
+router.post('/:id/subscribe', pushSubscribeLimiter, (req, res) => {
   if (!pushDbEnabled) {
     return res.status(503).json({ error: 'Push notifications are temporarily unavailable' });
   }

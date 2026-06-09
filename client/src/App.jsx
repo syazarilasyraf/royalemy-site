@@ -1,18 +1,21 @@
+import { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import Header from './components/Header';
 import Home from './components/Home';
-import DeckStats from './components/DeckStats';
-import PlayerLookup from './components/PlayerLookup';
-import ClanFinder from './components/ClanFinder';
-import TournamentFinder from './components/TournamentFinder';
-import ArenaDeckRecommender from './components/ArenaDeckRecommender';
-import CommunityDeckFeed from './components/CommunityDeckFeed';
-import MYRankings from './components/MYRankings';
-import More from './components/More';
-import Roadmap from './components/Roadmap';
-import AdminLogs from './components/AdminLogs';
 import InstallButton from './components/InstallButton';
 import InstallBanner from './components/InstallBanner';
+
+const DeckStats = lazy(() => import('./components/DeckStats'));
+const PlayerLookup = lazy(() => import('./components/PlayerLookup'));
+const ClanFinder = lazy(() => import('./components/ClanFinder'));
+const TournamentFinder = lazy(() => import('./components/TournamentFinder'));
+const ArenaDeckRecommender = lazy(() => import('./components/ArenaDeckRecommender'));
+const CommunityDeckFeed = lazy(() => import('./components/CommunityDeckFeed'));
+const MYRankings = lazy(() => import('./components/MYRankings'));
+const More = lazy(() => import('./components/More'));
+const Roadmap = lazy(() => import('./components/Roadmap'));
+const AdminLogs = lazy(() => import('./components/AdminLogs'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
@@ -75,20 +78,23 @@ function App() {
       <Header />
       
       <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/deck" element={<DeckStats />} />
-          <Route path="/player" element={<PlayerLookup />} />
-          <Route path="/clan" element={<ClanFinder />} />
-          <Route path="/tournaments" element={<TournamentFinder />} />
-          <Route path="/arenadecks" element={<ArenaDeckRecommender />} />
-          <Route path="/communitydecks" element={<CommunityDeckFeed />} />
-          <Route path="/rankings" element={<MYRankings />} />
-          <Route path="/more" element={<More />} />
-          <Route path="/roadmap" element={<Roadmap />} />
+        <Suspense fallback={<div className="page-loader">Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/deck" element={<DeckStats />} />
+            <Route path="/player" element={<PlayerLookup />} />
+            <Route path="/clan" element={<ClanFinder />} />
+            <Route path="/tournaments" element={<TournamentFinder />} />
+            <Route path="/arenadecks" element={<ArenaDeckRecommender />} />
+            <Route path="/communitydecks" element={<CommunityDeckFeed />} />
+            <Route path="/rankings" element={<MYRankings />} />
+            <Route path="/more" element={<More />} />
+            <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/logs" element={<AdminLogs />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <Footer />

@@ -745,18 +745,6 @@
 }
 .deck-card-item img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
 
-.card-fallback {
-  position: absolute; inset: 0; display: none;
-  flex-direction: column; align-items: center; justify-content: center;
-  font-size: 1.5rem; font-weight: bold; color: white;
-  padding: 4px; text-align: center;
-}
-.card-fallback .fallback-name {
-  font-size: 0.6rem;
-  line-height: 1.2;
-  word-break: break-word;
-}
-
 .card-elixir {
   position: absolute; bottom: 2px; right: 2px; background: rgba(0, 0, 0, 0.8);
   padding: 2px 6px; border-radius: 10px; font-size: 0.7rem;
@@ -820,26 +808,6 @@
 .no-decks-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
 .no-decks-found h3 { color: white; margin: 0 0 8px 0; font-size: 1.2rem; }
 .no-decks-found p { margin: 0; font-size: 0.9rem; }
-
-/* Coming Soon Section */
-.coming-soon-section { margin-top: 40px; }
-.coming-soon-section h2 { color: white; font-size: 1.4rem; margin-bottom: 20px; }
-.coming-soon-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;
-}
-.coming-soon-card {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  border-radius: 16px; padding: 24px; text-align: center;
-  border: 1px dashed rgba(255, 215, 0, 0.3); position: relative; opacity: 0.8;
-}
-.coming-soon-icon { font-size: 3rem; margin-bottom: 12px; }
-.coming-soon-card h3 { color: white; margin: 0 0 8px 0; font-size: 1.1rem; }
-.coming-soon-card p { color: #888; font-size: 0.9rem; margin: 0; }
-.coming-soon-badge {
-  position: absolute; top: 12px; right: 12px;
-  background: rgba(255, 215, 0, 0.2); color: #FFD700;
-  padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
-}
 
 /* Loading State */
 .loading-decks { text-align: center; padding: 60px 20px; color: #888; }

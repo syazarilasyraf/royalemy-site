@@ -21,6 +21,44 @@ function validateAdminKey(req, res, next) {
   next();
 }
 
+// ==================== DASHBOARD ====================
+
+router.get('/dashboard', validateAdminKey, (req, res) => {
+  try {
+    const pendingTournaments = db.prepare(`SELECT COUNT(*) as count FROM community_tournaments WHERE status = 'pending'`).get();
+    const pendingClans = db.prepare(`SELECT COUNT(*) as count FROM community_clans WHERE status = 'pending'`).get();
+    const pendingDecks = db.prepare(`SELECT COUNT(*) as count FROM community_decks WHERE status = 'pending'`).get();
+    const pendingStatePlayers = db.prepare(`SELECT COUNT(*) as count FROM state_players WHERE status = 'pending'`).get();
+    const pendingFeatures = db.prepare(`SELECT COUNT(*) as count FROM features WHERE status = 'pending'`).get();
+
+    const totalTournaments = db.prepare(`SELECT COUNT(*) as count FROM community_tournaments`).get();
+    const totalClans = db.prepare(`SELECT COUNT(*) as count FROM community_clans`).get();
+    const totalDecks = db.prepare(`SELECT COUNT(*) as count FROM community_decks`).get();
+    const totalStatePlayers = db.prepare(`SELECT COUNT(*) as count FROM state_players`).get();
+    const totalFeatures = db.prepare(`SELECT COUNT(*) as count FROM features`).get();
+
+    res.json({
+      pending: {
+        tournaments: pendingTournaments?.count || 0,
+        clans: pendingClans?.count || 0,
+        decks: pendingDecks?.count || 0,
+        statePlayers: pendingStatePlayers?.count || 0,
+        features: pendingFeatures?.count || 0
+      },
+      total: {
+        tournaments: totalTournaments?.count || 0,
+        clans: totalClans?.count || 0,
+        decks: totalDecks?.count || 0,
+        statePlayers: totalStatePlayers?.count || 0,
+        features: totalFeatures?.count || 0
+      }
+    });
+  } catch (error) {
+    log('error', `Admin: Failed to fetch dashboard stats: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+  }
+});
+
 // ==================== LOGS ====================
 
 router.get('/logs', validateAdminKey, (req, res) => {

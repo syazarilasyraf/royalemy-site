@@ -167,6 +167,12 @@ router.post('/', submitLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid clan tag' });
     }
 
+    // Duplicate detection
+    const duplicate = statements.checkDuplicateClan.get(cleanTag);
+    if (duplicate) {
+      return res.status(409).json({ error: 'This clan has already been submitted.' });
+    }
+
     // Fetch clan data from Clash Royale API
     let clanData;
     try {

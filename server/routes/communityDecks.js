@@ -40,6 +40,22 @@ const submitLimiter = rateLimit({
   }
 });
 
+// Rate limit for deck voting: 30 per hour per IP
+const voteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: {
+    error: 'You can only vote on 30 decks per hour. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    log('warn', `Deck vote rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json(options.message);
+  }
+});
+
 // ==================== ADMIN ROUTES ====================
 
 router.get('/admin', validateAdminKey, (req, res) => {
@@ -165,7 +181,7 @@ router.get('/:id', (req, res) => {
   }
 });
 
-router.post('/:id/vote', (req, res) => {
+router.post('/:id/vote', voteLimiter, (req, res) => {
   try {
     const { id } = req.params;
     const deck = statements.getCommunityDeckById.get(id);
@@ -187,6 +203,12 @@ router.post('/', submitLimiter, (req, res) => {
 
     if (!deck_link || !card_ids || !Array.isArray(card_ids) || card_ids.length !== 8) {
       return res.status(400).json({ error: 'Valid deck link with 8 cards is required' });
+    }
+
+    // Duplicate detection: same deck link within 1 hour
+    const duplicate = statements.checkDuplicateDeck.get(deck_link.trim());
+    if (duplicate) {
+      return res.status(409).json({ error: 'This deck was already submitted within the last hour.' });
     }
 
     const result = statements.insertCommunityDeck.run(

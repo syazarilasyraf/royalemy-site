@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
@@ -20,6 +21,13 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow inline styles/scripts for now
+  crossOriginEmbedderPolicy: false
+}));
+
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const CR_API_BASE = 'https://api.clashroyale.com/v1';
@@ -326,7 +334,7 @@ app.post('/admin/upload-db', validateAdminKeyForEndpoint, express.raw({ type: 'a
 });
 
 // Clear cache (admin endpoint)
-app.post('/api/admin/clear-cache', (req, res) => {
+app.post('/api/admin/clear-cache', validateAdminKeyForEndpoint, (req, res) => {
   clearCache();
   res.json({ status: 'ok', message: 'Cache cleared successfully' });
 });

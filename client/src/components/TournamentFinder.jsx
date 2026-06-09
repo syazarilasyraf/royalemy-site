@@ -23,6 +23,7 @@ import {
   getVapidPublicKey,
   subscribeToPush,
   unsubscribeFromPush,
+  exportTournamentRegistrations,
 } from '../services/api';
 
 // ==================== CONSTANTS ====================
@@ -866,7 +867,20 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
           <div className="details-section participants-section">
             <div className="participants-header" onClick={() => setShowParticipants((p) => !p)}>
               <h4>👥 Participants ({registrations.length})</h4>
-              <span className="participants-toggle">{showParticipants ? '▲' : '▼'}</span>
+              <div className="participants-header-actions">
+                {adminKey && (
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportTournamentRegistrations(tournament.id, adminKey);
+                    }}
+                  >
+                    📥 Export CSV
+                  </button>
+                )}
+                <span className="participants-toggle">{showParticipants ? '▲' : '▼'}</span>
+              </div>
             </div>
             {showParticipants && (
               <div className="participants-list">
@@ -3146,6 +3160,12 @@ function TournamentFinder() {
 
         .participants-header:hover .participants-toggle {
           color: var(--text-primary);
+        }
+
+        .participants-header-actions {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
         }
 
         .participants-list {

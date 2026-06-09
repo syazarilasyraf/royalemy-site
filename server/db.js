@@ -142,6 +142,7 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_tournaments_status ON community_tournaments(status);
   CREATE INDEX IF NOT EXISTS idx_tournaments_start ON community_tournaments(start_date);
+  CREATE INDEX IF NOT EXISTS idx_tournaments_status_start ON community_tournaments(status, start_date);
 
   CREATE TABLE IF NOT EXISTS tournament_registrations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -233,6 +234,7 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_community_decks_status ON community_decks(status);
+  CREATE INDEX IF NOT EXISTS idx_decks_status_votes ON community_decks(status, votes DESC, created_at DESC);
 
   CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -358,6 +360,9 @@ const statements = {
   getTournamentById: db.prepare(
     `SELECT * FROM community_tournaments WHERE id = ?`
   ),
+  checkDuplicateTournament: db.prepare(
+    `SELECT id FROM community_tournaments WHERE name = ? AND host_name = ? AND status IN ('pending', 'approved') AND created_at > datetime('now', '-1 day')`
+  ),
   updateTournamentStatus: db.prepare(
     `UPDATE community_tournaments SET status = ? WHERE id = ?`
   ),
@@ -437,6 +442,9 @@ const statements = {
   getClanById: db.prepare(
     `SELECT * FROM community_clans WHERE id = ?`
   ),
+  checkDuplicateClan: db.prepare(
+    `SELECT id FROM community_clans WHERE clan_tag = ?`
+  ),
   updateClanStatus: db.prepare(
     `UPDATE community_clans SET status = ? WHERE id = ?`
   ),
@@ -480,6 +488,9 @@ const statements = {
   getStatePlayerById: db.prepare(
     `SELECT * FROM state_players WHERE id = ?`
   ),
+  checkDuplicateStatePlayer: db.prepare(
+    `SELECT id FROM state_players WHERE player_tag = ? AND state_name = ?`
+  ),
   updateStatePlayerStatus: db.prepare(
     `UPDATE state_players SET status = ? WHERE id = ?`
   ),
@@ -508,6 +519,9 @@ const statements = {
   ),
   voteCommunityDeck: db.prepare(
     `UPDATE community_decks SET votes = votes + 1 WHERE id = ?`
+  ),
+  checkDuplicateDeck: db.prepare(
+    `SELECT id FROM community_decks WHERE deck_link = ? AND created_at > datetime('now', '-1 hour')`
   ),
 
 };

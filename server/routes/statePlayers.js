@@ -167,6 +167,12 @@ router.post('/', submitLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid player tag' });
     }
 
+    // Duplicate detection
+    const duplicate = statements.checkDuplicateStatePlayer.get(cleanTag, state_name.trim());
+    if (duplicate) {
+      return res.status(409).json({ error: 'This player has already been submitted for this state.' });
+    }
+
     // Fetch player data from Clash Royale API
     let playerData;
     try {
