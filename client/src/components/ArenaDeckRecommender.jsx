@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { getCardById, getCardImageUrl, hasEvolution, hasHero } from '../utils/cardMapping';
 import { buildDeckLink } from '../utils/deckParser';
 import { getPlayer, getMetaDecks } from '../services/api';
@@ -424,4 +424,4 @@ function ArenaDeckRecommender() {
   );
 }
 
-export default ArenaDeckRecommender;
+export default memo(ArenaDeckRecommender);

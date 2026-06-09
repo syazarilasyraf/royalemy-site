@@ -7,6 +7,11 @@ const router = express.Router();
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
 
+function sanitizeHtml(input) {
+  if (!input || typeof input !== 'string') return input;
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
 function getAdminKey() {
   return process.env.ROADMAP_ADMIN_KEY;
 }
@@ -214,8 +219,8 @@ router.post('/', submitLimiter, (req, res) => {
     const result = statements.insertCommunityDeck.run(
       deck_link.trim(),
       JSON.stringify(card_ids),
-      (author_name || 'Anonymous').trim(),
-      (description || '').trim(),
+      sanitizeHtml(author_name) || 'Anonymous',
+      sanitizeHtml(description) || '',
       avg_elixir || null,
       JSON.stringify(tags || []),
       0,

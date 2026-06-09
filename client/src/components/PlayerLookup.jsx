@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getPlayer, getPlayerBattleLog } from '../services/api';
 import { getCardById } from '../utils/cardMapping';
@@ -969,4 +969,4 @@ function PlayerLookup() {
   );
 }
 
-export default PlayerLookup;
+export default memo(PlayerLookup);

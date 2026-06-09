@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById } from '../utils/cardMapping';
@@ -439,4 +439,4 @@ function CommunityDeckFeed() {
   );
 }
 
-export default CommunityDeckFeed;
+export default memo(CommunityDeckFeed);

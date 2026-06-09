@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getLocations, getClanRankings, getClanWarRankings, getPathOfLegendRankings, getPlayerRankings
@@ -750,4 +750,4 @@ function MYRankings() {
   );
 }
 
-export default MYRankings;
+export default memo(MYRankings);

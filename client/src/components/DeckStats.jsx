@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById, calculateAverageElixir, hasEvolution, hasHero } from '../utils/cardMapping';
@@ -1807,4 +1807,4 @@ function DeckStats() {
   );
 }
 
-export default DeckStats;
+export default memo(DeckStats);

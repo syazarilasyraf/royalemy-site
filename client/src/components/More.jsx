@@ -248,4 +248,4 @@ function More() {
   );
 }
 
-export default More;
+export default memo(More);

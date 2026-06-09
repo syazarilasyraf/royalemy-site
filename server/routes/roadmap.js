@@ -25,6 +25,11 @@ function getAdminKey() {
   return process.env.ROADMAP_ADMIN_KEY;
 }
 
+function sanitizeHtml(input) {
+  if (!input || typeof input !== 'string') return input;
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
 function validateAdminKey(req, res, next) {
   const key = req.query.key;
   const adminKey = getAdminKey();
@@ -69,7 +74,7 @@ router.post('/features', (req, res) => {
       return res.status(400).json({ error: 'Description must be under 500 characters' });
     }
 
-    const result = statements.insertFeature.run(name.trim(), description.trim(), 'pending');
+    const result = statements.insertFeature.run(sanitizeHtml(name), sanitizeHtml(description), 'pending');
     const feature = statements.getFeatureById.get(result.lastInsertRowid);
 
     log('success', `New feature suggestion submitted: #${feature.id} - ${feature.name}`);

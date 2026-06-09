@@ -13,6 +13,11 @@ function sanitizeTag(tag) {
   return tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 }
 
+function sanitizeHtml(input) {
+  if (!input || typeof input !== 'string') return input;
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
 function getAdminKey() {
   return process.env.ROADMAP_ADMIN_KEY;
 }
@@ -182,9 +187,9 @@ router.post('/', submitLimiter, async (req, res) => {
     }
 
     const result = statements.insertClan.run(
-      clanData.name || '',
+      sanitizeHtml(clanData.name) || '',
       cleanTag,
-      clanData.description || '',
+      sanitizeHtml(clanData.description) || '',
       'Unknown',
       '',
       clanData.requiredTrophies || null,

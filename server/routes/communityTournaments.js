@@ -57,6 +57,11 @@ function validatePlayerTag(tag) {
   return clean.length >= 3 && clean.length <= 10 ? clean : false;
 }
 
+function sanitizeHtml(input) {
+  if (!input || typeof input !== 'string') return input;
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
 function createNotification(tournamentId, type, message) {
   try {
     statements.insertNotification.run(tournamentId, type, message);
@@ -600,18 +605,18 @@ router.post('/', submitLimiter, (req, res) => {
     }
 
     const result = statements.insertTournament.run(
-      name,
-      description || '',
-      host_name,
+      sanitizeHtml(name),
+      sanitizeHtml(description) || '',
+      sanitizeHtml(host_name),
       start_date,
       end_date || null,
       registration_deadline || null,
       format || '1v1 Single Elimination',
       max_players ? parseInt(max_players) : null,
-      prize || '',
-      rules || '',
-      tiktok_username || '',
-      tiktok_live_url || '',
+      sanitizeHtml(prize) || '',
+      sanitizeHtml(rules) || '',
+      sanitizeHtml(tiktok_username) || '',
+      sanitizeHtml(tiktok_live_url) || '',
       tournament_password || '',
       'pending'
     );

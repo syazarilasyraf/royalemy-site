@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getAdminDashboard } from '../services/api';
 
@@ -244,4 +244,4 @@ function AdminDashboard() {
   );
 }
 
-export default AdminDashboard;
+export default memo(AdminDashboard);

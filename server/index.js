@@ -39,6 +39,7 @@ const CR_API_TOKEN = process.env.CR_API_TOKEN;
 // ==================== CACHE SETUP ====================
 
 const cache = new Map();
+const MAX_CACHE_SIZE = 500;
 
 const CACHE_TTL = {
   player: 60,           // 1 minute
@@ -68,6 +69,21 @@ function getCache(key) {
 }
 
 function setCache(key, data, ttlSeconds) {
+  // Evict expired entries if cache is near capacity
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const now = Date.now();
+    for (const [k, item] of cache.entries()) {
+      if (now > item.expiry) {
+        cache.delete(k);
+      }
+      if (cache.size < MAX_CACHE_SIZE) break;
+    }
+    // If still full, evict oldest entry
+    if (cache.size >= MAX_CACHE_SIZE) {
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey);
+    }
+  }
   cache.set(key, {
     data,
     expiry: Date.now() + (ttlSeconds * 1000)
@@ -287,7 +303,7 @@ app.get('/admin/download-db', validateAdminKeyForEndpoint, (req, res) => {
 // Usage: curl -X POST "https://.../admin/upload-db?key=ADMIN_KEY" \
 //            -H "Content-Type: application/octet-stream" \
 //            --data-binary @server/data/roadmap.db
-app.post('/admin/upload-db', validateAdminKeyForEndpoint, express.raw({ type: 'application/octet-stream', limit: '50mb' }), (req, res) => {
+app.post('/admin/upload-db', validateAdminKeyForEndpoint, express.raw({ type: 'application/octet-stream', limit: '10mb' }), (req, res) => {
   try {
     if (!req.body || req.body.length === 0) {
       return res.status(400).json({ error: 'No file data received. Send the .db file as raw binary body with Content-Type: application/octet-stream' });
@@ -1032,7 +1048,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('');
   console.log('🎮 ======================================');
   console.log('   RoyaleMY Server Started');
@@ -1042,10 +1058,28 @@ app.listen(PORT, () => {
   console.log(`🌐 Serving frontend from: ${staticPath}`);
   console.log(`✅ Clash Royale API: ${CR_API_TOKEN ? 'Configured' : 'NOT CONFIGURED'}`);
   console.log(`⚡ Rate Limit: 60 req/min per IP`);
-  console.log(`💾 Cache: Enabled with TTL`);
+  console.log(`💾 Cache: Enabled with TTL (max ${MAX_CACHE_SIZE} entries)`);
   console.log('');
   console.log(`Frontend should point to: ${FRONTEND_URL}`);
   console.log('');
   console.log('Ready for viewers! 👥');
   console.log('');
 });
+
+// Graceful shutdown
+function shutdown(signal) {
+  log('info', `${signal} received. Shutting down gracefully...`);
+  server.close(() => {
+    log('info', 'HTTP server closed.');
+    try {
+      db.close();
+      log('info', 'Database connection closed.');
+    } catch (e) {
+      // already closed or never opened
+    }
+    process.exit(0);
+  });
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

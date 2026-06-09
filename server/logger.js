@@ -26,18 +26,27 @@ function log(level, message, data = null) {
   try {
     const dataJson = data ? JSON.stringify(data).slice(0, 2000) : null;
     statements.insertLog.run(level, String(message).slice(0, 1000), dataJson, timestamp);
-
-    // Trim to last 10,000 entries every so often (simple count check)
-    const count = statements.getLogCount.get();
-    if (count && count.count > 10000) {
-      statements.trimOldLogs.run(10000);
-    }
   } catch (err) {
     // Silently fail so logging never breaks the app
     // eslint-disable-next-line no-console
     console.error('Logger DB error:', err.message);
   }
 }
+
+// Async log trimming every 5 minutes instead of inline on every write
+setInterval(() => {
+  try {
+    const count = statements.getLogCount.get();
+    if (count && count.count > 10000) {
+      statements.trimOldLogs.run(10000);
+      log('info', `Trimmed logs to last 10,000 entries (was ${count.count})`);
+    }
+  } catch (err) {
+    // Silently fail
+    // eslint-disable-next-line no-console
+    console.error('Logger trim error:', err.message);
+  }
+}, 5 * 60 * 1000);
 
 function logRequest(req, type = 'API') {
   const ip = req.ip || req.connection.remoteAddress;

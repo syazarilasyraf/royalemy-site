@@ -13,6 +13,11 @@ function sanitizeTag(tag) {
   return tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 }
 
+function sanitizeHtml(input) {
+  if (!input || typeof input !== 'string') return input;
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
 function getAdminKey() {
   return process.env.ROADMAP_ADMIN_KEY;
 }
@@ -183,8 +188,8 @@ router.post('/', submitLimiter, async (req, res) => {
 
     const result = statements.insertStatePlayer.run(
       cleanTag,
-      state_name.trim(),
-      (submitter_name || 'Anonymous').trim(),
+      sanitizeHtml(state_name),
+      sanitizeHtml(submitter_name) || 'Anonymous',
       playerData.trophies || 0,
       playerData.rank || null,
       'pending'

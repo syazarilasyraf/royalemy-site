@@ -71,7 +71,7 @@ function ServerInfoPanel({ info }) {
 
 // ==================== MAIN COMPONENT ====================
 
-export default function AdminLogs() {
+function AdminLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
   const adminKey = searchParams.get('admin') || '';
 
@@ -538,3 +538,5 @@ export default function AdminLogs() {
     </div>
   );
 }
+
+export default memo(AdminLogs);

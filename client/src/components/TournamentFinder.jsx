@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   getCommunityTournaments,
@@ -4423,4 +4423,4 @@ function TournamentFinder() {
   );
 }
 
-export default TournamentFinder;
+export default memo(TournamentFinder);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   searchClans, getClan, getClanMembers, getClanCurrentRiverRace, getClanRiverRaceLog,
@@ -1916,4 +1916,4 @@ function ClanFinder() {
   );
 }
 
-export default ClanFinder;
+export default memo(ClanFinder);

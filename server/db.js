@@ -249,6 +249,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
 `);
 
+// Drop unused indexes from existing databases
+// (Safe — indexes can be recreated if needed; no data is lost)
+db.exec(`DROP INDEX IF EXISTS idx_state_players_state`);
+db.exec(`DROP INDEX IF EXISTS idx_logs_timestamp`);
+
 // Migration: add new columns if they don't exist (idempotent)
 function columnExists(table, column) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all();

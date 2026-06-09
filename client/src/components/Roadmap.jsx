@@ -249,7 +249,7 @@ function AdminPanel({ adminKey, onRefresh }) {
 
 // ==================== MAIN COMPONENT ====================
 
-export default function Roadmap() {
+function Roadmap() {
   const [searchParams, setSearchParams] = useSearchParams();
   const adminKey = searchParams.get('admin');
 
@@ -752,3 +752,5 @@ export default function Roadmap() {
     </div>
   );
 }
+
+export default memo(Roadmap);
