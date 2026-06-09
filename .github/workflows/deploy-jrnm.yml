@@ -13,6 +13,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
       - name: Login to registry
         run: |
           echo "${{ secrets.JRNM_DOCKER_PASSWORD }}" | docker login \
@@ -25,7 +37,6 @@ jobs:
           IMAGE="jdr-q96jo84sc5.justrunmy.app/q96jo84sc5:v1"
 
           docker build \
-            --no-cache \
             --pull \
             --build-arg BUILD_ID=${GITHUB_SHA} \
             -t $IMAGE .
