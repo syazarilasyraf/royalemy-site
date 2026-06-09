@@ -249,6 +249,20 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
   CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+
+  CREATE TABLE IF NOT EXISTS admin_actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    resource_id INTEGER,
+    details TEXT,
+    ip_address TEXT,
+    admin_key_hash TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_actions_resource ON admin_actions(resource);
+  CREATE INDEX IF NOT EXISTS idx_admin_actions_created ON admin_actions(created_at DESC);
 `);
 
 // Drop unused indexes from existing databases
