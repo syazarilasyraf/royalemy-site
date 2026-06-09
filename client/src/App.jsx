@@ -115,6 +115,21 @@ function App() {
           padding: var(--spacing-md);
         }
 
+        .page-loader {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 60vh;
+          color: var(--text-muted);
+          font-size: 1rem;
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+
         /* Bottom Navigation - MOBILE ONLY */
         .bottom-nav {
           display: none; /* Hidden by default (desktop) */
