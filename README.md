@@ -267,7 +267,6 @@ Features likely to be implemented based on existing architecture and community n
 - **Deck Comments** — Allow strategy discussions on community decks.
 - **Trending Decks** — Sort by recent vote velocity instead of just total votes.
 - **Tournament Calendar View** — Calendar/grid layout for easier discovery of upcoming events.
-- **Registration CSV Export** — Let admins download registrant lists for external bracket tools.
 
 ## Known Limitations
 
@@ -275,18 +274,19 @@ Current unfinished or partially broken functionality:
 
 - **State Rankings** — The "By State" tab renders a placeholder. Backend routes and table exist, but the frontend is not wired up.
 - **Tournament Reminders** — The `notified_24h` and `notified_1h` schema columns exist, but no automated reminder logic runs.
-- **Chest Tracker** — Player Lookup contains partial chest-tracking code, but the tab button is missing and the state is undeclared, making it unreachable.
 - **State Players Admin UI** — Backend admin endpoints exist, but there is no frontend admin panel for managing state player submissions.
 
 ## Technical Roadmap
 
 Engineering improvements to increase reliability, performance, and maintainability:
 
-- **Security** — Move admin key from URL query params to `X-Admin-Key` header; add `helmet` middleware; rate-limit votes and registrations.
-- **Performance** — Cap the in-memory API cache; add frontend route-level code splitting with `React.lazy()`; add composite DB indexes.
+- **Security** — Move admin key from URL query params to `X-Admin-Key` header.
+- **Performance** — Cap the in-memory API cache; add `React.memo` / `useMemo` to large components.
 - **Observability** — Add request correlation IDs; switch to structured JSON logging in production.
 - **Code Organization** — Extract CR proxy and meta-deck logic from `server/index.js` into service modules; consolidate duplicated middleware.
 - **Deployment** — Add Docker health check; use multi-stage builds to exclude dev dependencies; add pre-deploy verification in CI.
+
+**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard.
 
 See `docs/FUTURE_ROADMAP.md` for the complete audit and ranked recommendations.
 

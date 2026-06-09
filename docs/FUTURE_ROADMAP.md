@@ -4,39 +4,40 @@ This document contains a complete audit of the RoyaleMY codebase, identifying un
 
 ---
 
+## Changelog
+
+### Recently Completed (2025-06-09)
+
+The following high-impact / low-effort items were implemented:
+
+- ✅ **Security headers** — Added `helmet` middleware to Express
+- ✅ **Authenticated cache clear** — `POST /api/admin/clear-cache` now requires admin key
+- ✅ **Database composite indexes** — Added `(status, start_date)` on tournaments and `(status, votes DESC, created_at DESC)` on decks
+- ✅ **Fixed SW cache-busting** — Removed `?_t=${Date.now()}` from tournament API calls
+- ✅ **Dead code removal** — Removed broken chests tab, unused CSS, and commented clan data
+- ✅ **Rate limiting** — Added limits on tournament registration (10/hr), push subscriptions (10/hr), deck votes (30/hr), and roadmap votes (30/hr)
+- ✅ **Duplicate detection** — Prevents duplicate tournament, clan, state player, and deck submissions
+- ✅ **Frontend code splitting** — Route-level `React.lazy()` + `Suspense`; initial bundle dropped from **616KB to 226KB**
+- ✅ **Admin CSV export** — Export tournament registrations from the admin panel
+- ✅ **Unified admin dashboard** — New `/admin` page showing pending counts across all modules
+
+---
+
 ## 1. Incomplete Features
 
 Features that exist in code but are broken, unreachable, or incomplete.
 
-### 1.1 Player Lookup — Chests Tab
-- **Current status:** Partially implemented but broken
-- **Evidence:** `PlayerLookup.jsx` contains `fetchChests()` logic and JSX for `activeTab === 'chests'`, but the tab button is missing, `chests` state is undeclared, and `getPlayerUpcomingChests` is not imported from `api.js`
-- **What is missing:** Add tab button, declare `const [chests, setChests] = useState([])`, import the API function
-- **Estimated effort:** Small (to remove dead code) / Medium (to finish implementation)
-
-### 1.2 MY Rankings — State Rankings
+### 1.1 MY Rankings — State Rankings
 - **Current status:** Placeholder UI only
 - **Evidence:** The `states` tab in `MYRankings.jsx` renders a hardcoded 🚧 "In Progress" message. A large block of CSS for state filters and submission forms exists but is unused. The `state_players` table and backend routes exist, but zero frontend code calls them.
 - **What is missing:** Wire up the existing `state_players` API to the frontend, build the state filter UI, populate real data
 - **Estimated effort:** Medium
 
-### 1.3 Tournament Automated Reminders
+### 1.2 Tournament Automated Reminders
 - **Current status:** Schema exists, logic missing
-- **Evidence:** `community_tournaments` has `notified_24h` and `notified_1h` columns. A prepared statement `updateTournamentNotified` existed until recently but was never called. No cron job or interval logic sends reminders.
+- **Evidence:** `community_tournaments` has `notified_24h` and `notified_1h` columns. No cron job or interval logic sends reminders.
 - **What is missing:** A scheduled job (or admin-triggered action) that checks upcoming tournaments and sends push notifications / in-site notifications at 24h and 1h before start
 - **Estimated effort:** Medium
-
-### 1.4 ArenaDeckRecommender — Dead CSS
-- **Current status:** Unused styles
-- **Evidence:** `.coming-soon-section`, `.coming-soon-grid`, `.coming-soon-card`, `.coming-soon-badge` classes in `ArenaDeckRecommender.css` are never referenced in the JSX. `.card-fallback` is always `display: none` with no toggle logic.
-- **What is missing:** Remove dead CSS or implement the intended features
-- **Estimated effort:** Small
-
-### 1.5 ClanFinder — Commented Featured Clans
-- **Current status:** Dead data
-- **Evidence:** Three commented-out clan objects sit in `featuredMalaysianClans` array in `ClanFinder.jsx`
-- **What is missing:** Remove commented code
-- **Estimated effort:** Small
 
 ---
 
@@ -50,10 +51,8 @@ Features that naturally extend the existing product without requiring architectu
 |---------|-------------|------------------|
 | **Waitlist System** | When `max_players` is reached, new registrants join a waitlist instead of being rejected. Auto-promote if spots open. | Extends existing `tournament_registrations` table with `waitlist_position` or `status` column. |
 | **Tournament Brackets** | Simple match tracker for 1v1 tournaments. Admins record match results round-by-round. | New table `tournament_matches(tournament_id, round, player1_tag, player2_tag, winner_tag)`. |
-| **Duplicate Detection** | Flag tournaments with identical names or hosts submitting multiple events in short windows. | Check on `POST /api/community-tournaments` before insert. |
 | **Automated Status Transitions** | Cron that advances tournament status based on `start_date` and `registration_deadline`. | Uses existing `start_date`, `registration_deadline`, and `status` fields. |
 | **Tournament Calendar View** | Switch tournament list from cards to a calendar/grid view for easier discovery. | Pure frontend change using existing `/api/community-tournaments` data. |
-| **Registration CSV Export** | Admins can download registrant lists as CSV for use in external bracket tools. | New admin endpoint, reads `tournament_registrations`. |
 | **Tournament Countdown Push** | Auto-send push notification when a tournament goes live. | Reuses existing push subscription infrastructure. |
 
 ### 2.2 Ranking & Statistics Enhancements
@@ -95,7 +94,6 @@ Features that naturally extend the existing product without requiring architectu
 |-----|--------|----------------|
 | **Admin key in URL query params** | Key leaks to browser history, server logs, and referrer headers. | Move `?key=` to `X-Admin-Key` header or `Authorization: Bearer` scheme. |
 | **No audit trail** | Cannot determine which admin performed destructive actions. | Create `admin_actions` table: `id, action, resource, resource_id, details, ip_address, created_at`. |
-| **Unauthenticated cache clear** | Any visitor can clear the CR API cache. | Add `validateAdminKeyForEndpoint` to `POST /api/admin/clear-cache`. |
 | **No bulk operations** | Approving 10 tournaments requires 10 separate clicks. | Add bulk endpoints: `POST /api/*/admin/bulk` with `{ action, ids[] }`. |
 | **Missing State Players admin UI** | Backend routes exist but there is zero frontend admin panel. | Build admin table for `state_players` following the existing deck/clan admin pattern. |
 
@@ -103,10 +101,7 @@ Features that naturally extend the existing product without requiring architectu
 
 | Tool | Description | Effort |
 |------|-------------|--------|
-| **Unified Admin Dashboard** | Single page showing pending counts across all modules + quick links. | Small |
 | **Admin Search & Filter** | Search tournaments by name/host, filter by status and date. Extends to clans, decks, and features. | Small |
-| **CSV Export** | Export tournament registrations, player stats, and community clans as CSV. | Small |
-| **Duplicate Detection** | Flag duplicate clan tags, player tags, or tournament names on submission. | Small |
 | **Rate Limit Monitoring** | Admin endpoint showing recent 429 hits and top offending IPs. | Medium |
 | **Backup Management** | List, download, and restore specific `.db.bak.*` backups from the admin panel. | Medium |
 | **Push Subscription Viewer** | See subscription counts per tournament and send custom broadcasts. | Medium |
@@ -121,8 +116,6 @@ Features that naturally extend the existing product without requiring architectu
 | Issue | Location | Recommendation | Effort |
 |-------|----------|----------------|--------|
 | **Unbounded in-memory cache** | `server/index.js:33` | Cap cache size and implement LRU eviction, or switch to `lru-cache`. | Small |
-| **No frontend code splitting** | `client/src/App.jsx` | Use `React.lazy()` + `Suspense` for route-level splitting. Start with `TournamentFinder` and `AdminLogs`. | Small |
-| **Cache-busting timestamps defeat SW** | `client/src/services/api.js` | Remove `?_t=${Date.now()}` from tournament endpoints; use `cache: 'no-store'` instead. | Small |
 | **Logger COUNT(*) on every write** | `server/logger.js:31` | Move log trimming to a `setInterval` or probabilistic check. | Small |
 | **No component memoization** | All large components | Wrap stable sub-components with `React.memo` and expensive computations with `useMemo`. | Small |
 | **Unbounded SW caches** | `client/public/sw.js` | Implement cache size limits and prune old entries. | Medium |
@@ -132,9 +125,7 @@ Features that naturally extend the existing product without requiring architectu
 | Issue | Location | Recommendation | Effort |
 |-------|----------|----------------|--------|
 | **Admin key in query params** | All route files + `api.js` | Move to header-based auth. | Medium |
-| **Missing security headers** | `server/index.js` | Add `helmet` middleware (CSP, X-Frame-Options, HSTS). | Small |
 | **No XSS input sanitization** | `server/routes/community*.js` | Strip/sanitize HTML from user-generated content before storage. | Small |
-| **Missing rate limits on votes/registrations** | `server/routes/*.js` | Add `express-rate-limit` to `POST /:id/vote`, `POST /:id/register`, `POST /roadmap/vote`. | Small |
 | **Large DB upload limit** | `server/index.js:282` | Reduce `express.raw` limit from 50MB to ~10MB. | Small |
 | **No graceful shutdown** | `server/index.js` | Add `SIGTERM`/`SIGINT` handlers to close server and DB connection cleanly. | Small |
 
@@ -152,7 +143,6 @@ Features that naturally extend the existing product without requiring architectu
 
 | Issue | Location | Recommendation | Effort |
 |-------|----------|----------------|--------|
-| **Missing composite indexes** | `server/db.js` | Add `(status, start_date)` on `community_tournaments` and `(status, votes DESC, created_at DESC)` on `community_decks`. | Small |
 | **Unused indexes** | `server/db.js` | Drop `idx_state_players_state` and `idx_logs_timestamp`. | Small |
 | **Orphaned columns** | `server/db.js` | Drop `tournament_tag`, `discord_link`, `contact_info`, `notified_24h`, `notified_1h` from `community_tournaments` if no feature is planned. | Small |
 | **Migration drops table** | `server/db.js:274` | Use `ALTER TABLE ADD COLUMN` instead of dropping `push_subscriptions`. | Small |
@@ -173,16 +163,13 @@ Features that naturally extend the existing product without requiring architectu
 
 ### High Impact / Low Effort (Quick Wins)
 
-1. **Add security headers** (`helmet`) — Small effort, immediate security improvement.
-2. **Rate-limit votes and registrations** — Prevents spam and ballot stuffing.
-3. **Authenticate cache clear endpoint** — Close open admin hole.
-4. **Add missing DB composite indexes** — Immediate query speedup for tournament and deck listings.
-5. **Remove dead code** — Chests tab cleanup, dead CSS, commented clans.
-6. **Add frontend code splitting** — Reduce initial bundle size.
-7. **Add admin CSV export** — High operational value for tournament organizers.
-8. **Add unified admin dashboard** — Single page with pending counts across all modules.
-9. **Fix cache-busting timestamps** — Stop defeating the service worker cache.
-10. **Add duplicate detection** on submissions — Reduce moderator workload.
+1. **Cap in-memory cache size** — Prevents OOM under high traffic.
+2. **Move log trimming to async/timer** — Reduces SQLite write pressure.
+3. **Add `React.memo` / `useMemo`** — Reduce unnecessary re-renders on large components.
+4. **Add XSS input sanitization** — Strip HTML from user-generated content.
+5. **Reduce DB upload limit** — 50MB → 10MB for safety.
+6. **Add graceful shutdown** — Close server and DB on SIGTERM.
+7. **Drop unused indexes** — `idx_state_players_state` and `idx_logs_timestamp`.
 
 ### Medium-Term Improvements
 
