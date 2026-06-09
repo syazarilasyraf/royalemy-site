@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import roadmapRouter from './routes/roadmap.js';
@@ -129,9 +130,15 @@ app.use(cors({
 app.use(express.json());
 
 // Request logging middleware
+// Request correlation ID middleware
+app.use((req, res, next) => {
+  req.id = crypto.randomUUID();
+  next();
+});
+
 app.use((req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
-  log('info', `${req.method} ${req.path} - IP: ${ip}`);
+  log('info', `${req.method} ${req.path} - IP: ${ip}`, { requestId: req.id });
   next();
 });
 

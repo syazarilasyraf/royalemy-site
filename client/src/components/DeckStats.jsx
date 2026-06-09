@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById, calculateAverageElixir, hasEvolution, hasHero } from '../utils/cardMapping';
@@ -386,14 +386,14 @@ function DeckStats() {
             <h4>Elixir Cost Distribution</h4>
             <p className="section-hint">How many cards at each elixir cost</p>
             <div className="elixir-distribution">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(cost => {
+              {useMemo(() => [1, 2, 3, 4, 5, 6, 7, 8, 9].map(cost => {
                 const count = deckData.elixirCosts.filter(e => e === cost).length;
                 return (
                   <div key={cost} className="dist-bar">
                     <div className="dist-count">{count > 0 ? count : '·'}</div>
-                    <div 
-                      className="dist-fill" 
-                      style={{ 
+                    <div
+                      className="dist-fill"
+                      style={{
                         height: count > 0 ? `${Math.max((count / 4) * 40, 4)}px` : '4px',
                         maxHeight: '40px'
                       }}
@@ -401,7 +401,7 @@ function DeckStats() {
                     <div className="dist-label">{cost}⚡</div>
                   </div>
                 );
-              })}
+              }), [deckData.elixirCosts])}
             </div>
           </div>
 
@@ -610,18 +610,18 @@ function DeckStats() {
           <div className="breakdown-section">
             <h4>Rarity</h4>
             <div className="rarity-list">
-              {Object.entries(deckData.rarityCount)
+              {useMemo(() => Object.entries(deckData.rarityCount)
                 .filter(([, count]) => count > 0)
                 .map(([rarity, count]) => (
                   <div key={rarity} className="rarity-item">
-                    <span 
-                      className="rarity-dot" 
+                    <span
+                      className="rarity-dot"
                       style={{ background: getRarityColor(rarity) }}
                     />
                     <span className="rarity-name">{rarity}</span>
                     <span className="rarity-count">{count}</span>
                   </div>
-                ))}
+                )), [deckData.rarityCount])}
             </div>
           </div>
 

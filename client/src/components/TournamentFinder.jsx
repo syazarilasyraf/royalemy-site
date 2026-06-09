@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   getCommunityTournaments,
@@ -263,10 +263,12 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
     }
   };
 
-  const pending = allTournaments.filter((t) => t.status === 'pending');
-  const active = allTournaments.filter((t) => PUBLIC_STATUSES.includes(t.status));
-  const completed = allTournaments.filter((t) => t.status === 'completed');
-  const other = allTournaments.filter((t) => ['rejected', 'cancelled'].includes(t.status));
+  const { pending, active, completed, other } = useMemo(() => ({
+    pending: allTournaments.filter((t) => t.status === 'pending'),
+    active: allTournaments.filter((t) => PUBLIC_STATUSES.includes(t.status)),
+    completed: allTournaments.filter((t) => t.status === 'completed'),
+    other: allTournaments.filter((t) => ['rejected', 'cancelled'].includes(t.status)),
+  }), [allTournaments]);
 
   return (
     <div className="tournament-admin">
@@ -1944,8 +1946,8 @@ function TournamentFinder() {
   };
 
   // Separate active/upcoming from live
-  const liveTournaments = communityTournaments.filter((t) => t.status === 'live');
-  const upcomingTournaments = communityTournaments.filter((t) => t.status !== 'live');
+  const liveTournaments = useMemo(() => communityTournaments.filter((t) => t.status === 'live'), [communityTournaments]);
+  const upcomingTournaments = useMemo(() => communityTournaments.filter((t) => t.status !== 'live'), [communityTournaments]);
 
   if (view === 'detail' && selectedTournament) {
     const t = selectedTournamentFull?.tournament || selectedTournament;

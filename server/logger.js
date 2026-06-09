@@ -7,19 +7,32 @@ function getServerStartTime() {
   return serverStartTime;
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 /**
  * Central logging utility.
  * Writes to console and persists to SQLite (last 10,000 entries).
+ * In production, outputs NDJSON for easier aggregation.
  */
 function log(level, message, data = null) {
   const timestamp = new Date().toISOString();
-  const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : level === 'success' ? '✅' : '📡';
 
-  // Console output (unchanged behavior)
-  if (data) {
-    console.log(`${prefix} [${timestamp}] ${message}`, data);
+  // Console output
+  if (isProduction) {
+    const logLine = JSON.stringify({
+      timestamp,
+      level,
+      message: String(message).slice(0, 1000),
+      ...(data || {})
+    });
+    console.log(logLine);
   } else {
-    console.log(`${prefix} [${timestamp}] ${message}`);
+    const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : level === 'success' ? '✅' : '📡';
+    if (data) {
+      console.log(`${prefix} [${timestamp}] ${message}`, data);
+    } else {
+      console.log(`${prefix} [${timestamp}] ${message}`);
+    }
   }
 
   // Persist to SQLite (fire-and-forget; don't block on DB errors)
@@ -50,12 +63,12 @@ setInterval(() => {
 
 function logRequest(req, type = 'API') {
   const ip = req.ip || req.connection.remoteAddress;
-  log('info', `${type} Request: ${req.method} ${req.path} from ${ip}`);
+  log('info', `${type} Request: ${req.method} ${req.path} from ${ip}`, { requestId: req.id });
 }
 
 function logError(req, error, type = 'API') {
   const ip = req.ip || req.connection.remoteAddress;
-  log('error', `${type} Error: ${req.method} ${req.path} from ${ip} - ${error.message}`);
+  log('error', `${type} Error: ${req.method} ${req.path} from ${ip} - ${error.message}`, { requestId: req.id });
 }
 
 export { log, logRequest, logError, getServerStartTime };

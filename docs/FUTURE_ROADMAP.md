@@ -31,6 +31,13 @@ This document contains a complete audit of the RoyaleMY codebase, identifying un
 - ✅ **Dropped unused indexes** — `idx_state_players_state` and `idx_logs_timestamp`
 - ✅ **React.memo** — Wrapped all heavy page components to reduce unnecessary re-renders
 
+#### Batch 3
+
+- ✅ **useMemo for expensive computations** — Memoized elixir distribution, rarity breakdown, battle log processing, tournament filtering
+- ✅ **SW cache size limits** — Prune image cache to 200, API cache to 100, shell/font caches to 50 entries
+- ✅ **Request correlation IDs** — Generate `crypto.randomUUID()` per request and include in logs
+- ✅ **NDJSON logging in production** — Structured JSON output when `NODE_ENV=production`
+
 ---
 
 ## 1. Incomplete Features
@@ -123,9 +130,7 @@ Features that naturally extend the existing product without requiring architectu
 
 ### 4.1 Performance
 
-| Issue | Location | Recommendation | Effort |
-|-------|----------|----------------|--------|
-| **Unbounded SW caches** | `client/public/sw.js` | Implement cache size limits and prune old entries. | Medium |
+_No remaining quick wins in this category._
 
 ### 4.2 Security
 
@@ -167,12 +172,7 @@ Features that naturally extend the existing product without requiring architectu
 
 _All quick wins from the roadmap audit have been implemented._
 
-Remaining small improvements that can be picked up alongside larger features:
-
-1. **Add `useMemo` for expensive computations** — Memoize deck parsing, archetype analysis, and sorting inside heavy components.
-2. **Cap service worker cache sizes** — Add size limits and pruning to `client/public/sw.js` image/font caches.
-3. **Add request correlation IDs** — Generate a request ID in Express middleware and include it in all logs.
-4. **Switch logger to NDJSON in production** — Structured JSON output for easier log aggregation.
+The remaining items are medium-term or long-term features. See below.
 
 ### Medium-Term Improvements
 

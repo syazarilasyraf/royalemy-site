@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getPlayer, getPlayerBattleLog } from '../services/api';
 import { getCardById } from '../utils/cardMapping';
@@ -266,13 +266,13 @@ function PlayerLookup() {
                   </div>
                 ) : (
                   <div className="battle-list">
-                    {battleLog.slice(0, 10).map((battle, index) => {
+                    {useMemo(() => battleLog.slice(0, 10).map((battle, index) => {
                       const isWin = battle.team[0]?.crowns > battle.opponent[0]?.crowns;
                       const opponent = battle.opponent[0];
                       const opponentDeck = opponent?.cards || [];
                       const opponentDeckIds = opponentDeck.map(c => c.id);
                       const opponentDeckLink = opponentDeckIds.length === 8 ? buildDeckLink(opponentDeckIds) : null;
-                      
+
                       return (
                         <div key={index} className={`battle-item ${isWin ? 'win' : 'loss'}`}>
                           <div className="battle-header">
@@ -335,7 +335,7 @@ function PlayerLookup() {
                           )}
                         </div>
                       );
-                    })}
+                    }), [battleLog])}
                   </div>
                 )}
               </div>

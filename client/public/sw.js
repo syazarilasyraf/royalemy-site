@@ -38,6 +38,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Helper: prune cache to max entries
+async function pruneCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length > maxEntries) {
+    const toDelete = keys.slice(0, keys.length - maxEntries);
+    await Promise.all(toDelete.map((key) => cache.delete(key)));
+  }
+}
+
 // Helper: determine cache strategy based on request
 function getStrategy(request) {
   const url = new URL(request.url);
@@ -104,7 +114,11 @@ self.addEventListener('fetch', (event) => {
           }
           const cacheName = request.destination === 'image' ? IMAGE_CACHE : (url.hostname.includes('fonts') ? FONT_CACHE : API_CACHE);
           const responseToCache = response.clone();
-          caches.open(cacheName).then((cache) => cache.put(request, responseToCache));
+          caches.open(cacheName).then((cache) => cache.put(request, responseToCache))
+            .then(() => {
+              const max = cacheName === IMAGE_CACHE ? 200 : cacheName === FONT_CACHE ? 50 : 100;
+              pruneCache(cacheName, max);
+            });
           return response;
         });
       })
@@ -118,7 +132,8 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (response && response.status === 200) {
             const responseToCache = response.clone();
-            caches.open(API_CACHE).then((cache) => cache.put(request, responseToCache));
+            caches.open(API_CACHE).then((cache) => cache.put(request, responseToCache))
+              .then(() => pruneCache(API_CACHE, 100));
           }
           return response;
         })
@@ -145,7 +160,8 @@ self.addEventListener('fetch', (event) => {
         const fetchPromise = fetch(request).then((response) => {
           if (response && response.status === 200) {
             const responseToCache = response.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put(request, responseToCache));
+            caches.open(SHELL_CACHE).then((cache) => cache.put(request, responseToCache))
+              .then(() => pruneCache(SHELL_CACHE, 50));
           }
           return response;
         }).catch(() => {
@@ -167,7 +183,8 @@ self.addEventListener('fetch', (event) => {
         const fetchPromise = fetch(request).then((response) => {
           if (response && response.status === 200) {
             const responseToCache = response.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put(request, responseToCache));
+            caches.open(SHELL_CACHE).then((cache) => cache.put(request, responseToCache))
+              .then(() => pruneCache(SHELL_CACHE, 50));
           }
           return response;
         }).catch(() => cached);

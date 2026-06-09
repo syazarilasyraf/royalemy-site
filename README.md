@@ -285,7 +285,7 @@ Engineering improvements to increase reliability, performance, and maintainabili
 - **Code Organization** — Extract CR proxy and meta-deck logic from `server/index.js` into service modules; consolidate duplicated middleware.
 - **Deployment** — Add Docker health check; use multi-stage builds to exclude dev dependencies; add pre-deploy verification in CI.
 
-**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components.
+**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production.
 
 See `docs/FUTURE_ROADMAP.md` for the complete audit and ranked recommendations.
 
