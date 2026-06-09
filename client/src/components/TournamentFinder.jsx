@@ -24,6 +24,8 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   exportTournamentRegistrations,
+  bulkTournaments,
+  promoteWaitlist,
 } from '../services/api';
 
 // ==================== CONSTANTS ====================
@@ -174,18 +176,22 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [winnerForm, setWinnerForm] = useState({ id: null, winner_1st: '', winner_2nd: '', winner_3rd: '' });
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getAdminTournaments(adminKey);
+      const data = await getAdminTournaments(adminKey, { search, status: statusFilter });
       setAllTournaments(data.tournaments || []);
+      setSelectedIds(new Set());
     } catch (err) {
       setMessage(err.message);
     } finally {
       setLoading(false);
     }
-  }, [adminKey]);
+  }, [adminKey, search, statusFilter]);
 
   useEffect(() => {
     fetchAdminData();
@@ -263,6 +269,41 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
     }
   };
 
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === allTournaments.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allTournaments.map(t => t.id)));
+    }
+  };
+
+  const handleBulk = async (action, extra = {}) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (action === 'delete' && !window.confirm(`Delete ${ids.length} tournament(s)?`)) return;
+    setLoading(true);
+    try {
+      const res = await bulkTournaments(action, ids, adminKey, extra);
+      const succeeded = res.results.filter(r => r.success).length;
+      setMessage(`${action} applied to ${succeeded}/${ids.length} tournaments`);
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message || 'Bulk operation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const { pending, active, completed, other } = useMemo(() => ({
     pending: allTournaments.filter((t) => t.status === 'pending'),
     active: allTournaments.filter((t) => PUBLIC_STATUSES.includes(t.status)),
@@ -279,20 +320,62 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
         </div>
       )}
 
+      <div className="admin-filters-bar">
+        <input
+          type="text"
+          className="input input-sm"
+          placeholder="Search tournaments..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && fetchAdminData()}
+        />
+        <select
+          className="input input-sm"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="registration_open">Registration Open</option>
+          <option value="registration_closed">Registration Closed</option>
+          <option value="live">Live</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button className="btn btn-secondary btn-sm" onClick={fetchAdminData} disabled={loading}>
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+        <span className="admin-meta">{allTournaments.length} tournament(s)</span>
+      </div>
+
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar">
+          <span>{selectedIds.size} selected</span>
+          <button className="btn btn-success btn-sm" onClick={() => handleBulk('approve')} disabled={loading}>Approve</button>
+          <button className="btn btn-danger btn-sm" onClick={() => handleBulk('reject')} disabled={loading}>Reject</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => handleBulk('delete')} disabled={loading}>Delete</button>
+        </div>
+      )}
+
       {pending.length > 0 && (
         <div className="tournament-admin-section">
           <h3>Pending Review ({pending.length})</h3>
           <div className="tournament-admin-list">
             {pending.map((t) => (
               <div key={t.id} className="tournament-admin-item">
-                <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
-                  <strong className="tournament-admin-name">{t.name}</strong>
-                  <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
-                    {STATUS_LABELS[t.status]}
-                  </span>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {t.host_name} — {formatDate(t.start_date)}
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} />
+                  <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                    <strong className="tournament-admin-name">{t.name}</strong>
+                    <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                      {STATUS_LABELS[t.status]}
+                    </span>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      {t.host_name} — {formatDate(t.start_date)}
+                    </p>
+                  </div>
                 </div>
                 <div className="tournament-admin-actions">
                   <button className="btn btn-success btn-sm" onClick={() => handleApprove(t.id)}>
@@ -317,14 +400,17 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
           <div className="tournament-admin-list">
             {active.map((t) => (
               <div key={t.id} className="tournament-admin-item">
-                <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
-                  <strong className="tournament-admin-name">{t.name}</strong>
-                  <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
-                    {STATUS_LABELS[t.status]}
-                  </span>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {t.host_name} — {formatDate(t.start_date)}
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} />
+                  <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                    <strong className="tournament-admin-name">{t.name}</strong>
+                    <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                      {STATUS_LABELS[t.status]}
+                    </span>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      {t.host_name} — {formatDate(t.start_date)}
+                    </p>
+                  </div>
                 </div>
                 <div className="tournament-admin-actions">
                   <select
@@ -356,15 +442,18 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
           <div className="tournament-admin-list">
             {completed.map((t) => (
               <div key={t.id} className="tournament-admin-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
-                    <strong className="tournament-admin-name">{t.name}</strong>
-                    <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
-                      {STATUS_LABELS[t.status]}
-                    </span>
-                    <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      Prize: {PRIZE_STATUS_LABELS[t.prize_status] || 'Pending'}
-                    </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} />
+                    <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                      <strong className="tournament-admin-name">{t.name}</strong>
+                      <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                        {STATUS_LABELS[t.status]}
+                      </span>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                        Prize: {PRIZE_STATUS_LABELS[t.prize_status] || 'Pending'}
+                      </p>
+                    </div>
                   </div>
                   <div className="tournament-admin-actions">
                     <select
@@ -412,14 +501,17 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
           <div className="tournament-admin-list">
             {other.map((t) => (
               <div key={t.id} className="tournament-admin-item">
-                <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
-                  <strong className="tournament-admin-name">{t.name}</strong>
-                  <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
-                    {STATUS_LABELS[t.status]}
-                  </span>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {t.host_name} — {formatDate(t.start_date)}
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} />
+                  <div className="tournament-admin-info" onClick={() => onViewDetails && onViewDetails(t)}>
+                    <strong className="tournament-admin-name">{t.name}</strong>
+                    <span className={`badge ${STATUS_BADGES[t.status]}`} style={{ marginLeft: '8px' }}>
+                      {STATUS_LABELS[t.status]}
+                    </span>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      {t.host_name} — {formatDate(t.start_date)}
+                    </p>
+                  </div>
                 </div>
                 <div className="tournament-admin-actions">
                   <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
@@ -482,11 +574,13 @@ function AdminPanel({ adminKey, onRefresh, onViewDetails }) {
 
 function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notifications = [] }) {
   const [registrations, setRegistrations] = useState([]);
+  const [waitlist, setWaitlist] = useState([]);
   const [showRegister, setShowRegister] = useState(false);
   const [registerForm, setRegisterForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
+  const [registerWaitlist, setRegisterWaitlist] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
 
   // Admin participant management state
@@ -516,8 +610,20 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
     try {
       const data = await getTournamentRegistrations(tournament.id);
       setRegistrations(data.registrations || []);
+      setWaitlist(data.waitlist || []);
     } catch (err) {
       console.error('Failed to load registrations:', err);
+    }
+  };
+
+  const handlePromoteWaitlist = async (regId) => {
+    if (!adminKey) return;
+    try {
+      await promoteWaitlist(tournament.id, regId, adminKey);
+      loadRegistrations();
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to promote waitlist:', err);
     }
   };
 
@@ -539,12 +645,18 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
 
     setRegisterLoading(true);
     try {
-      await registerForTournament(tournament.id, {
+      const res = await registerForTournament(tournament.id, {
         player_name: registerForm.player_name,
         player_tag: cleanTag,
         tiktok_username: registerForm.tiktok_username,
       });
-      setRegisterSuccess('Registration successful!');
+      if (res.waitlist) {
+        setRegisterSuccess(`Tournament is full. You are #${res.position} on the waitlist.`);
+        setRegisterWaitlist(true);
+      } else {
+        setRegisterSuccess('Registration successful!');
+        setRegisterWaitlist(false);
+      }
       setRegisterForm({ player_name: '', player_tag: '', tiktok_username: '' });
       loadRegistrations();
       onRefresh();
@@ -646,6 +758,7 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
 
   const canRegister = tournament.status === 'approved' || tournament.status === 'registration_open';
   const isFull = tournament.max_players && registrations.length >= tournament.max_players;
+  const waitlistCount = waitlist.length;
 
   return (
     <div className="tournament-details">
@@ -868,7 +981,7 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
         {registrations.length > 0 && (
           <div className="details-section participants-section">
             <div className="participants-header" onClick={() => setShowParticipants((p) => !p)}>
-              <h4>👥 Participants ({registrations.length})</h4>
+              <h4>👥 Participants ({registrations.length}{tournament.max_players ? ` / ${tournament.max_players}` : ''})</h4>
               <div className="participants-header-actions">
                 {adminKey && (
                   <button
@@ -958,6 +1071,35 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {waitlist.length > 0 && (
+          <div className="details-section participants-section">
+            <div className="participants-header">
+              <h4>⏳ Waitlist ({waitlist.length})</h4>
+            </div>
+            <div className="participants-list">
+              {waitlist.map((reg, idx) => (
+                <div key={reg.id} className="participant-row">
+                  <span className="participant-rank">#{idx + 1}</span>
+                  <span className="participant-name">{reg.player_name}</span>
+                  <span className="participant-tag">{reg.player_tag}</span>
+                  {reg.tiktok_username && <span className="participant-tiktok">🎵 @{reg.tiktok_username}</span>}
+                  {adminKey && (
+                    <div className="participant-actions">
+                      <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => handlePromoteWaitlist(reg.id)}
+                        title="Promote from waitlist"
+                      >
+                        ⬆️ Promote
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1826,12 +1968,96 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
 
 // ==================== MAIN COMPONENT ====================
 
+function CalendarView({ tournaments, onViewDetails, onRegister, adminKey }) {
+  // Group tournaments by month
+  const grouped = useMemo(() => {
+    const map = new Map();
+    for (const t of tournaments) {
+      const date = new Date(t.start_date);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(t);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [tournaments]);
+
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  return (
+    <div className="calendar-view">
+      {grouped.map(([key, items]) => {
+        const [year, month] = key.split('-');
+        return (
+          <div key={key} className="calendar-month">
+            <h4 className="calendar-month-title">{monthNames[parseInt(month) - 1]} {year}</h4>
+            <div className="calendar-grid">
+              {items.map((t) => {
+                const date = new Date(t.start_date);
+                const day = date.getDate();
+                const canRegister = t.status === 'approved' || t.status === 'registration_open';
+                const isFull = t.max_players && (t.participant_count ?? 0) >= t.max_players;
+                return (
+                  <div key={t.id} className="calendar-cell" onClick={() => onViewDetails(t)}>
+                    <div className="calendar-day">{day}</div>
+                    <div className="calendar-cell-content">
+                      <span className={`badge ${STATUS_BADGES[t.status]}`}>{STATUS_LABELS[t.status]}</span>
+                      <strong className="calendar-cell-name">{t.name}</strong>
+                      <span className="calendar-cell-host">{t.host_name}</span>
+                      {t.max_players && (
+                        <span className="calendar-cell-count">
+                          👥 {t.participant_count ?? 0} / {t.max_players} {isFull && '• Full'}
+                        </span>
+                      )}
+                    </div>
+                    {canRegister && !isFull && (
+                      <button
+                        className="btn btn-primary btn-sm calendar-register"
+                        onClick={(e) => { e.stopPropagation(); onRegister(t); }}
+                      >
+                        Register
+                      </button>
+                    )}
+                    {adminKey && (
+                      <span className="calendar-edit" onClick={(e) => { e.stopPropagation(); onViewDetails(t); }}>✏️</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+      {grouped.length === 0 && (
+        <div className="empty-state-box">
+          <div className="empty-icon">📅</div>
+          <h4>No upcoming tournaments</h4>
+        </div>
+      )}
+      <style>{`
+        .calendar-view { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+        .calendar-month-title { color: white; font-size: 1.1rem; margin-bottom: var(--spacing-md); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--spacing-md); }
+        .calendar-cell { background: var(--bg-secondary); border: 1px solid var(--bg-tertiary); border-radius: var(--radius-lg); padding: var(--spacing-md); cursor: pointer; transition: transform 0.15s; position: relative; }
+        .calendar-cell:hover { transform: translateY(-2px); }
+        .calendar-day { font-size: 1.5rem; font-weight: 700; color: var(--accent-primary); margin-bottom: var(--spacing-xs); }
+        .calendar-cell-content { display: flex; flex-direction: column; gap: 4px; }
+        .calendar-cell-name { color: white; font-size: 0.9375rem; }
+        .calendar-cell-host { color: var(--text-secondary); font-size: 0.8125rem; }
+        .calendar-cell-count { color: var(--text-muted); font-size: 0.8125rem; }
+        .calendar-register { margin-top: var(--spacing-sm); width: 100%; }
+        .calendar-edit { position: absolute; top: 8px; right: 8px; font-size: 0.875rem; opacity: 0.7; }
+      `}</style>
+    </div>
+  );
+}
+
 function TournamentFinder() {
   const [communityTournaments, setCommunityTournaments] = useState([]);
   const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [selectedTournamentFull, setSelectedTournamentFull] = useState(null);
   const [view, setView] = useState('list'); // list, detail, archive, halloffame
+  const [listViewMode, setListViewMode] = useState('list'); // list, calendar
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [searchParams] = useSearchParams();
   const adminKey = searchParams.get('admin');
@@ -2008,6 +2234,12 @@ function TournamentFinder() {
           <button className="hof-btn" onClick={() => setView('halloffame')}>
             🏆 Hall of Fame
           </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setListViewMode(listViewMode === 'list' ? 'calendar' : 'list')}
+          >
+            {listViewMode === 'list' ? '📅 Calendar' : '📋 List'}
+          </button>
         </div>
       </div>
 
@@ -2069,6 +2301,14 @@ function TournamentFinder() {
             <p>Loading tournaments...</p>
           </div>
         ) : upcomingTournaments.length > 0 ? (
+          listViewMode === 'calendar' ? (
+            <CalendarView
+              tournaments={upcomingTournaments}
+              onViewDetails={viewTournamentDetails}
+              onRegister={openRegisterModal}
+              adminKey={adminKey}
+            />
+          ) : (
           <div className="community-tournament-list">
             {upcomingTournaments.map((t) => {
               const canRegister = t.status === 'approved' || t.status === 'registration_open';
@@ -2124,6 +2364,7 @@ function TournamentFinder() {
               );
             })}
           </div>
+          )
         ) : (
           <div className="empty-state-box">
             <div className="empty-icon">🏆</div>

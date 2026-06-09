@@ -1,38 +1,22 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
-import { fetchFromCR } from '../index.js';
+import { fetchFromCR } from '../services/crApi.js';
 import { log } from '../logger.js';
+import { validateAdminKey, sanitizeTag, sanitizeHtml } from '../middleware/auth.js';
 
 const router = express.Router();
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
 
-function sanitizeTag(tag) {
-  if (!tag) return '';
-  return tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-}
-
-function sanitizeHtml(input) {
-  if (!input || typeof input !== 'string') return input;
-  return input.replace(/<[^>]*>/g, '').trim();
-}
-
-function getAdminKey() {
-  return process.env.ROADMAP_ADMIN_KEY;
-}
-
-function validateAdminKey(req, res, next) {
-  const key = req.query.key;
-  const adminKey = getAdminKey();
-  if (!adminKey) {
-    return res.status(500).json({ error: 'Admin key not configured on server' });
+function logAdminAction(req, action, resource, resourceId, details = null) {
+  try {
+    const ip = req.ip || req.connection.remoteAddress;
+    const detailStr = details ? JSON.stringify(details).slice(0, 500) : null;
+    statements.insertAdminAction.run(action, resource, String(resourceId), detailStr, ip);
+  } catch (e) {
+    log('warn', `Failed to log admin action: ${e.message}`);
   }
-  if (key !== adminKey) {
-    log('warn', `Invalid admin key attempt from ${req.ip}`);
-    return res.status(403).json({ error: 'Invalid admin key' });
-  }
-  next();
 }
 
 // Rate limit for submissions: 5 per hour per IP
@@ -55,11 +39,82 @@ const submitLimiter = rateLimit({
 
 router.get('/admin', validateAdminKey, (req, res) => {
   try {
-    const players = statements.getAllStatePlayers.all();
+    const { search, status } = req.query;
+    let players = statements.getAllStatePlayers.all();
+
+    if (status && VALID_STATUSES.includes(status)) {
+      players = players.filter(p => p.status === status);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      players = players.filter(p =>
+        (p.player_tag && p.player_tag.toLowerCase().includes(q)) ||
+        (p.state_name && p.state_name.toLowerCase().includes(q)) ||
+        (p.submitter_name && p.submitter_name.toLowerCase().includes(q))
+      );
+    }
+
     res.json({ players });
   } catch (error) {
     log('error', `Admin failed to fetch state players: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch state players' });
+  }
+});
+
+// Bulk operations
+router.post('/admin/bulk', validateAdminKey, (req, res) => {
+  try {
+    const { action, ids } = req.body;
+    if (!action || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'action and ids[] are required' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const player = statements.getStatePlayerById.get(id);
+        if (!player) {
+          results.push({ id, success: false, error: 'Not found' });
+          continue;
+        }
+
+        if (action === 'approve') {
+          if (player.status !== 'pending') {
+            results.push({ id, success: false, error: 'Not pending' });
+            continue;
+          }
+          statements.updateStatePlayerStatus.run('approved', id);
+          log('success', `State player ${id} approved (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'reject') {
+          statements.updateStatePlayerStatus.run('rejected', id);
+          log('success', `State player ${id} rejected (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'delete') {
+          statements.deleteStatePlayer.run(id);
+          log('success', `State player ${id} deleted (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'status' && req.body.status) {
+          if (!VALID_STATUSES.includes(req.body.status)) {
+            results.push({ id, success: false, error: 'Invalid status' });
+            continue;
+          }
+          statements.updateStatePlayerStatus.run(req.body.status, id);
+          log('success', `State player ${id} status updated to ${req.body.status} (bulk)`);
+          results.push({ id, success: true });
+        } else {
+          results.push({ id, success: false, error: 'Unknown action' });
+        }
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    logAdminAction(req, 'bulk', 'state_player', ids.join(','), { action, results });
+    res.json({ results });
+  } catch (error) {
+    log('error', `Bulk state player operation failed: ${error.message}`);
+    res.status(500).json({ error: 'Bulk operation failed' });
   }
 });
 
@@ -75,6 +130,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
     }
     statements.updateStatePlayerStatus.run('approved', id);
     log('success', `State player ${id} approved`);
+    logAdminAction(req, 'approve', 'state_player', id, { tag: player.player_tag, state: player.state_name });
     res.json({ message: 'Player approved', id });
   } catch (error) {
     log('error', `Failed to approve state player: ${error.message}`);
@@ -91,6 +147,7 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
     }
     statements.updateStatePlayerStatus.run('rejected', id);
     log('success', `State player ${id} rejected`);
+    logAdminAction(req, 'reject', 'state_player', id, { tag: player.player_tag, state: player.state_name });
     res.json({ message: 'Player rejected', id });
   } catch (error) {
     log('error', `Failed to reject state player: ${error.message}`);
@@ -111,6 +168,7 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
     }
     statements.updateStatePlayerStatus.run(status, id);
     log('success', `State player ${id} status updated to ${status}`);
+    logAdminAction(req, 'status', 'state_player', id, { tag: player.player_tag, state: player.state_name, status });
     res.json({ message: `Status updated to ${status}`, id });
   } catch (error) {
     log('error', `Failed to update state player status: ${error.message}`);
@@ -127,6 +185,7 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
     }
     statements.deleteStatePlayer.run(id);
     log('success', `State player ${id} deleted by admin`);
+    logAdminAction(req, 'delete', 'state_player', id, { tag: player.player_tag, state: player.state_name });
     res.json({ message: 'Player deleted', id });
   } catch (error) {
     log('error', `Failed to delete state player: ${error.message}`);

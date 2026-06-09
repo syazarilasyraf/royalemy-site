@@ -16,6 +16,7 @@ const More = lazy(() => import('./components/More'));
 const Roadmap = lazy(() => import('./components/Roadmap'));
 const AdminLogs = lazy(() => import('./components/AdminLogs'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const AdminAuditTrail = lazy(() => import('./components/AdminAuditTrail'));
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
@@ -91,7 +92,8 @@ function App() {
             <Route path="/more" element={<More />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/logs" element={<AdminLogs />} />
+            <Route path="/admin/logs" element={<AdminLogs />} />
+            <Route path="/admin/audit" element={<AdminAuditTrail />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

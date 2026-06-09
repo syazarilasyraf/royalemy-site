@@ -174,27 +174,47 @@ export function getUserVotes(voterId) {
   return fetchAPI(`/roadmap/votes/${encodeURIComponent(voterId)}`);
 }
 
+function adminHeaders(key) {
+  return { 'X-Admin-Key': key };
+}
+
 // Admin
-export function getAdminFeatures(key) {
-  return fetchAPI(`/roadmap/admin/features?key=${encodeURIComponent(key)}`);
+export function getAdminFeatures(key, params = {}) {
+  const query = new URLSearchParams();
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  return fetchAPI(`/roadmap/admin/features?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
 }
 
 export function approveFeature(id, key) {
-  return fetchAPI(`/roadmap/admin/features/${id}/approve?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/roadmap/admin/features/${id}/approve`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function rejectFeature(id, key) {
-  return fetchAPI(`/roadmap/admin/features/${id}/reject?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/roadmap/admin/features/${id}/reject`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function updateFeatureStatus(id, status, key) {
-  return fetchAPI(`/roadmap/admin/features/${id}/status?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/roadmap/admin/features/${id}/status`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify({ status })
+  });
+}
+
+export function bulkFeatures(action, ids, key, extra = {}) {
+  return fetchAPI(`/roadmap/admin/features/bulk`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ action, ids, ...extra })
   });
 }
 
@@ -274,66 +294,95 @@ export function markAllNotificationsRead(endpoint) {
 }
 
 // Admin Tournament APIs
-export function getAdminTournaments(key) {
-  return fetchAPI(`/community-tournaments/admin?key=${encodeURIComponent(key)}`);
+export function getAdminTournaments(key, params = {}) {
+  const query = new URLSearchParams();
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  return fetchAPI(`/community-tournaments/admin?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
 }
 
 export function approveTournament(id, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/community-tournaments/admin/${id}/approve`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function rejectTournament(id, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/community-tournaments/admin/${id}/reject`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function updateTournamentStatus(id, status, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-tournaments/admin/${id}/status`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify({ status })
   });
 }
 
 export function updateTournamentWinners(id, winners, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}/winners?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-tournaments/admin/${id}/winners`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify(winners)
   });
 }
 
 export function updateTournamentPrizeStatus(id, prizeStatus, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}/prize-status?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-tournaments/admin/${id}/prize-status`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify({ prize_status: prizeStatus })
   });
 }
 
 export function updateTournament(id, data, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}/edit?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-tournaments/admin/${id}/edit`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify(data)
   });
 }
 
 export function deleteTournament(id, key) {
-  return fetchAPI(`/community-tournaments/admin/${id}?key=${encodeURIComponent(key)}`, {
-    method: 'DELETE'
+  return fetchAPI(`/community-tournaments/admin/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
   });
 }
 
 export function deleteRegistration(tournamentId, regId, key) {
-  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/${regId}?key=${encodeURIComponent(key)}`, {
-    method: 'DELETE'
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/${regId}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
   });
 }
 
 export function updateRegistration(tournamentId, regId, data, key) {
-  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/${regId}/edit?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/${regId}/edit`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify(data)
+  });
+}
+
+export function promoteWaitlist(tournamentId, regId, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/waitlist/${regId}/promote`, {
+    method: 'POST',
+    headers: adminHeaders(key)
+  });
+}
+
+export function bulkTournaments(action, ids, key, extra = {}) {
+  return fetchAPI(`/community-tournaments/admin/bulk`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ action, ids, ...extra })
   });
 }
 
@@ -354,32 +403,49 @@ export function submitCommunityClan(data) {
   });
 }
 
-export function getAdminClans(key) {
-  return fetchAPI(`/community-clans/admin?key=${encodeURIComponent(key)}`);
+export function getAdminClans(key, params = {}) {
+  const query = new URLSearchParams();
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  return fetchAPI(`/community-clans/admin?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
 }
 
 export function approveClan(id, key) {
-  return fetchAPI(`/community-clans/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/community-clans/admin/${id}/approve`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function rejectClan(id, key) {
-  return fetchAPI(`/community-clans/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/community-clans/admin/${id}/reject`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function updateClanStatus(id, status, key) {
-  return fetchAPI(`/community-clans/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-clans/admin/${id}/status`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify({ status })
   });
 }
 
 export function deleteClan(id, key) {
-  return fetchAPI(`/community-clans/admin/${id}?key=${encodeURIComponent(key)}`, {
-    method: 'DELETE'
+  return fetchAPI(`/community-clans/admin/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
+  });
+}
+
+export function bulkClans(action, ids, key, extra = {}) {
+  return fetchAPI(`/community-clans/admin/bulk`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ action, ids, ...extra })
   });
 }
 
@@ -396,32 +462,49 @@ export function submitStatePlayer(data) {
   });
 }
 
-export function getAdminStatePlayers(key) {
-  return fetchAPI(`/state-players/admin?key=${encodeURIComponent(key)}`);
+export function getAdminStatePlayers(key, params = {}) {
+  const query = new URLSearchParams();
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  return fetchAPI(`/state-players/admin?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
 }
 
 export function approveStatePlayer(id, key) {
-  return fetchAPI(`/state-players/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/state-players/admin/${id}/approve`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function rejectStatePlayer(id, key) {
-  return fetchAPI(`/state-players/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/state-players/admin/${id}/reject`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function updateStatePlayerStatus(id, status, key) {
-  return fetchAPI(`/state-players/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/state-players/admin/${id}/status`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify({ status })
   });
 }
 
 export function deleteStatePlayer(id, key) {
-  return fetchAPI(`/state-players/admin/${id}?key=${encodeURIComponent(key)}`, {
-    method: 'DELETE'
+  return fetchAPI(`/state-players/admin/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
+  });
+}
+
+export function bulkStatePlayers(action, ids, key, extra = {}) {
+  return fetchAPI(`/state-players/admin/bulk`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ action, ids, ...extra })
   });
 }
 
@@ -448,32 +531,49 @@ export function voteCommunityDeck(id) {
   });
 }
 
-export function getAdminCommunityDecks(key) {
-  return fetchAPI(`/community-decks/admin?key=${encodeURIComponent(key)}`);
+export function getAdminCommunityDecks(key, params = {}) {
+  const query = new URLSearchParams();
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  return fetchAPI(`/community-decks/admin?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
 }
 
 export function approveCommunityDeck(id, key) {
-  return fetchAPI(`/community-decks/admin/${id}/approve?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/community-decks/admin/${id}/approve`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function rejectCommunityDeck(id, key) {
-  return fetchAPI(`/community-decks/admin/${id}/reject?key=${encodeURIComponent(key)}`, {
-    method: 'POST'
+  return fetchAPI(`/community-decks/admin/${id}/reject`, {
+    method: 'POST',
+    headers: adminHeaders(key)
   });
 }
 
 export function updateCommunityDeckStatus(id, status, key) {
-  return fetchAPI(`/community-decks/admin/${id}/status?key=${encodeURIComponent(key)}`, {
+  return fetchAPI(`/community-decks/admin/${id}/status`, {
     method: 'POST',
+    headers: adminHeaders(key),
     body: JSON.stringify({ status })
   });
 }
 
 export function deleteCommunityDeck(id, key) {
-  return fetchAPI(`/community-decks/admin/${id}?key=${encodeURIComponent(key)}`, {
-    method: 'DELETE'
+  return fetchAPI(`/community-decks/admin/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
+  });
+}
+
+export function bulkDecks(action, ids, key, extra = {}) {
+  return fetchAPI(`/community-decks/admin/bulk`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ action, ids, ...extra })
   });
 }
 
@@ -483,7 +583,9 @@ export function exportTournamentRegistrations(id, key) {
 }
 
 export function getAdminDashboard(key) {
-  return fetchAPI(`/admin/dashboard?key=${encodeURIComponent(key)}`);
+  return fetchAPI(`/admin/dashboard`, {
+    headers: adminHeaders(key)
+  });
 }
 
 // ==================== UTILS ====================
@@ -496,14 +598,33 @@ export function checkHealth() {
 
 export function getAdminLogs(key, params = {}) {
   const query = new URLSearchParams();
-  query.append('key', key);
   if (params.level) query.append('level', params.level);
   if (params.search) query.append('search', params.search);
   if (params.limit) query.append('limit', String(params.limit));
   if (params.offset) query.append('offset', String(params.offset));
-  return fetchAPI(`/admin/logs?${query.toString()}`);
+  return fetchAPI(`/admin/logs?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
 }
 
 export function getAdminServerInfo(key) {
-  return fetchAPI(`/admin/server-info?key=${encodeURIComponent(key)}`);
+  return fetchAPI(`/admin/server-info`, {
+    headers: adminHeaders(key)
+  });
+}
+
+export function getAdminAuditTrail(key, params = {}) {
+  const query = new URLSearchParams();
+  if (params.resource) query.append('resource', params.resource);
+  if (params.limit) query.append('limit', String(params.limit));
+  if (params.offset) query.append('offset', String(params.offset));
+  return fetchAPI(`/admin/audit-trail?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
+}
+
+export function getAdminRateLimits(key) {
+  return fetchAPI(`/admin/rate-limits`, {
+    headers: adminHeaders(key)
+  });
 }

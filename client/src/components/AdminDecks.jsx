@@ -6,6 +6,7 @@ import {
   rejectCommunityDeck,
   updateCommunityDeckStatus,
   deleteCommunityDeck,
+  bulkDecks,
 } from '../services/api';
 import DeckPreview from './DeckPreview';
 
@@ -43,20 +44,24 @@ export default function AdminDecks() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const fetchDecks = useCallback(async () => {
     if (!adminKey) return;
     setLoading(true);
     setError('');
     try {
-      const data = await getAdminCommunityDecks(adminKey);
+      const data = await getAdminCommunityDecks(adminKey, { search, status: statusFilter });
       setDecks(data.decks || []);
+      setSelectedIds(new Set());
     } catch (err) {
       setError(err.message || 'Failed to load decks');
     } finally {
       setLoading(false);
     }
-  }, [adminKey]);
+  }, [adminKey, search, statusFilter]);
 
   useEffect(() => {
     fetchDecks();
@@ -111,6 +116,40 @@ export default function AdminDecks() {
     }
   };
 
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredDecks.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredDecks.map(d => d.id)));
+    }
+  };
+
+  const handleBulk = async (action, extra = {}) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (action === 'delete' && !window.confirm(`Delete ${ids.length} deck(s)?`)) return;
+    setLoading(true);
+    try {
+      const res = await bulkDecks(action, ids, adminKey, extra);
+      const succeeded = res.results.filter(r => r.success).length;
+      showMessage(`${action} applied to ${succeeded}/${ids.length} decks`);
+      fetchDecks();
+    } catch (err) {
+      setError(err.message || 'Bulk operation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleKeyInput = (e) => {
     const val = e.target.value;
     if (val) {
@@ -148,16 +187,44 @@ export default function AdminDecks() {
           {message && <div className="alert alert-success">{message}</div>}
 
           <div className="admin-filters">
+            <input
+              type="text"
+              className="input input-sm"
+              placeholder="Search decks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchDecks()}
+            />
+            <select
+              className="input input-sm"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
             <button className="btn btn-secondary btn-sm" onClick={fetchDecks} disabled={loading}>
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>
             <span className="admin-decks-meta">{filteredDecks.length} deck(s)</span>
           </div>
 
+          {selectedIds.size > 0 && (
+            <div className="bulk-bar">
+              <span>{selectedIds.size} selected</span>
+              <button className="btn btn-success btn-sm" onClick={() => handleBulk('approve')} disabled={loading}>Approve</button>
+              <button className="btn btn-danger btn-sm" onClick={() => handleBulk('reject')} disabled={loading}>Reject</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => handleBulk('delete')} disabled={loading}>Delete</button>
+            </div>
+          )}
+
           <div className="admin-decks-table-wrapper">
             <table className="admin-decks-table">
               <thead>
                 <tr>
+                  <th><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === filteredDecks.length} onChange={toggleSelectAll} /></th>
                   <th>ID</th>
                   <th>Deck</th>
                   <th>Author</th>
@@ -183,6 +250,7 @@ export default function AdminDecks() {
                   const tags = Array.isArray(deck.tags) ? deck.tags : (typeof deck.tags === 'string' ? JSON.parse(deck.tags || '[]') : []);
                   return (
                   <tr key={deck.id}>
+                    <td><input type="checkbox" checked={selectedIds.has(deck.id)} onChange={() => toggleSelect(deck.id)} /></td>
                     <td className="admin-decks-id">#{deck.id}</td>
                     <td className="admin-decks-preview">
                       <DeckPreview cardIds={cardIds} compact />

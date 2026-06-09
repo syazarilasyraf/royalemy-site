@@ -9,7 +9,8 @@ import {
   getAdminFeatures,
   approveFeature,
   rejectFeature,
-  updateFeatureStatus
+  updateFeatureStatus,
+  bulkFeatures,
 } from '../services/api.js';
 
 const TABS = [
@@ -129,18 +130,22 @@ function AdminPanel({ adminKey, onRefresh }) {
   const [allFeatures, setAllFeatures] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getAdminFeatures(adminKey);
+      const data = await getAdminFeatures(adminKey, { search, status: statusFilter });
       setAllFeatures(data.features || []);
+      setSelectedIds(new Set());
     } catch (err) {
       setMessage(err.message);
     } finally {
       setLoading(false);
     }
-  }, [adminKey]);
+  }, [adminKey, search, statusFilter]);
 
   useEffect(() => {
     fetchAdminData();
@@ -179,6 +184,41 @@ function AdminPanel({ adminKey, onRefresh }) {
     }
   };
 
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === allFeatures.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allFeatures.map(f => f.id)));
+    }
+  };
+
+  const handleBulk = async (action, extra = {}) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (action === 'delete' && !window.confirm(`Delete ${ids.length} feature(s)?`)) return;
+    setLoading(true);
+    try {
+      const res = await bulkFeatures(action, ids, adminKey, extra);
+      const succeeded = res.results.filter(r => r.success).length;
+      setMessage(`${action} applied to ${succeeded}/${ids.length} features`);
+      fetchAdminData();
+      onRefresh();
+    } catch (err) {
+      setMessage(err.message || 'Bulk operation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const pending = allFeatures.filter((f) => f.status === 'pending');
 
   return (
@@ -190,17 +230,56 @@ function AdminPanel({ adminKey, onRefresh }) {
         </div>
       )}
 
+      <div className="admin-filters-bar">
+        <input
+          type="text"
+          className="input input-sm"
+          placeholder="Search features..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && fetchAdminData()}
+        />
+        <select
+          className="input input-sm"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="planned">Planned</option>
+          <option value="in_progress">In Progress</option>
+          <option value="released">Released</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <button className="btn btn-secondary btn-sm" onClick={fetchAdminData} disabled={loading}>
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+        <span className="admin-meta">{allFeatures.length} feature(s)</span>
+      </div>
+
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar">
+          <span>{selectedIds.size} selected</span>
+          <button className="btn btn-success btn-sm" onClick={() => handleBulk('approve')} disabled={loading}>Approve</button>
+          <button className="btn btn-danger btn-sm" onClick={() => handleBulk('reject')} disabled={loading}>Reject</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => handleBulk('delete')} disabled={loading}>Delete</button>
+        </div>
+      )}
+
       {pending.length > 0 && (
         <div className="roadmap-admin-section">
           <h3>Pending Review ({pending.length})</h3>
           <div className="roadmap-admin-list">
             {pending.map((f) => (
               <div key={f.id} className="roadmap-admin-item">
-                <div>
-                  <strong>{f.name}</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {f.description}
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={selectedIds.has(f.id)} onChange={() => toggleSelect(f.id)} />
+                  <div>
+                    <strong>{f.name}</strong>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      {f.description}
+                    </p>
+                  </div>
                 </div>
                 <div className="roadmap-admin-actions">
                   <button className="btn btn-success btn-sm" onClick={() => handleApprove(f.id)}>
@@ -221,11 +300,14 @@ function AdminPanel({ adminKey, onRefresh }) {
         <div className="roadmap-admin-list">
           {allFeatures.map((f) => (
             <div key={f.id} className="roadmap-admin-item">
-              <div>
-                <strong>{f.name}</strong>
-                <span className={`badge ${STATUS_BADGES[f.status] || 'badge-secondary'}`} style={{ marginLeft: '8px' }}>
-                  {STATUS_LABELS[f.status]}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" checked={selectedIds.has(f.id)} onChange={() => toggleSelect(f.id)} />
+                <div>
+                  <strong>{f.name}</strong>
+                  <span className={`badge ${STATUS_BADGES[f.status] || 'badge-secondary'}`} style={{ marginLeft: '8px' }}>
+                    {STATUS_LABELS[f.status]}
+                  </span>
+                </div>
               </div>
               <select
                 className="input"

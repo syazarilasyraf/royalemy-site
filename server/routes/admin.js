@@ -1,24 +1,18 @@
 import express from 'express';
 import { db, statements } from '../db.js';
 import { log, getServerStartTime } from '../logger.js';
+import { validateAdminKey } from '../middleware/auth.js';
 
 const router = express.Router();
 
-function getAdminKey() {
-  return process.env.ROADMAP_ADMIN_KEY;
-}
-
-function validateAdminKey(req, res, next) {
-  const key = req.query.key;
-  const adminKey = getAdminKey();
-  if (!adminKey) {
-    return res.status(500).json({ error: 'Admin key not configured on server' });
+function logAdminAction(req, action, resource, resourceId, details = null) {
+  try {
+    const ip = req.ip || req.connection.remoteAddress;
+    const detailStr = details ? JSON.stringify(details).slice(0, 500) : null;
+    statements.insertAdminAction.run(action, resource, String(resourceId), detailStr, ip);
+  } catch (e) {
+    log('warn', `Failed to log admin action: ${e.message}`);
   }
-  if (key !== adminKey) {
-    log('warn', `Invalid admin key attempt on ${req.path} from ${req.ip}`);
-    return res.status(403).json({ error: 'Invalid admin key' });
-  }
-  next();
 }
 
 // ==================== DASHBOARD ====================
@@ -99,6 +93,74 @@ router.get('/logs', validateAdminKey, (req, res) => {
 });
 
 // ==================== SERVER INFO ====================
+
+// ==================== AUDIT TRAIL ====================
+
+router.get('/audit-trail', validateAdminKey, (req, res) => {
+  try {
+    const { resource, limit = '100', offset = '0' } = req.query;
+    const lim = Math.min(parseInt(limit, 10) || 100, 1000);
+    const off = Math.max(parseInt(offset, 10) || 0, 0);
+
+    let actions;
+    let total;
+
+    if (resource) {
+      actions = statements.getAdminActionsByResource.all(resource, lim, off);
+      total = db.prepare(`SELECT COUNT(*) as count FROM admin_actions WHERE resource = ?`).get(resource);
+    } else {
+      actions = statements.getAdminActions.all(lim, off);
+      total = db.prepare(`SELECT COUNT(*) as count FROM admin_actions`).get();
+    }
+
+    res.json({
+      actions: actions || [],
+      total: total?.count || 0,
+      limit: lim,
+      offset: off
+    });
+  } catch (error) {
+    log('error', `Admin: Failed to fetch audit trail: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch audit trail' });
+  }
+});
+
+// ==================== RATE LIMIT MONITORING ====================
+
+router.get('/rate-limits', validateAdminKey, (req, res) => {
+  try {
+    // Check recent 429s from logs
+    const recent429s = db.prepare(`
+      SELECT message, timestamp FROM logs
+      WHERE level = 'warn' AND message LIKE '%Rate limit exceeded%'
+      ORDER BY id DESC LIMIT 100
+    `).all();
+
+    // Count per IP (extracted from message)
+    const ipCounts = {};
+    for (const row of recent429s) {
+      const match = row.message.match(/IP:\s*([\d.]+)/);
+      if (match) {
+        const ip = match[1];
+        ipCounts[ip] = (ipCounts[ip] || 0) + 1;
+      }
+    }
+
+    const topOffenders = Object.entries(ipCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([ip, count]) => ({ ip, count }));
+
+    res.json({
+      recent429Count: recent429s.length,
+      topOffenders,
+      recentHits: recent429s.slice(0, 20)
+    });
+  } catch (error) {
+    log('error', `Admin: Failed to fetch rate limit stats: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch rate limit stats' });
+  }
+});
 
 router.get('/server-info', validateAdminKey, (req, res) => {
   try {

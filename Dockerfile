@@ -1,38 +1,27 @@
-# Base image
-FROM node:20
-
-# Working directory
+# Build stage
+FROM node:20 AS builder
 WORKDIR /app
-
-# Copy root package files first (layer caching)
 COPY package*.json ./
-
-# Copy workspace package files so npm workspaces resolve correctly
 COPY client/package*.json ./client/
 COPY server/package*.json ./server/
-
-# Install all dependencies (workspaces)
-RUN npm install
-
-# Copy entire project
+RUN npm ci
 COPY . .
-
-# Write build version for health endpoint verification
 ARG BUILD_ID=unknown
 RUN echo "$BUILD_ID" > server/version.txt
-
-# Build frontend
 RUN npm run build
 
-# Create data directory for persistent database storage
+# Production stage
+FROM node:20
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+COPY server/package*.json ./server/
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/client/dist ./client/dist
 RUN mkdir -p /app/data
-
-# Declare data directory as a volume so database persists across deployments
-# Set DB_DIR env var to match your volume mount path (e.g., /data or /app/data)
 VOLUME /app/data
-
-# Expose backend port
 EXPOSE 3001
-
-# Start server
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3001/api/health || exit 1
 CMD ["node", "server/index.js"]

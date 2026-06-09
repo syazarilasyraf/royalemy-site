@@ -1,38 +1,22 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
-import { fetchFromCR } from '../index.js';
+import { fetchFromCR } from '../services/crApi.js';
 import { log } from '../logger.js';
+import { validateAdminKey, sanitizeTag, sanitizeHtml } from '../middleware/auth.js';
 
 const router = express.Router();
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
 
-function sanitizeTag(tag) {
-  if (!tag) return '';
-  return tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-}
-
-function sanitizeHtml(input) {
-  if (!input || typeof input !== 'string') return input;
-  return input.replace(/<[^>]*>/g, '').trim();
-}
-
-function getAdminKey() {
-  return process.env.ROADMAP_ADMIN_KEY;
-}
-
-function validateAdminKey(req, res, next) {
-  const key = req.query.key;
-  const adminKey = getAdminKey();
-  if (!adminKey) {
-    return res.status(500).json({ error: 'Admin key not configured on server' });
+function logAdminAction(req, action, resource, resourceId, details = null) {
+  try {
+    const ip = req.ip || req.connection.remoteAddress;
+    const detailStr = details ? JSON.stringify(details).slice(0, 500) : null;
+    statements.insertAdminAction.run(action, resource, String(resourceId), detailStr, ip);
+  } catch (e) {
+    log('warn', `Failed to log admin action: ${e.message}`);
   }
-  if (key !== adminKey) {
-    log('warn', `Invalid admin key attempt from ${req.ip}`);
-    return res.status(403).json({ error: 'Invalid admin key' });
-  }
-  next();
 }
 
 // Rate limit for clan submissions: 3 per hour per IP
@@ -55,11 +39,82 @@ const submitLimiter = rateLimit({
 
 router.get('/admin', validateAdminKey, (req, res) => {
   try {
-    const clans = statements.getAllClans.all();
+    const { search, status } = req.query;
+    let clans = statements.getAllClans.all();
+
+    if (status && VALID_STATUSES.includes(status)) {
+      clans = clans.filter(c => c.status === status);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      clans = clans.filter(c =>
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.clan_tag && c.clan_tag.toLowerCase().includes(q)) ||
+        (c.leader_name && c.leader_name.toLowerCase().includes(q))
+      );
+    }
+
     res.json({ clans });
   } catch (error) {
     log('error', `Admin failed to fetch clans: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch clans' });
+  }
+});
+
+// Bulk operations
+router.post('/admin/bulk', validateAdminKey, (req, res) => {
+  try {
+    const { action, ids } = req.body;
+    if (!action || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'action and ids[] are required' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const clan = statements.getClanById.get(id);
+        if (!clan) {
+          results.push({ id, success: false, error: 'Not found' });
+          continue;
+        }
+
+        if (action === 'approve') {
+          if (clan.status !== 'pending') {
+            results.push({ id, success: false, error: 'Not pending' });
+            continue;
+          }
+          statements.updateClanStatus.run('approved', id);
+          log('success', `Clan ${id} approved (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'reject') {
+          statements.updateClanStatus.run('rejected', id);
+          log('success', `Clan ${id} rejected (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'delete') {
+          statements.deleteClan.run(id);
+          log('success', `Clan ${id} deleted (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'status' && req.body.status) {
+          if (!VALID_STATUSES.includes(req.body.status)) {
+            results.push({ id, success: false, error: 'Invalid status' });
+            continue;
+          }
+          statements.updateClanStatus.run(req.body.status, id);
+          log('success', `Clan ${id} status updated to ${req.body.status} (bulk)`);
+          results.push({ id, success: true });
+        } else {
+          results.push({ id, success: false, error: 'Unknown action' });
+        }
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    logAdminAction(req, 'bulk', 'clan', ids.join(','), { action, results });
+    res.json({ results });
+  } catch (error) {
+    log('error', `Bulk clan operation failed: ${error.message}`);
+    res.status(500).json({ error: 'Bulk operation failed' });
   }
 });
 
@@ -75,6 +130,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
     }
     statements.updateClanStatus.run('approved', id);
     log('success', `Clan ${id} approved`);
+    logAdminAction(req, 'approve', 'clan', id, { name: clan.name });
     res.json({ message: 'Clan approved', id });
   } catch (error) {
     log('error', `Failed to approve clan: ${error.message}`);
@@ -91,6 +147,7 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
     }
     statements.updateClanStatus.run('rejected', id);
     log('success', `Clan ${id} rejected`);
+    logAdminAction(req, 'reject', 'clan', id, { name: clan.name });
     res.json({ message: 'Clan rejected', id });
   } catch (error) {
     log('error', `Failed to reject clan: ${error.message}`);
@@ -111,6 +168,7 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
     }
     statements.updateClanStatus.run(status, id);
     log('success', `Clan ${id} status updated to ${status}`);
+    logAdminAction(req, 'status', 'clan', id, { name: clan.name, status });
     res.json({ message: `Status updated to ${status}`, id });
   } catch (error) {
     log('error', `Failed to update clan status: ${error.message}`);
@@ -127,6 +185,7 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
     }
     statements.deleteClan.run(id);
     log('success', `Clan ${id} deleted by admin`);
+    logAdminAction(req, 'delete', 'clan', id, { name: clan.name });
     res.json({ message: 'Clan deleted', id });
   } catch (error) {
     log('error', `Failed to delete clan: ${error.message}`);

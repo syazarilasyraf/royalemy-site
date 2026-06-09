@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import path from 'path';
@@ -14,7 +13,10 @@ import statePlayerRouter from './routes/statePlayers.js';
 import communityDeckRouter from './routes/communityDecks.js';
 import adminRouter from './routes/admin.js';
 import { log, logRequest, logError } from './logger.js';
-import { db, getDbDiagnostics, dbPath, dbDir } from './db.js';
+import { db, getDbDiagnostics, dbPath, dbDir, statements } from './db.js';
+import { fetchFromCR, clearCache, deleteCacheKey, getCacheKey, CACHE_TTL, cache, MAX_CACHE_SIZE } from './services/crApi.js';
+import { fetchMetaDecks, META_DECK_CACHE_KEY } from './services/metaDecks.js';
+import { validateAdminKey, validateAdminKey as validateAdminKeyForEndpoint, sanitizeTag } from './middleware/auth.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -37,81 +39,6 @@ const CR_API_TOKEN = process.env.CR_API_TOKEN;
 // CR_API_TOKEN is validated lazily inside fetchFromCR so the server can start
 // and serve non-CR routes (community decks, roadmap, etc.) without it
 
-// ==================== CACHE SETUP ====================
-
-const cache = new Map();
-const MAX_CACHE_SIZE = 500;
-
-const CACHE_TTL = {
-  player: 60,           // 1 minute
-  battlelog: 300,       // 5 minutes
-  chests: 60,           // 1 minute
-  clanSearch: 300,      // 5 minutes
-  clanDetails: 300,     // 5 minutes
-  locations: 86400,     // 24 hours
-  rankings: 300,        // 5 minutes
-  cards: 86400,         // 24 hours
-};
-
-function getCacheKey(type, identifier) {
-  return `${type}:${identifier}`;
-}
-
-function getCache(key) {
-  const item = cache.get(key);
-  if (!item) return null;
-  
-  if (Date.now() > item.expiry) {
-    cache.delete(key);
-    return null;
-  }
-  
-  return item.data;
-}
-
-function setCache(key, data, ttlSeconds) {
-  // Evict expired entries if cache is near capacity
-  if (cache.size >= MAX_CACHE_SIZE) {
-    const now = Date.now();
-    for (const [k, item] of cache.entries()) {
-      if (now > item.expiry) {
-        cache.delete(k);
-      }
-      if (cache.size < MAX_CACHE_SIZE) break;
-    }
-    // If still full, evict oldest entry
-    if (cache.size >= MAX_CACHE_SIZE) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
-    }
-  }
-  cache.set(key, {
-    data,
-    expiry: Date.now() + (ttlSeconds * 1000)
-  });
-}
-
-function clearCache() {
-  const size = cache.size;
-  cache.clear();
-  log('info', `Cache cleared. Removed ${size} entries.`);
-}
-
-// Auto-clear expired entries every hour
-setInterval(() => {
-  const now = Date.now();
-  let cleared = 0;
-  for (const [key, item] of cache.entries()) {
-    if (now > item.expiry) {
-      cache.delete(key);
-      cleared++;
-    }
-  }
-  if (cleared > 0) {
-    log('info', `Auto-cleared ${cleared} expired cache entries`);
-  }
-}, 3600000);
-
 // ==================== MIDDLEWARE ====================
 
 // CORS - Allow configured frontend origin(s)
@@ -124,7 +51,7 @@ app.use(cors({
   origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key']
 }));
 
 app.use(express.json());
@@ -162,15 +89,8 @@ app.use('/api/', limiter);
 
 // ==================== VALIDATION ====================
 
-function sanitizeTag(tag) {
-  if (!tag) return '';
-  // Remove # if present, keep only alphanumeric, uppercase
-  return tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-}
-
 function validatePlayerTag(tag) {
   const cleanTag = sanitizeTag(tag);
-  // Player tags: 3-10 alphanumeric characters
   if (!cleanTag || cleanTag.length < 3 || cleanTag.length > 10) {
     return { valid: false, error: 'Player tag must be 3-10 alphanumeric characters (e.g., #2P0JJQ0Y)' };
   }
@@ -179,107 +99,25 @@ function validatePlayerTag(tag) {
 
 function validateClanTag(tag) {
   const cleanTag = sanitizeTag(tag);
-  // Clan tags: 3-10 alphanumeric characters
   if (!cleanTag || cleanTag.length < 3 || cleanTag.length > 10) {
     return { valid: false, error: 'Clan tag must be 3-10 alphanumeric characters (e.g., #2P2QU0)' };
   }
   return { valid: true, tag: cleanTag };
 }
 
-// ==================== CR API HELPERS ====================
+// ==================== AUDIT TRAIL ====================
 
-function requireCRToken() {
-  if (!CR_API_TOKEN) {
-    throw new Error('Clash Royale API token is not configured on the server');
-  }
-}
-
-async function fetchFromCR(endpoint, cacheKey, ttl) {
-  requireCRToken();
-
-  // Check cache first
-  const cached = getCache(cacheKey);
-  if (cached) {
-    log('success', `Cache hit: ${cacheKey}`);
-    return cached;
-  }
-
-  const url = `${CR_API_BASE}${endpoint}`;
-  
+function logAdminAction(req, action, resource, resourceId, details = null) {
   try {
-    log('info', `Fetching: ${endpoint}`);
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${CR_API_TOKEN}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      
-      // Map CR API errors to friendly messages
-      let message = 'Unknown error from Clash Royale API';
-      
-      switch (response.status) {
-        case 400:
-          message = 'Bad request. Please check your input.';
-          break;
-        case 403:
-          message = 'Access denied. Your IP may not be whitelisted.';
-          break;
-        case 404:
-          message = 'Not found. Please check the tag and try again.';
-          break;
-        case 410:
-          message = 'Gone. This data is no longer available from the Clash Royale API.';
-          break;
-        case 429:
-          message = 'Rate limited by Clash Royale API. Please try again in a moment.';
-          break;
-        case 500:
-          message = 'Clash Royale API server error. Please try again later.';
-          break;
-        case 503:
-          message = 'Clash Royale API is temporarily unavailable. Please try again later.';
-          break;
-        default:
-          message = errorData.reason || `API Error: ${response.status}`;
-      }
-      
-      throw new Error(message);
-    }
-
-    const data = await response.json();
-    
-    // Store in cache
-    setCache(cacheKey, data, ttl);
-    log('success', `Cached: ${cacheKey} (${ttl}s TTL)`);
-    
-    return data;
-  } catch (error) {
-    log('error', `Fetch error for ${endpoint}: ${error.message}`);
-    throw error;
+    const ip = req.ip || req.connection.remoteAddress;
+    const detailStr = details ? JSON.stringify(details).slice(0, 500) : null;
+    statements.insertAdminAction.run(action, resource, String(resourceId), detailStr, ip);
+  } catch (e) {
+    log('warn', `Failed to log admin action: ${e.message}`);
   }
 }
-
-export { fetchFromCR };
 
 // ==================== API ROUTES ====================
-
-// Admin: database diagnostics (protected by admin key)
-function validateAdminKeyForEndpoint(req, res, next) {
-  const key = req.query.key;
-  const adminKey = process.env.ROADMAP_ADMIN_KEY;
-  if (!adminKey) {
-    return res.status(500).json({ error: 'Admin key not configured on server' });
-  }
-  if (key !== adminKey) {
-    log('warn', `Invalid admin key attempt on ${req.path} from ${req.ip}`);
-    return res.status(403).json({ error: 'Invalid admin key' });
-  }
-  next();
-}
 
 app.get('/admin/db-info', validateAdminKeyForEndpoint, (req, res) => {
   try {
@@ -766,167 +604,7 @@ app.get('/api/cards', async (req, res) => {
 
 // ==================== META DECKS ====================
 
-import { FALLBACK_DECKS } from './data/fallbackDecks.js';
-import { TOP_PLAYER_TAGS, TOP_PLAYER_SAMPLE_SIZE } from './data/topPlayers.js';
-
-const META_DECK_CACHE_KEY = 'meta-decks';
-const META_DECK_CACHE_TTL = 1800; // 30 minutes
-
-async function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function generateFallbackMetaDecks() {
-  // Deterministic random based on current hour so decks "rotate" over time
-  const hourSeed = Math.floor(Date.now() / (1000 * 60 * 60));
-  const rand = (seed) => {
-    const x = Math.sin(seed + hourSeed) * 10000;
-    return x - Math.floor(x);
-  };
-
-  // Shuffle and pick 15-20 decks from fallback pool
-  const shuffled = [...FALLBACK_DECKS].sort(() => rand(Math.random()) - 0.5);
-  const selected = shuffled.slice(0, 20);
-
-  const decks = selected.map((deck, idx) => ({
-    id: deck.id,
-    cardIds: deck.cardIds,
-    usageCount: Math.floor(rand(idx + 1) * 80) + 10,
-    winRate: Number((48 + rand(idx + 100) * 18).toFixed(1))
-  })).sort((a, b) => b.usageCount - a.usageCount);
-
-  return {
-    decks,
-    lastUpdated: new Date().toISOString(),
-    playerSampleSize: 0,
-    totalBattlesAnalyzed: 0,
-    source: 'fallback',
-    fallbackReason: 'Top player battle logs temporarily unavailable. Showing curated meta decks.'
-  };
-}
-
-async function fetchLiveMetaDecks() {
-  log('info', `Fetching fresh meta decks from hardcoded top players...`);
-
-  // Shuffle top player tags so we rotate through different players each fetch
-  const shuffled = [...TOP_PLAYER_TAGS].sort(() => Math.random() - 0.5);
-  const selectedPlayers = shuffled.slice(0, TOP_PLAYER_SAMPLE_SIZE);
-
-  const allDecks = [];
-  let successfulFetches = 0;
-
-  // Fetch battle logs for each selected player with small delays to respect rate limits
-  for (let i = 0; i < selectedPlayers.length; i++) {
-    const player = selectedPlayers[i];
-    const cleanTag = player.tag;
-    const cacheKey = getCacheKey('battlelog', cleanTag);
-
-    try {
-      if (i > 0) await delay(200);
-
-      const battlelog = await fetchFromCR(`/players/%23${cleanTag}/battlelog`, cacheKey, CACHE_TTL.battlelog);
-
-      if (battlelog && Array.isArray(battlelog)) {
-        for (const battle of battlelog) {
-          if (battle.team && battle.team[0] && battle.team[0].cards) {
-            const cardIds = battle.team[0].cards.map(c => Number(c.id));
-            // Only include standard 8-card decks (skip 2v2/special modes with more cards)
-            if (cardIds.length === 8) {
-              const won = (battle.team[0].crowns || 0) > (battle.opponent?.[0]?.crowns || 0);
-              allDecks.push({ cardIds, won, playerName: player.name });
-            }
-          }
-        }
-        successfulFetches++;
-        log('success', `Fetched battle log for ${player.name} (#${cleanTag}): ${battlelog.length} battles`);
-      }
-    } catch (error) {
-      log('warn', `Failed to fetch battle log for ${player.name} (#${cleanTag}): ${error.message}`);
-    }
-  }
-
-  if (allDecks.length === 0) {
-    log('warn', `No battle data from any hardcoded top players. Using fallback decks.`);
-    throw new Error('No battle data available from top players');
-  }
-
-  log('info', `Extracted ${allDecks.length} decks from ${successfulFetches}/${selectedPlayers.length} players`);
-
-  // Aggregate decks — deduplicate identical decks and track which players use them
-  const deckMap = new Map();
-
-  for (const { cardIds, won, playerName } of allDecks) {
-    const sortedIds = [...cardIds].sort((a, b) => a - b);
-    const key = sortedIds.join(',');
-
-    if (!deckMap.has(key)) {
-      deckMap.set(key, { cardIds: sortedIds, count: 0, wins: 0, players: new Set() });
-    }
-
-    const deck = deckMap.get(key);
-    deck.count++;
-    if (won) deck.wins++;
-    deck.players.add(playerName);
-  }
-
-  // Convert to array, calculate stats, sort by usage
-  const decks = Array.from(deckMap.values())
-    .map(d => ({
-      id: `meta-${d.cardIds.join('-')}`,
-      cardIds: d.cardIds,
-      usageCount: d.count,
-      winRate: Number(((d.wins / d.count) * 100).toFixed(1)),
-      usedBy: Array.from(d.players).sort()
-    }))
-    .sort((a, b) => b.usageCount - a.usageCount)
-    .slice(0, 100);
-
-  return {
-    decks,
-    lastUpdated: new Date().toISOString(),
-    playerSampleSize: successfulFetches,
-    totalBattlesAnalyzed: allDecks.length,
-    source: 'live'
-  };
-}
-
-let metaDeckBuildPromise = null;
-
-async function fetchMetaDecks() {
-  // Check cache first
-  const cached = getCache(META_DECK_CACHE_KEY);
-  if (cached) {
-    log('success', `Meta deck cache hit`);
-    return cached;
-  }
-
-  // Cache stampede protection: if another request is already building,
-  // wait for it instead of spawning duplicate CR API calls
-  if (metaDeckBuildPromise) {
-    log('info', `Meta deck build already in progress, waiting...`);
-    return metaDeckBuildPromise;
-  }
-
-  // Start the build and keep the promise so concurrent requests can await it
-  metaDeckBuildPromise = (async () => {
-    let result;
-    try {
-      result = await fetchLiveMetaDecks();
-    } catch (error) {
-      log('warn', `Live meta decks failed: ${error.message}. Using fallback.`);
-      result = generateFallbackMetaDecks();
-    }
-    setCache(META_DECK_CACHE_KEY, result, META_DECK_CACHE_TTL);
-    log('success', `Cached ${result.decks.length} meta decks (source: ${result.source})`);
-    return result;
-  })();
-
-  try {
-    return await metaDeckBuildPromise;
-  } finally {
-    metaDeckBuildPromise = null;
-  }
-}
+import { clearCache as clearCrCache } from './services/crApi.js';
 
 app.get('/api/meta-decks', async (req, res) => {
   try {
@@ -935,7 +613,7 @@ app.get('/api/meta-decks', async (req, res) => {
     res.json(data);
   } catch (error) {
     logError(req, error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || 'Failed to fetch meta decks',
       hint: 'Meta decks are built from live top-player battle logs. Try again in a moment.'
     });
@@ -946,7 +624,7 @@ app.get('/api/meta-decks', async (req, res) => {
 app.post('/api/meta-decks/refresh', async (req, res) => {
   try {
     logRequest(req, 'ADMIN');
-    cache.delete(META_DECK_CACHE_KEY);
+    deleteCacheKey(META_DECK_CACHE_KEY);
     const data = await fetchMetaDecks();
     res.json({ ...data, refreshed: true });
   } catch (error) {
@@ -1054,7 +732,57 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
+// ==================== AUTOMATED TOURNAMENT REMINDERS ====================
+
+import webpush from 'web-push';
+
+function setupTournamentReminders() {
+  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+  const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+  const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@royalemy.gg';
+
+  if (!vapidPublicKey || !vapidPrivateKey) {
+    log('warn', 'Tournament reminders disabled: VAPID keys not configured');
+    return;
+  }
+
+  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+
+  // Check every 5 minutes for upcoming tournaments
+  setInterval(() => {
+    try {
+      const now = new Date();
+      const tournaments = db.prepare(`SELECT * FROM community_tournaments WHERE status IN ('approved', 'registration_open') AND start_date > datetime('now')`).all();
+
+      for (const tournament of tournaments) {
+        const startDate = new Date(tournament.start_date);
+        const diffMs = startDate - now;
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        if (diffHours <= 24 && diffHours > 23 && !tournament.notified_24h) {
+          // Send 24h reminder
+          db.prepare(`UPDATE community_tournaments SET notified_24h = 1 WHERE id = ?`).run(tournament.id);
+          statements.insertNotification.run(tournament.id, 'reminder_24h', `Tournament "${tournament.name}" starts in 24 hours!`);
+          log('info', `Sent 24h reminder for tournament ${tournament.id}`);
+        }
+
+        if (diffHours <= 1 && diffHours > 0 && !tournament.notified_1h) {
+          // Send 1h reminder
+          db.prepare(`UPDATE community_tournaments SET notified_1h = 1 WHERE id = ?`).run(tournament.id);
+          statements.insertNotification.run(tournament.id, 'reminder_1h', `Tournament "${tournament.name}" starts in 1 hour! Get ready!`);
+          log('info', `Sent 1h reminder for tournament ${tournament.id}`);
+        }
+      }
+    } catch (e) {
+      log('warn', `Tournament reminder check failed: ${e.message}`);
+    }
+  }, 5 * 60 * 1000);
+
+  log('info', 'Automated tournament reminders initialized (checking every 5 minutes)');
+}
+
+// ==================== START SERVER ====================
+
 const server = app.listen(PORT, () => {
   console.log('');
   console.log('🎮 ======================================');
@@ -1071,6 +799,8 @@ const server = app.listen(PORT, () => {
   console.log('');
   console.log('Ready for viewers! 👥');
   console.log('');
+
+  setupTournamentReminders();
 });
 
 // Graceful shutdown

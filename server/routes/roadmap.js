@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
+import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -21,26 +22,14 @@ const voteLimiter = rateLimit({
   }
 });
 
-function getAdminKey() {
-  return process.env.ROADMAP_ADMIN_KEY;
-}
-
-function sanitizeHtml(input) {
-  if (!input || typeof input !== 'string') return input;
-  return input.replace(/<[^>]*>/g, '').trim();
-}
-
-function validateAdminKey(req, res, next) {
-  const key = req.query.key;
-  const adminKey = getAdminKey();
-  if (!adminKey) {
-    return res.status(500).json({ error: 'Admin key not configured on server' });
+function logAdminAction(req, action, resource, resourceId, details = null) {
+  try {
+    const ip = req.ip || req.connection.remoteAddress;
+    const detailStr = details ? JSON.stringify(details).slice(0, 500) : null;
+    statements.insertAdminAction.run(action, resource, String(resourceId), detailStr, ip);
+  } catch (e) {
+    log('warn', `Failed to log admin action: ${e.message}`);
   }
-  if (key !== adminKey) {
-    log('warn', `Invalid admin key attempt from ${req.ip}`);
-    return res.status(403).json({ error: 'Invalid admin key' });
-  }
-  next();
 }
 
 // ==================== PUBLIC ROUTES ====================
@@ -166,11 +155,82 @@ router.get('/votes/:voterId', (req, res) => {
 // List all features (including pending)
 router.get('/admin/features', validateAdminKey, (req, res) => {
   try {
-    const features = statements.getAllFeatures.all();
+    const { search, status } = req.query;
+    let features = statements.getAllFeatures.all();
+
+    if (status) {
+      features = features.filter(f => f.status === status);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      features = features.filter(f =>
+        (f.name && f.name.toLowerCase().includes(q)) ||
+        (f.description && f.description.toLowerCase().includes(q))
+      );
+    }
+
     res.json({ features });
   } catch (error) {
     log('error', `Admin: Failed to fetch all features: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch features' });
+  }
+});
+
+// Bulk operations
+router.post('/admin/features/bulk', validateAdminKey, (req, res) => {
+  try {
+    const { action, ids } = req.body;
+    if (!action || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'action and ids[] are required' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const feature = statements.getFeatureById.get(id);
+        if (!feature) {
+          results.push({ id, success: false, error: 'Not found' });
+          continue;
+        }
+
+        if (action === 'approve') {
+          if (feature.status !== 'pending') {
+            results.push({ id, success: false, error: 'Not pending' });
+            continue;
+          }
+          statements.updateFeatureStatus.run('planned', id);
+          log('success', `Admin approved feature #${id} (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'reject') {
+          statements.updateFeatureStatus.run('rejected', id);
+          log('success', `Admin rejected feature #${id} (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'delete') {
+          statements.deleteFeature.run(id);
+          log('success', `Admin deleted feature #${id} (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'status' && req.body.status) {
+          const validStatuses = ['pending', 'planned', 'in_progress', 'released', 'rejected'];
+          if (!validStatuses.includes(req.body.status)) {
+            results.push({ id, success: false, error: 'Invalid status' });
+            continue;
+          }
+          statements.updateFeatureStatus.run(req.body.status, id);
+          log('success', `Admin changed feature #${id} status to ${req.body.status} (bulk)`);
+          results.push({ id, success: true });
+        } else {
+          results.push({ id, success: false, error: 'Unknown action' });
+        }
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    logAdminAction(req, 'bulk', 'feature', ids.join(','), { action, results });
+    res.json({ results });
+  } catch (error) {
+    log('error', `Bulk feature operation failed: ${error.message}`);
+    res.status(500).json({ error: 'Bulk operation failed' });
   }
 });
 
@@ -189,6 +249,7 @@ router.post('/admin/features/:id/approve', validateAdminKey, (req, res) => {
     statements.updateFeatureStatus.run('planned', id);
     const updated = statements.getFeatureById.get(id);
     log('success', `Admin approved feature #${id}: ${updated.name}`);
+    logAdminAction(req, 'approve', 'feature', id, { name: updated.name });
     res.json({ feature: updated });
   } catch (error) {
     log('error', `Admin: Failed to approve feature: ${error.message}`);
@@ -208,6 +269,7 @@ router.post('/admin/features/:id/reject', validateAdminKey, (req, res) => {
     statements.updateFeatureStatus.run('rejected', id);
     const updated = statements.getFeatureById.get(id);
     log('success', `Admin rejected feature #${id}: ${updated.name}`);
+    logAdminAction(req, 'reject', 'feature', id, { name: updated.name });
     res.json({ feature: updated });
   } catch (error) {
     log('error', `Admin: Failed to reject feature: ${error.message}`);
@@ -234,6 +296,7 @@ router.post('/admin/features/:id/status', validateAdminKey, (req, res) => {
     statements.updateFeatureStatus.run(status, id);
     const updated = statements.getFeatureById.get(id);
     log('success', `Admin changed feature #${id} status to ${status}`);
+    logAdminAction(req, 'status', 'feature', id, { name: updated.name, status });
     res.json({ feature: updated });
   } catch (error) {
     log('error', `Admin: Failed to update status: ${error.message}`);

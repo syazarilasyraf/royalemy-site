@@ -2,31 +2,20 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
+import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
 
 const router = express.Router();
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
 
-function sanitizeHtml(input) {
-  if (!input || typeof input !== 'string') return input;
-  return input.replace(/<[^>]*>/g, '').trim();
-}
-
-function getAdminKey() {
-  return process.env.ROADMAP_ADMIN_KEY;
-}
-
-function validateAdminKey(req, res, next) {
-  const key = req.query.key;
-  const adminKey = getAdminKey();
-  if (!adminKey) {
-    return res.status(500).json({ error: 'Admin key not configured on server' });
+function logAdminAction(req, action, resource, resourceId, details = null) {
+  try {
+    const ip = req.ip || req.connection.remoteAddress;
+    const detailStr = details ? JSON.stringify(details).slice(0, 500) : null;
+    statements.insertAdminAction.run(action, resource, String(resourceId), detailStr, ip);
+  } catch (e) {
+    log('warn', `Failed to log admin action: ${e.message}`);
   }
-  if (key !== adminKey) {
-    log('warn', `Invalid admin key attempt from ${req.ip}`);
-    return res.status(403).json({ error: 'Invalid admin key' });
-  }
-  next();
 }
 
 // Rate limit for deck submissions: 5 per hour per IP
@@ -65,7 +54,20 @@ const voteLimiter = rateLimit({
 
 router.get('/admin', validateAdminKey, (req, res) => {
   try {
-    const decks = statements.getAllCommunityDecks.all();
+    const { search, status } = req.query;
+    let decks = statements.getAllCommunityDecks.all();
+
+    if (status && VALID_STATUSES.includes(status)) {
+      decks = decks.filter(d => d.status === status);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      decks = decks.filter(d =>
+        (d.author_name && d.author_name.toLowerCase().includes(q)) ||
+        (d.description && d.description.toLowerCase().includes(q))
+      );
+    }
+
     const parsed = decks.map(d => ({
       ...d,
       cardIds: JSON.parse(d.card_ids || '[]'),
@@ -75,6 +77,63 @@ router.get('/admin', validateAdminKey, (req, res) => {
   } catch (error) {
     log('error', `Admin failed to fetch community decks: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch community decks' });
+  }
+});
+
+// Bulk operations
+router.post('/admin/bulk', validateAdminKey, (req, res) => {
+  try {
+    const { action, ids } = req.body;
+    if (!action || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'action and ids[] are required' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const deck = statements.getCommunityDeckById.get(id);
+        if (!deck) {
+          results.push({ id, success: false, error: 'Not found' });
+          continue;
+        }
+
+        if (action === 'approve') {
+          if (deck.status !== 'pending') {
+            results.push({ id, success: false, error: 'Not pending' });
+            continue;
+          }
+          statements.updateCommunityDeckStatus.run('approved', id);
+          log('success', `Community deck ${id} approved (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'reject') {
+          statements.updateCommunityDeckStatus.run('rejected', id);
+          log('success', `Community deck ${id} rejected (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'delete') {
+          statements.deleteCommunityDeck.run(id);
+          log('success', `Community deck ${id} deleted (bulk)`);
+          results.push({ id, success: true });
+        } else if (action === 'status' && req.body.status) {
+          if (!VALID_STATUSES.includes(req.body.status)) {
+            results.push({ id, success: false, error: 'Invalid status' });
+            continue;
+          }
+          statements.updateCommunityDeckStatus.run(req.body.status, id);
+          log('success', `Community deck ${id} status updated to ${req.body.status} (bulk)`);
+          results.push({ id, success: true });
+        } else {
+          results.push({ id, success: false, error: 'Unknown action' });
+        }
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    logAdminAction(req, 'bulk', 'deck', ids.join(','), { action, results });
+    res.json({ results });
+  } catch (error) {
+    log('error', `Bulk deck operation failed: ${error.message}`);
+    res.status(500).json({ error: 'Bulk operation failed' });
   }
 });
 
@@ -90,6 +149,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
     }
     statements.updateCommunityDeckStatus.run('approved', id);
     log('success', `Community deck ${id} approved`);
+    logAdminAction(req, 'approve', 'deck', id, { link: deck.deck_link });
     res.json({ message: 'Deck approved', id });
   } catch (error) {
     log('error', `Failed to approve community deck: ${error.message}`);
@@ -106,6 +166,7 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
     }
     statements.updateCommunityDeckStatus.run('rejected', id);
     log('success', `Community deck ${id} rejected`);
+    logAdminAction(req, 'reject', 'deck', id, { link: deck.deck_link });
     res.json({ message: 'Deck rejected', id });
   } catch (error) {
     log('error', `Failed to reject community deck: ${error.message}`);
@@ -126,6 +187,7 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
     }
     statements.updateCommunityDeckStatus.run(status, id);
     log('success', `Community deck ${id} status updated to ${status}`);
+    logAdminAction(req, 'status', 'deck', id, { link: deck.deck_link, status });
     res.json({ message: `Status updated to ${status}`, id });
   } catch (error) {
     log('error', `Failed to update community deck status: ${error.message}`);
@@ -142,6 +204,7 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
     }
     statements.deleteCommunityDeck.run(id);
     log('success', `Community deck ${id} deleted by admin`);
+    logAdminAction(req, 'delete', 'deck', id, { link: deck.deck_link });
     res.json({ message: 'Deck deleted', id });
   } catch (error) {
     log('error', `Failed to delete community deck: ${error.message}`);

@@ -1,6 +1,6 @@
 import { useState, useEffect, memo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getAdminDashboard } from '../services/api';
+import { getAdminDashboard, getAdminRateLimits } from '../services/api';
 
 const MODULES = [
   { key: 'tournaments', label: 'Tournaments', path: '/tournaments', color: '#4CAF50' },
@@ -16,10 +16,12 @@ function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [rateLimitStats, setRateLimitStats] = useState(null);
 
   useEffect(() => {
     if (!adminKey) return;
     fetchStats();
+    fetchRateLimits();
   }, [adminKey]);
 
   const fetchStats = async () => {
@@ -32,6 +34,15 @@ function AdminDashboard() {
       setError('Failed to load dashboard stats');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRateLimits = async () => {
+    try {
+      const data = await getAdminRateLimits(adminKey);
+      setRateLimitStats(data);
+    } catch (err) {
+      // non-critical
     }
   };
 
@@ -58,6 +69,9 @@ function AdminDashboard() {
           <Link to={`/admin/logs?admin=${encodeURIComponent(adminKey)}`} className="action-link">
             View Logs
           </Link>
+          <Link to={`/admin/audit?admin=${encodeURIComponent(adminKey)}`} className="action-link">
+            Audit Trail
+          </Link>
         </div>
       </div>
 
@@ -72,6 +86,16 @@ function AdminDashboard() {
               <span className="stat-label">Total Pending</span>
             </div>
           </div>
+
+          {rateLimitStats && rateLimitStats.recent429Count > 0 && (
+            <div className="rate-limit-alert">
+              <strong>⚠️ Rate Limits</strong>
+              <span>{rateLimitStats.recent429Count} recent 429 hits</span>
+              {rateLimitStats.topOffenders.length > 0 && (
+                <span>Top offender: {rateLimitStats.topOffenders[0].ip} ({rateLimitStats.topOffenders[0].count}x)</span>
+              )}
+            </div>
+          )}
 
           <div className="modules-grid">
             {MODULES.map((mod) => {
@@ -238,6 +262,19 @@ function AdminDashboard() {
         .admin-gate h2 {
           color: white;
           margin-bottom: var(--spacing-md);
+        }
+        .rate-limit-alert {
+          background: rgba(245, 158, 11, 0.15);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          border-radius: 12px;
+          padding: var(--spacing-md);
+          margin-bottom: var(--spacing-lg);
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          flex-wrap: wrap;
+          color: #f59e0b;
+          font-size: 0.875rem;
         }
       `}</style>
     </div>

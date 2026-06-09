@@ -150,6 +150,8 @@ db.exec(`
     player_name TEXT NOT NULL,
     player_tag TEXT NOT NULL,
     tiktok_username TEXT,
+    status TEXT NOT NULL DEFAULT 'registered',
+    waitlist_position INTEGER,
     registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(tournament_id, player_tag)
   );
@@ -258,6 +260,17 @@ db.exec(`DROP INDEX IF EXISTS idx_logs_timestamp`);
 function columnExists(table, column) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all();
   return cols.some(c => c.name === column);
+}
+
+const registrationCols = [
+  { name: 'status', type: 'TEXT DEFAULT \'registered\'' },
+  { name: 'waitlist_position', type: 'INTEGER' }
+];
+
+for (const col of registrationCols) {
+  if (!columnExists('tournament_registrations', col.name)) {
+    db.exec(`ALTER TABLE tournament_registrations ADD COLUMN ${col.name} ${col.type}`);
+  }
 }
 
 const tournamentCols = [
@@ -390,13 +403,25 @@ const statements = {
 
   // Tournament Registrations
   insertRegistration: db.prepare(
-    `INSERT INTO tournament_registrations (tournament_id, player_name, player_tag, tiktok_username) VALUES (?, ?, ?, ?)`
+    `INSERT INTO tournament_registrations (tournament_id, player_name, player_tag, tiktok_username, status, waitlist_position) VALUES (?, ?, ?, ?, ?, ?)`
   ),
   getRegistrationsByTournament: db.prepare(
+    `SELECT * FROM tournament_registrations WHERE tournament_id = ? AND status = 'registered' ORDER BY registered_at ASC`
+  ),
+  getWaitlistByTournament: db.prepare(
+    `SELECT * FROM tournament_registrations WHERE tournament_id = ? AND status = 'waitlisted' ORDER BY waitlist_position ASC, registered_at ASC`
+  ),
+  getAllRegistrationsByTournament: db.prepare(
     `SELECT * FROM tournament_registrations WHERE tournament_id = ? ORDER BY registered_at ASC`
   ),
   getRegistrationCount: db.prepare(
-    `SELECT COUNT(*) as count FROM tournament_registrations WHERE tournament_id = ?`
+    `SELECT COUNT(*) as count FROM tournament_registrations WHERE tournament_id = ? AND status = 'registered'`
+  ),
+  getWaitlistCount: db.prepare(
+    `SELECT COUNT(*) as count FROM tournament_registrations WHERE tournament_id = ? AND status = 'waitlisted'`
+  ),
+  getMaxWaitlistPosition: db.prepare(
+    `SELECT MAX(waitlist_position) as max FROM tournament_registrations WHERE tournament_id = ? AND status = 'waitlisted'`
   ),
   getRegistrationByPlayer: db.prepare(
     `SELECT * FROM tournament_registrations WHERE tournament_id = ? AND player_tag = ?`
@@ -406,6 +431,9 @@ const statements = {
   ),
   updateRegistration: db.prepare(
     `UPDATE tournament_registrations SET player_name = ?, player_tag = ?, tiktok_username = ? WHERE id = ?`
+  ),
+  updateRegistrationStatus: db.prepare(
+    `UPDATE tournament_registrations SET status = ?, waitlist_position = ? WHERE id = ?`
   ),
 
   // Tournament Notifications
@@ -455,6 +483,17 @@ const statements = {
   ),
   deleteClan: db.prepare(
     `DELETE FROM community_clans WHERE id = ?`
+  ),
+
+  // Admin Actions
+  insertAdminAction: db.prepare(
+    `INSERT INTO admin_actions (action, resource, resource_id, details, ip_address) VALUES (?, ?, ?, ?, ?)`
+  ),
+  getAdminActions: db.prepare(
+    `SELECT * FROM admin_actions ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ),
+  getAdminActionsByResource: db.prepare(
+    `SELECT * FROM admin_actions WHERE resource = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
   ),
 
   // Logs

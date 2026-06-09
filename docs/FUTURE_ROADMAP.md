@@ -38,6 +38,19 @@ This document contains a complete audit of the RoyaleMY codebase, identifying un
 - ✅ **Request correlation IDs** — Generate `crypto.randomUUID()` per request and include in logs
 - ✅ **NDJSON logging in production** — Structured JSON output when `NODE_ENV=production`
 
+#### Batch 4 — Medium-Term Improvements (2025-06-09)
+
+- ✅ **Admin key in headers** — Moved `?key=` query param to `X-Admin-Key` header across all admin routes and frontend API client
+- ✅ **Bulk admin operations** — Added `/admin/bulk` endpoints for tournaments, clans, decks, state players, and features
+- ✅ **Admin search and filter** — Status filters and text search in every admin panel
+- ✅ **Tournament waitlist** — Added `waitlist_position` to registrations; auto-waitlist when full; admin promote from waitlist
+- ✅ **Admin audit trail** — New `admin_actions` table with resource, action, details, IP, and timestamp
+- ✅ **Automated tournament reminders** — Background job checks every 5 minutes for 24h and 1h reminders
+- ✅ **Refactored monolithic `server/index.js`** — Extracted CR API proxy to `services/crApi.js` and meta decks to `services/metaDecks.js`
+- ✅ **Tournament calendar view** — Toggle between list and calendar grid in tournament discovery
+- ✅ **Docker multi-stage build + health checks** — Slimmer production image with `HEALTHCHECK` instruction
+- ✅ **CI pre-deploy verification** — Added install and build steps before Docker push; removed `--no-cache`
+
 ---
 
 ## 1. Incomplete Features
@@ -176,16 +189,16 @@ The remaining items are medium-term or long-term features. See below.
 
 ### Medium-Term Improvements
 
-1. **Move admin key to headers** — Major security improvement but requires updating every admin route and the frontend API client.
-2. **Build State Players frontend** — Completes an existing half-built feature.
-3. **Add bulk admin operations** — Bulk approve/reject/delete across all content types.
-4. **Add admin search and filter** — Status filters and text search in every admin panel.
-5. **Implement tournament waitlist** — Improves registration UX significantly.
-6. **Add admin audit trail** — `admin_actions` table for accountability.
-7. **Implement automated tournament reminders** — Uses existing schema columns.
-8. **Add request correlation IDs + structured logging** — Improves observability.
-9. **Refactor monolithic `server/index.js`** — Extract services and reduce file size.
-10. **Add tournament calendar view** — Improves tournament discovery.
+1. ✅ **Move admin key to headers** — Major security improvement but requires updating every admin route and the frontend API client.
+2. ~~Build State Players frontend~~ — Skipped per request.
+3. ✅ **Add bulk admin operations** — Bulk approve/reject/delete across all content types.
+4. ✅ **Add admin search and filter** — Status filters and text search in every admin panel.
+5. ✅ **Implement tournament waitlist** — Improves registration UX significantly.
+6. ✅ **Add admin audit trail** — `admin_actions` table for accountability.
+7. ✅ **Implement automated tournament reminders** — Uses existing schema columns.
+8. ✅ **Add request correlation IDs + structured logging** — Improves observability.
+9. ✅ **Refactor monolithic `server/index.js`** — Extract services and reduce file size.
+10. ✅ **Add tournament calendar view** — Improves tournament discovery.
 
 ### Long-Term Vision
 
