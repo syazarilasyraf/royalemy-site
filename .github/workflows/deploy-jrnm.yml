@@ -25,20 +25,46 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Set up Docker tags
+        id: vars
+        run: |
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+          echo "sha_tag=${SHA_TAG}" >> $GITHUB_OUTPUT
+          echo "registry=jdr-q96jo84sc5.justrunmy.app" >> $GITHUB_OUTPUT
+          echo "repo=q96jo84sc5" >> $GITHUB_OUTPUT
+
       - name: Login to registry
         run: |
           echo "${{ secrets.JRNM_DOCKER_PASSWORD }}" | docker login \
             -u "${{ secrets.JRNM_DOCKER_USERNAME }}" \
             --password-stdin \
-            jdr-q96jo84sc5.justrunmy.app
+            ${{ steps.vars.outputs.registry }}
 
       - name: Build and push image
         run: |
-          IMAGE="jdr-q96jo84sc5.justrunmy.app/q96jo84sc5:v16"
+          REGISTRY="${{ steps.vars.outputs.registry }}"
+          REPO="${{ steps.vars.outputs.repo }}"
+          SHA_TAG="${{ steps.vars.outputs.sha_tag }}"
+          UNIQUE_IMAGE="${REGISTRY}/${REPO}:${SHA_TAG}"
+          LATEST_IMAGE="${REGISTRY}/${REPO}:latest"
 
           docker build \
             --pull \
             --build-arg BUILD_ID=${GITHUB_SHA} \
-            -t $IMAGE .
+            -t ${UNIQUE_IMAGE} \
+            -t ${LATEST_IMAGE} \
+            .
 
-          docker push $IMAGE
+          docker push ${UNIQUE_IMAGE}
+          docker push ${LATEST_IMAGE}
+
+          echo ""
+          echo "=================================="
+          echo "Built and pushed images:"
+          echo "  ${UNIQUE_IMAGE}"
+          echo "  ${LATEST_IMAGE}"
+          echo "=================================="
+
+      - name: Output deploy image
+        run: |
+          echo "::notice::Deploy this image in JustRunMyApp: ${{ steps.vars.outputs.registry }}/${{ steps.vars.outputs.repo }}:${{ steps.vars.outputs.sha_tag }}"
