@@ -42,35 +42,19 @@ const CR_API_TOKEN = process.env.CR_API_TOKEN;
 // ==================== MIDDLEWARE ====================
 
 // CORS - Allow configured frontend origin(s)
-function normalizeOrigin(origin) {
-  if (!origin) return '';
-  return origin.trim().replace(/\/$/, '').toLowerCase();
-}
-
-const allowedOrigins = new Set([normalizeOrigin(FRONTEND_URL)]);
-if (process.env.CORS_ORIGINS) {
-  process.env.CORS_ORIGINS.split(',').forEach(o => allowedOrigins.add(normalizeOrigin(o.trim())));
-}
-
+// Note: we mirror the request origin so admin requests work from any valid frontend
+// (Netlify production, deploy previews, mobile browsers, etc.). The actual security
+// is enforced by the admin key, not the origin.
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (e.g., mobile apps, curl, server-to-server)
-    if (!origin) return callback(null, true);
-    const normalized = normalizeOrigin(origin);
-    if (allowedOrigins.has(normalized)) {
-      return callback(null, true);
-    }
-    // Also allow any Netlify origin as a fallback for deploy previews / branch previews
-    if (normalized.endsWith('.netlify.app')) {
-      return callback(null, true);
-    }
-    log('warn', `CORS rejected origin: ${origin} (allowed: ${[...allowedOrigins].join(', ')})`);
-    callback(null, false);
+    callback(null, origin || true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'x-admin-key'],
-  optionsSuccessStatus: 204
+  exposedHeaders: ['X-Request-Id'],
+  optionsSuccessStatus: 204,
+  maxAge: 0
 }));
 
 app.use(express.json());
@@ -815,11 +799,7 @@ const server = app.listen(PORT, () => {
   console.log(`💾 Cache: Enabled with TTL (max ${MAX_CACHE_SIZE} entries)`);
   console.log('');
   console.log(`Frontend should point to: ${FRONTEND_URL}`);
-  console.log(`CORS allowed origins: ${[...allowedOrigins].join(', ')}`);
-  if (!process.env.FRONTEND_URL) {
-    console.log('');
-    console.log('⚠️  WARNING: FRONTEND_URL env var is not set. CORS may reject production origin.');
-  }
+  console.log(`CORS mode: mirror request origin (maxAge: 0)`);
   console.log('');
   console.log('Ready for viewers! 👥');
   console.log('');
