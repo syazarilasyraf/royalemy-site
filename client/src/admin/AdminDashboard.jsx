@@ -3,11 +3,11 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getAdminDashboard, getAdminRateLimits } from '../services/api';
 
 const MODULES = [
-  { key: 'tournaments', label: 'Tournaments', path: '/tournaments', color: '#4CAF50' },
-  { key: 'clans', label: 'Clans', path: '/clan', color: '#2196F3' },
-  { key: 'decks', label: 'Decks', path: '/communitydecks', color: '#9C27B0' },
+  { key: 'tournaments', label: 'Tournaments', path: '/admin/tournaments', color: '#4CAF50' },
+  { key: 'clans', label: 'Clans', path: '/admin/clans', color: '#2196F3' },
+  { key: 'decks', label: 'Decks', path: '/admin/decks', color: '#9C27B0' },
   { key: 'statePlayers', label: 'State Players', path: '/rankings', color: '#FF9800' },
-  { key: 'features', label: 'Features', path: '/roadmap', color: '#00BCD4' },
+  { key: 'features', label: 'Features', path: '/admin/roadmap', color: '#00BCD4' },
 ];
 
 function AdminDashboard() {
@@ -45,17 +45,6 @@ function AdminDashboard() {
       // non-critical
     }
   };
-
-  if (!adminKey) {
-    return (
-      <div className="admin-dashboard">
-        <div className="admin-gate">
-          <h2>🔐 Admin Dashboard</h2>
-          <p>Access restricted. Please provide an admin key.</p>
-        </div>
-      </div>
-    );
-  }
 
   const totalPending = stats
     ? MODULES.reduce((sum, m) => sum + (stats.pending[m.key] || 0), 0)
@@ -252,15 +241,6 @@ function AdminDashboard() {
           color: #f44336;
           padding: var(--spacing-md);
           border-radius: 12px;
-          margin-bottom: var(--spacing-md);
-        }
-        .admin-gate {
-          text-align: center;
-          padding: var(--spacing-xl);
-          color: var(--text-muted);
-        }
-        .admin-gate h2 {
-          color: white;
           margin-bottom: var(--spacing-md);
         }
         .rate-limit-alert {

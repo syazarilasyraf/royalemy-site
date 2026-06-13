@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Home from './components/Home';
 import InstallButton from './components/InstallButton';
 import InstallBanner from './components/InstallBanner';
+import AdminLayout from './admin/AdminLayout';
 
 const DeckStats = lazy(() => import('./components/DeckStats'));
 const PlayerLookup = lazy(() => import('./components/PlayerLookup'));
@@ -14,9 +15,13 @@ const CommunityDeckFeed = lazy(() => import('./components/CommunityDeckFeed'));
 const MYRankings = lazy(() => import('./components/MYRankings'));
 const More = lazy(() => import('./components/More'));
 const Roadmap = lazy(() => import('./components/Roadmap'));
-const AdminLogs = lazy(() => import('./components/AdminLogs'));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
-const AdminAuditTrail = lazy(() => import('./components/AdminAuditTrail'));
+const AdminDashboard = lazy(() => import('./admin/AdminDashboard'));
+const AdminLogs = lazy(() => import('./admin/AdminLogs'));
+const AdminAuditTrail = lazy(() => import('./admin/AdminAuditTrail'));
+const AdminTournaments = lazy(() => import('./admin/AdminTournaments'));
+const AdminClans = lazy(() => import('./admin/AdminClans'));
+const AdminDecks = lazy(() => import('./admin/AdminDecks'));
+const AdminRoadmap = lazy(() => import('./admin/AdminRoadmap'));
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
@@ -91,9 +96,15 @@ function App() {
             <Route path="/rankings" element={<MYRankings />} />
             <Route path="/more" element={<More />} />
             <Route path="/roadmap" element={<Roadmap />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/logs" element={<AdminLogs />} />
-            <Route path="/admin/audit" element={<AdminAuditTrail />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="tournaments" element={<AdminTournaments />} />
+              <Route path="clans" element={<AdminClans />} />
+              <Route path="decks" element={<AdminDecks />} />
+              <Route path="roadmap" element={<AdminRoadmap />} />
+              <Route path="logs" element={<AdminLogs />} />
+              <Route path="audit" element={<AdminAuditTrail />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

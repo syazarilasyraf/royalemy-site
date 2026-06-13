@@ -59,17 +59,6 @@ function AdminAuditTrail() {
     fetchActions();
   }, [fetchActions]);
 
-  if (!adminKey) {
-    return (
-      <div className="admin-audit-page">
-        <div className="admin-gate">
-          <h2>🔐 Audit Trail</h2>
-          <p>Access restricted. Please provide an admin key.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="admin-audit-page">
       <div className="admin-audit-header">
@@ -261,15 +250,6 @@ function AdminAuditTrail() {
           justify-content: center;
           gap: var(--spacing-md);
           margin-top: var(--spacing-lg);
-        }
-        .admin-gate {
-          text-align: center;
-          padding: var(--spacing-xl);
-          color: var(--text-muted);
-        }
-        .admin-gate h2 {
-          color: white;
-          margin-bottom: var(--spacing-md);
         }
         .badge-approve { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
         .badge-reject { background: rgba(239, 68, 68, 0.15); color: #ef4444; }

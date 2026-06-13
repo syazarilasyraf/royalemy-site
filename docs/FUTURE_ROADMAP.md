@@ -6,6 +6,10 @@ This document contains a complete audit of the RoyaleMY codebase, identifying un
 
 ## Changelog
 
+### Recently Completed (2026-06-13)
+
+- ✅ **Consolidated admin area** — Moved all admin pages and inline admin panels into a dedicated `client/src/admin/` directory with a shared `AdminLayout` shell. Added `/admin/tournaments`, `/admin/clans`, `/admin/decks`, and `/admin/roadmap`. Removed admin-panel rendering from public pages (`/tournaments`, `/clan`, `/roadmap`, `/communitydecks`).
+
 ### Recently Completed (2025-06-09)
 
 #### Batch 1
