@@ -42,16 +42,35 @@ const CR_API_TOKEN = process.env.CR_API_TOKEN;
 // ==================== MIDDLEWARE ====================
 
 // CORS - Allow configured frontend origin(s)
-const corsOrigins = [FRONTEND_URL];
+function normalizeOrigin(origin) {
+  if (!origin) return '';
+  return origin.trim().replace(/\/$/, '').toLowerCase();
+}
+
+const allowedOrigins = new Set([normalizeOrigin(FRONTEND_URL)]);
 if (process.env.CORS_ORIGINS) {
-  process.env.CORS_ORIGINS.split(',').forEach(o => corsOrigins.push(o.trim()));
+  process.env.CORS_ORIGINS.split(',').forEach(o => allowedOrigins.add(normalizeOrigin(o.trim())));
 }
 
 app.use(cors({
-  origin: corsOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (e.g., mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    const normalized = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalized)) {
+      return callback(null, true);
+    }
+    // Also allow any Netlify origin as a fallback for deploy previews / branch previews
+    if (normalized.endsWith('.netlify.app')) {
+      return callback(null, true);
+    }
+    log('warn', `CORS rejected origin: ${origin} (allowed: ${[...allowedOrigins].join(', ')})`);
+    callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'x-admin-key']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'x-admin-key'],
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json());
@@ -796,6 +815,11 @@ const server = app.listen(PORT, () => {
   console.log(`💾 Cache: Enabled with TTL (max ${MAX_CACHE_SIZE} entries)`);
   console.log('');
   console.log(`Frontend should point to: ${FRONTEND_URL}`);
+  console.log(`CORS allowed origins: ${[...allowedOrigins].join(', ')}`);
+  if (!process.env.FRONTEND_URL) {
+    console.log('');
+    console.log('⚠️  WARNING: FRONTEND_URL env var is not set. CORS may reject production origin.');
+  }
   console.log('');
   console.log('Ready for viewers! 👥');
   console.log('');
