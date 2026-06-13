@@ -652,28 +652,6 @@ app.use('/api/community-decks', communityDeckRouter);
 
 app.use('/api/admin', adminRouter);
 
-// ==================== STATIC FILE SERVING (SPA) ====================
-
-// Serve static files from the React app build directory
-const staticPath = path.join(__dirname, '../client/dist');
-app.use(express.static(staticPath));
-
-// Handle React routing, return index.html for all non-API routes
-app.get('*', (req, res) => {
-  // Skip API routes - they should have been handled above
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-  
-  // Serve index.html for all other routes (SPA fallback)
-  res.sendFile(path.join(staticPath, 'index.html'), (err) => {
-    if (err) {
-      log('error', `Failed to serve index.html: ${err.message}`);
-      res.status(500).send('Error loading application. Make sure you have built the frontend with "npm run build"');
-    }
-  });
-});
-
 // ==================== HEALTH / VERSION ====================
 
 let serverVersion = 'unknown';
@@ -725,6 +703,28 @@ function logRegisteredRoutes() {
 }
 
 logRegisteredRoutes();
+
+// ==================== STATIC FILE SERVING (SPA) ====================
+
+// Serve static files from the React app build directory
+const staticPath = path.join(__dirname, '../client/dist');
+app.use(express.static(staticPath));
+
+// Handle React routing, return index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Skip API routes - they should have been handled above
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+
+  // Serve index.html for all other routes (SPA fallback)
+  res.sendFile(path.join(staticPath, 'index.html'), (err) => {
+    if (err) {
+      log('error', `Failed to serve index.html: ${err.message}`);
+      res.status(500).send('Error loading application. Make sure you have built the frontend with "npm run build"');
+    }
+  });
+});
 
 // ==================== GLOBAL ERROR HANDLER ====================
 
