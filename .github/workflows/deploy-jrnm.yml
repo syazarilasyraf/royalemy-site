@@ -34,7 +34,7 @@ jobs:
 
       - name: Build and push image
         run: |
-          IMAGE="jdr-q96jo84sc5.justrunmy.app/q96jo84sc5:v1"
+          IMAGE="jdr-q96jo84sc5.justrunmy.app/q96jo84sc5:v16"
 
           docker build \
             --pull \
