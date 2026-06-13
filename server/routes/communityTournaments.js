@@ -1,25 +1,20 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import webpush from 'web-push';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
 import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
+import {
+  createTournamentNotification,
+  sendPushNotifications,
+  getNotificationsWithReadStatus,
+  markNotificationRead,
+  markAllNotificationsRead,
+  pushConfigured,
+  getVapidPublicKey
+} from '../services/notifications.js';
 
 const router = express.Router();
 
-// Configure web-push if VAPID keys are available
-const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@royalemy.gg';
-
-if (vapidPublicKey && vapidPrivateKey) {
-  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-  log('info', 'Push notifications configured with VAPID keys');
-} else {
-  log('warn', 'VAPID keys not configured. Push notifications will be disabled.');
-}
-
-const pushEnabled = !!(vapidPublicKey && vapidPrivateKey);
 const pushDbEnabled = !!statements.insertPushSubscription;
 
 const VALID_STATUSES = [
@@ -39,61 +34,6 @@ function validatePlayerTag(tag) {
   if (!tag) return false;
   const clean = tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   return clean.length >= 3 && clean.length <= 10 ? clean : false;
-}
-
-function createNotification(tournamentId, type, message) {
-  try {
-    statements.insertNotification.run(tournamentId, type, message);
-  } catch (e) {
-    log('warn', `Failed to create notification: ${e.message}`);
-  }
-}
-
-async function sendPushNotifications(tournamentId, title, body, icon = '/royalemy.png') {
-  if (!pushEnabled || !pushDbEnabled) return;
-  try {
-    const subs = statements.getPushSubscriptionsByTournament.all(tournamentId);
-    if (!subs || subs.length === 0) return;
-
-    const payload = JSON.stringify({
-      title, body, icon, tournamentId,
-      tag: `tournament-${tournamentId}`,
-      url: `/tournaments?tournament=${tournamentId}`
-    });
-    const results = await Promise.allSettled(
-      subs.map((sub) =>
-        webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth }
-          },
-          payload
-        )
-      )
-    );
-
-    let sent = 0;
-    let failed = 0;
-    for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'fulfilled') {
-        sent++;
-      } else {
-        failed++;
-        const err = results[i].reason;
-        // Remove expired/invalid subscriptions
-        if (err && (err.statusCode === 410 || err.statusCode === 404)) {
-          try {
-            statements.deletePushSubscription.run(tournamentId, subs[i].endpoint);
-          } catch (delErr) {
-            log('warn', `Failed to delete expired push subscription: ${delErr.message}`);
-          }
-        }
-      }
-    }
-    log('info', `Push notifications for tournament ${tournamentId}: ${sent} sent, ${failed} failed`);
-  } catch (e) {
-    log('warn', `Failed to send push notifications: ${e.message}`);
-  }
 }
 
 function updatePlayerStats(playerTag, playerName, win, top3, participation) {
@@ -215,13 +155,13 @@ router.post('/admin/bulk', validateAdminKey, (req, res) => {
             continue;
           }
           statements.updateTournamentStatus.run('approved', id);
-          createNotification(id, 'status_change', `Tournament "${tournament.name}" has been approved.`);
+          createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been approved.`);
           sendPushNotifications(id, 'Tournament Approved! ✅', `${tournament.name} has been approved. Registration opening soon!`);
           log('success', `Tournament ${id} approved (bulk)`);
           results.push({ id, success: true });
         } else if (action === 'reject') {
           statements.updateTournamentStatus.run('rejected', id);
-          createNotification(id, 'status_change', `Tournament "${tournament.name}" has been rejected.`);
+          createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been rejected.`);
           log('success', `Tournament ${id} rejected (bulk)`);
           results.push({ id, success: true });
         } else if (action === 'delete') {
@@ -264,7 +204,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
       return res.status(400).json({ error: 'Tournament is not pending' });
     }
     statements.updateTournamentStatus.run('approved', id);
-    createNotification(id, 'status_change', `Tournament "${tournament.name}" has been approved.`);
+    createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been approved.`);
     sendPushNotifications(id, 'Tournament Approved! ✅', `${tournament.name} has been approved. Registration opening soon!`);
     log('success', `Tournament ${id} approved`);
     logAdminAction(req, 'approve', 'tournament', id, { name: tournament.name });
@@ -283,7 +223,7 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     statements.updateTournamentStatus.run('rejected', id);
-    createNotification(id, 'status_change', `Tournament "${tournament.name}" has been rejected.`);
+    createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been rejected.`);
     log('success', `Tournament ${id} rejected`);
     logAdminAction(req, 'reject', 'tournament', id, { name: tournament.name });
     res.json({ message: 'Tournament rejected', id });
@@ -305,7 +245,7 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     statements.updateTournamentStatus.run(status, id);
-    createNotification(id, 'status_change', `Tournament "${tournament.name}" status updated to ${status.replace('_', ' ')}.`);
+    createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" status updated to ${status.replace('_', ' ')}.`);
     const statusMessages = {
       approved: 'has been approved.',
       registration_open: 'registration is now OPEN! Sign up now.',
@@ -391,7 +331,7 @@ router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     statements.updateTournamentPrizeStatus.run(prize_status, id);
-    createNotification(id, 'status_change', `Prize status for "${tournament.name}" updated to ${prize_status}.`);
+    createTournamentNotification(id, 'status_change', `Prize status for "${tournament.name}" updated to ${prize_status}.`);
     sendPushNotifications(id, `💰 Prize Update: ${tournament.name}`, `Prize status updated to ${prize_status}.`);
     log('success', `Tournament ${id} prize status updated to ${prize_status}`);
     logAdminAction(req, 'prize_status', 'tournament', id, { name: tournament.name, prize_status });
@@ -433,7 +373,7 @@ router.post('/admin/:id/edit', validateAdminKey, (req, res) => {
       id
     );
 
-    createNotification(id, 'updated', `Tournament "${name || tournament.name}" has been updated.`);
+    createTournamentNotification(id, 'updated', `Tournament "${name || tournament.name}" has been updated.`);
     sendPushNotifications(id, `✏️ Tournament Updated: ${name || tournament.name}`, `Details have been updated. Check the latest info.`);
     log('success', `Tournament ${id} updated by admin`);
     logAdminAction(req, 'edit', 'tournament', id, { name: tournament.name });
@@ -474,7 +414,7 @@ router.delete('/admin/:id/registrations/:regId', validateAdminKey, (req, res) =>
       return res.status(404).json({ error: 'Registration not found' });
     }
     statements.deleteRegistration.run(regId);
-    createNotification(id, 'updated', `Registration for ${registration.player_name} has been removed by admin.`);
+    createTournamentNotification(id, 'updated', `Registration for ${registration.player_name} has been removed by admin.`);
     log('success', `Registration ${regId} deleted from tournament ${id}`);
     logAdminAction(req, 'delete_registration', 'tournament', id, { regId, player: registration.player_name });
     res.json({ message: 'Registration deleted', id: regId });
@@ -506,7 +446,7 @@ router.post('/admin/:id/registrations/:regId/edit', validateAdminKey, (req, res)
       tiktok_username !== undefined ? tiktok_username : registration.tiktok_username,
       regId
     );
-    createNotification(id, 'updated', `Registration for ${player_name || registration.player_name} has been updated by admin.`);
+    createTournamentNotification(id, 'updated', `Registration for ${player_name || registration.player_name} has been updated by admin.`);
     log('success', `Registration ${regId} updated in tournament ${id}`);
     logAdminAction(req, 'edit_registration', 'tournament', id, { regId, player: player_name || registration.player_name });
     res.json({ message: 'Registration updated', id: regId });
@@ -569,37 +509,20 @@ router.get('/archive', (req, res) => {
 
 // Push notification public key (must be before /:id)
 router.get('/vapid-public-key', (req, res) => {
-  if (!vapidPublicKey) {
+  const publicKey = getVapidPublicKey();
+  if (!publicKey) {
     return res.status(503).json({ error: 'Push notifications not configured' });
   }
-  res.json({ publicKey: vapidPublicKey });
+  res.json({ publicKey });
 });
 
-// Global notifications feed (must be before /:id)
+// Legacy alias: global notifications feed (new canonical path is /api/notifications)
 router.get('/notifications', (req, res) => {
   try {
     const endpoint = req.query.endpoint || '';
-    const notifications = statements.getRecentNotifications ? statements.getRecentNotifications.all() : [];
-    let unreadCount = 0;
-    if (endpoint && statements.getUnreadNotificationCount) {
-      unreadCount = statements.getUnreadNotificationCount.get(endpoint).count;
-    }
-    const enriched = notifications.map(n => ({
-      id: n.id,
-      tournament_id: n.tournament_id,
-      tournament_name: n.tournament_name,
-      type: n.type,
-      message: n.message,
-      created_at: n.created_at,
-      is_read: endpoint ? false : undefined
-    }));
-    if (endpoint && statements.getNotificationReadsByEndpoint) {
-      const readRows = statements.getNotificationReadsByEndpoint.all(endpoint);
-      const readSet = new Set(readRows.map(r => r.notification_id));
-      enriched.forEach(n => { n.is_read = readSet.has(n.id); });
-    }
+    const result = getNotificationsWithReadStatus(endpoint);
     res.set('Cache-Control', 'no-store');
-    res.json({ notifications: enriched, unreadCount });
+    res.json(result);
   } catch (error) {
     log('error', `Failed to fetch notifications: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch notifications' });
@@ -607,16 +530,13 @@ router.get('/notifications', (req, res) => {
 });
 
 router.post('/notifications/:notifId/read', (req, res) => {
-  if (!pushDbEnabled) {
-    return res.status(503).json({ error: 'Push notifications are temporarily unavailable' });
-  }
   try {
     const { notifId } = req.params;
     const { endpoint } = req.body;
     if (!endpoint) {
       return res.status(400).json({ error: 'Endpoint required' });
     }
-    statements.markNotificationRead.run(parseInt(notifId), endpoint);
+    markNotificationRead(parseInt(notifId), endpoint);
     res.json({ message: 'Marked as read' });
   } catch (error) {
     log('error', `Failed to mark notification read: ${error.message}`);
@@ -625,15 +545,12 @@ router.post('/notifications/:notifId/read', (req, res) => {
 });
 
 router.post('/notifications/read-all', (req, res) => {
-  if (!pushDbEnabled) {
-    return res.status(503).json({ error: 'Push notifications are temporarily unavailable' });
-  }
   try {
     const { endpoint } = req.body;
     if (!endpoint) {
       return res.status(400).json({ error: 'Endpoint required' });
     }
-    statements.markAllNotificationsRead.run(endpoint);
+    markAllNotificationsRead(endpoint);
     res.json({ message: 'All notifications marked as read' });
   } catch (error) {
     log('error', `Failed to mark all read: ${error.message}`);
@@ -764,12 +681,12 @@ router.post('/:id/register', registerLimiter, (req, res) => {
       const maxPos = statements.getMaxWaitlistPosition.get(id);
       const position = (maxPos?.max || 0) + 1;
       statements.insertRegistration.run(id, player_name, cleanTag, tiktok_username || '', 'waitlisted', position);
-      createNotification(id, 'waitlist', `${player_name} joined the waitlist at position ${position}.`);
+      createTournamentNotification(id, 'waitlist', `${player_name} joined the waitlist at position ${position}.`);
       log('success', `Player ${player_name} (${cleanTag}) waitlisted for tournament ${id} at position ${position}`);
       res.status(201).json({ message: 'Tournament is full. You have been added to the waitlist.', waitlist: true, position });
     } else {
       statements.insertRegistration.run(id, player_name, cleanTag, tiktok_username || '', 'registered', null);
-      createNotification(id, 'registration', `${player_name} has registered for the tournament.`);
+      createTournamentNotification(id, 'registration', `${player_name} has registered for the tournament.`);
       log('success', `Player ${player_name} (${cleanTag}) registered for tournament ${id}`);
       res.status(201).json({ message: 'Registration successful' });
     }
@@ -811,7 +728,7 @@ router.post('/admin/:id/waitlist/:regId/promote', validateAdminKey, (req, res) =
       return res.status(400).json({ error: 'Registration is not on waitlist' });
     }
     statements.updateRegistrationStatus.run('registered', null, regId);
-    createNotification(id, 'registration', `${registration.player_name} has been promoted from the waitlist.`);
+    createTournamentNotification(id, 'registration', `${registration.player_name} has been promoted from the waitlist.`);
     log('success', `Registration ${regId} promoted from waitlist in tournament ${id}`);
     logAdminAction(req, 'promote_waitlist', 'tournament', id, { regId, player: registration.player_name });
     res.json({ message: 'Player promoted from waitlist', id: regId });

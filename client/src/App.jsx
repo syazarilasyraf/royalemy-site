@@ -22,6 +22,7 @@ const AdminTournaments = lazy(() => import('./admin/AdminTournaments'));
 const AdminClans = lazy(() => import('./admin/AdminClans'));
 const AdminDecks = lazy(() => import('./admin/AdminDecks'));
 const AdminRoadmap = lazy(() => import('./admin/AdminRoadmap'));
+const AdminNotifications = lazy(() => import('./admin/AdminNotifications'));
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
@@ -102,6 +103,7 @@ function App() {
               <Route path="clans" element={<AdminClans />} />
               <Route path="decks" element={<AdminDecks />} />
               <Route path="roadmap" element={<AdminRoadmap />} />
+              <Route path="notifications" element={<AdminNotifications />} />
               <Route path="logs" element={<AdminLogs />} />
               <Route path="audit" element={<AdminAuditTrail />} />
             </Route>

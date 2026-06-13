@@ -8,7 +8,8 @@ This document contains a complete audit of the RoyaleMY codebase, identifying un
 
 ### Recently Completed (2026-06-13)
 
-- ✅ **Consolidated admin area** — Moved all admin pages and inline admin panels into a dedicated `client/src/admin/` directory with a shared `AdminLayout` shell. Added `/admin/tournaments`, `/admin/clans`, `/admin/decks`, and `/admin/roadmap`. Removed admin-panel rendering from public pages (`/tournaments`, `/clan`, `/roadmap`, `/communitydecks`).
+- ✅ **Consolidated admin area** — Moved all admin pages and inline admin panels into a dedicated `client/src/admin/` directory with a shared `AdminLayout` shell. Added `/admin/tournaments`, `/admin/clans`, `/admin/decks`, `/admin/roadmap`, and `/admin/notifications`. Removed admin-panel rendering from public pages (`/tournaments`, `/clan`, `/roadmap`, `/communitydecks`).
+- ✅ **Generalized notification system** — Migrated `tournament_notifications` to a site-wide `notifications` table with `scope` (tournament/clan/deck/roadmap/global), `title`, `message`, `link`, and `resource_id`. Added `global_push_subscriptions` table for site-wide push. Created `/api/notifications` public endpoints and `/api/admin/notifications` admin endpoints. Built `AdminNotifications.jsx` for creating, filtering, deleting, and resending push notifications.
 
 ### Recently Completed (2025-06-09)
 
@@ -116,7 +117,7 @@ Features that naturally extend the existing product without requiring architectu
 | **Tournament Filters** | Filter by format, prize type, date range, or host name. | Add query params to existing `GET /api/community-tournaments`. |
 | **Deck Filters** | Filter by archetype, average elixir, or card inclusion. | Add query params to existing `GET /api/community-decks`. |
 | **Upcoming Events Banner** | Highlight next 3 upcoming tournaments on the home page. | Reuses existing `/api/community-tournaments` data. |
-| **Notification Badge** | Show unread notification count on the header bell icon. | Reuses existing `/api/community-tournaments/notifications` endpoint. |
+| **Notification Badge** | Show unread notification count on the header bell icon. | Reuses `/api/notifications` endpoint with read tracking per endpoint. |
 
 ---
 
@@ -138,7 +139,7 @@ Features that naturally extend the existing product without requiring architectu
 | **Admin Search & Filter** | Search tournaments by name/host, filter by status and date. Extends to clans, decks, and features. | Small |
 | **Rate Limit Monitoring** | Admin endpoint showing recent 429 hits and top offending IPs. | Medium |
 | **Backup Management** | List, download, and restore specific `.db.bak.*` backups from the admin panel. | Medium |
-| **Push Subscription Viewer** | See subscription counts per tournament and send custom broadcasts. | Medium |
+| **Push Subscription Viewer** | See subscription counts per tournament and send custom site-wide broadcasts from `/admin/notifications`. | Medium |
 | **Content Preview** | For clan/state submissions, show the CR API data that was fetched at submission time. | Small |
 
 ---

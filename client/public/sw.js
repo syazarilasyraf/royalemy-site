@@ -213,18 +213,21 @@ self.addEventListener('push', (event) => {
   try {
     const data = event.data.json();
     const title = data.title || 'RoyaleMY Update';
+    const scope = data.scope || 'global';
+    const scopeLabel = scope === 'tournament' ? 'View Tournament' : 'Open RoyaleMY';
     const options = {
-      body: data.body || 'You have a new tournament update.',
+      body: data.body || 'You have a new site update.',
       icon: data.icon || '/royalemy.png',
       badge: '/icons/icon-192x192.png',
       tag: data.tag || 'royalemy-update',
       requireInteraction: false,
       data: {
         tournamentId: data.tournamentId,
-        url: data.url || '/'
+        url: data.url || '/',
+        scope
       },
       actions: [
-        { action: 'open', title: 'View Tournament' },
+        { action: 'open', title: scopeLabel },
         { action: 'close', title: 'Dismiss' }
       ]
     };
@@ -237,11 +240,12 @@ self.addEventListener('push', (event) => {
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  if (event.action === 'close') return;
   const url = event.notification.data?.url || '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes('/community-tournaments') && 'focus' in client) {
+        if ('focus' in client) {
           return client.focus();
         }
       }

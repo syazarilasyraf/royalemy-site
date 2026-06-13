@@ -169,9 +169,26 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_notifications_tournament ON tournament_notifications(tournament_id);
 
+  -- Generalized site-wide notifications (replaces tournament_notifications)
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT NOT NULL DEFAULT 'tournament',
+    type TEXT NOT NULL,
+    title TEXT,
+    message TEXT NOT NULL,
+    link TEXT,
+    tournament_id INTEGER REFERENCES community_tournaments(id) ON DELETE CASCADE,
+    resource_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_notifications_scope ON notifications(scope);
+  CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_notifications_tournament_id ON notifications(tournament_id);
+
   CREATE TABLE IF NOT EXISTS notification_reads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    notification_id INTEGER NOT NULL REFERENCES tournament_notifications(id) ON DELETE CASCADE,
+    notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
     endpoint TEXT NOT NULL,
     read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(notification_id, endpoint)
@@ -305,6 +322,83 @@ for (const col of tournamentCols) {
   }
 }
 
+// ==================== NOTIFICATIONS MIGRATION ====================
+// Migrate legacy tournament_notifications data into the generalized
+// notifications table and repoint notification_reads to notifications.
+// This is idempotent and runs safely on both fresh and existing DBs.
+
+function tableExists(table) {
+  return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(table) !== undefined;
+}
+
+// Migrate tournament notifications to the generalized table.
+// We only migrate once: when notifications is empty and tournament_notifications has rows.
+if (tableExists('tournament_notifications')) {
+  const legacyCount = db.prepare('SELECT COUNT(*) as c FROM tournament_notifications').get().c || 0;
+  const modernCount = db.prepare('SELECT COUNT(*) as c FROM notifications').get().c || 0;
+  if (legacyCount > 0 && modernCount === 0) {
+    try {
+      db.exec(`
+        INSERT INTO notifications (scope, type, title, message, tournament_id, created_at)
+        SELECT 'tournament', type, NULL, message, tournament_id, created_at
+        FROM tournament_notifications
+        WHERE tournament_id IS NOT NULL
+      `);
+      const migrated = db.prepare('SELECT COUNT(*) as c FROM notifications').get().c || 0;
+      console.log(`[DB] Migrated ${migrated} tournament notifications to notifications table`);
+    } catch (e) {
+      console.error(`[DB] Failed to migrate tournament notifications: ${e.message}`);
+    }
+  }
+}
+
+// Repoint notification_reads foreign key from tournament_notifications to notifications.
+// Check existing FK target by inspecting PRAGMA foreign_key_list.
+if (tableExists('notification_reads')) {
+  const fks = db.prepare("PRAGMA foreign_key_list(notification_reads)").all();
+  const referencesNotifications = fks.some(fk => fk.table === 'notifications');
+  if (!referencesNotifications) {
+    try {
+      db.exec('PRAGMA foreign_keys = OFF;');
+      db.exec(`
+        CREATE TABLE notification_reads_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+          endpoint TEXT NOT NULL,
+          read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(notification_id, endpoint)
+        );
+        CREATE INDEX idx_notification_reads_new_endpoint ON notification_reads_new(endpoint);
+        CREATE INDEX idx_notification_reads_new_notification ON notification_reads_new(notification_id);
+      `);
+
+      // Migrate read rows by matching legacy tournament_notifications to new notifications.
+      if (tableExists('tournament_notifications')) {
+        db.exec(`
+          INSERT OR IGNORE INTO notification_reads_new (notification_id, endpoint, read_at)
+          SELECT n.id, nr.endpoint, nr.read_at
+          FROM notification_reads nr
+          JOIN tournament_notifications tn ON nr.notification_id = tn.id
+          JOIN notifications n ON n.tournament_id = tn.tournament_id
+            AND n.type = tn.type
+            AND n.message = tn.message
+            AND n.created_at = tn.created_at
+        `);
+      }
+
+      db.exec(`
+        DROP TABLE notification_reads;
+        ALTER TABLE notification_reads_new RENAME TO notification_reads;
+      `);
+      db.exec('PRAGMA foreign_keys = ON;');
+      console.log('[DB] Migrated notification_reads to reference notifications table');
+    } catch (e) {
+      console.error(`[DB] Failed to migrate notification_reads: ${e.message}. Reads may reference stale IDs.`);
+      db.exec('PRAGMA foreign_keys = ON;');
+    }
+  }
+}
+
 // Setup push_subscriptions table separately with error recovery
 let pushSubscriptionsEnabled = false;
 try {
@@ -330,6 +424,28 @@ try {
   pushSubscriptionsEnabled = true;
 } catch (e) {
   console.error(`[DB] push_subscriptions setup failed: ${e.message}. Push notifications will be disabled.`);
+}
+
+// Site-wide/global push subscriptions (separate from per-tournament subs)
+let globalPushSubscriptionsEnabled = false;
+try {
+  if (!tableExists('global_push_subscriptions')) {
+    db.exec(`
+      CREATE TABLE global_push_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        endpoint TEXT NOT NULL UNIQUE,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_global_push_subscriptions_endpoint ON global_push_subscriptions(endpoint);
+    `);
+  } else {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_global_push_subscriptions_endpoint ON global_push_subscriptions(endpoint);`);
+  }
+  globalPushSubscriptionsEnabled = true;
+} catch (e) {
+  console.error(`[DB] global_push_subscriptions setup failed: ${e.message}. Global push notifications will be disabled.`);
 }
 
 // Prepared statements
@@ -450,12 +566,24 @@ const statements = {
     `UPDATE tournament_registrations SET status = ?, waitlist_position = ? WHERE id = ?`
   ),
 
-  // Tournament Notifications
+  // Notifications (generalized, site-wide)
   insertNotification: db.prepare(
-    `INSERT INTO tournament_notifications (tournament_id, type, message) VALUES (?, ?, ?)`
+    `INSERT INTO notifications (scope, type, title, message, tournament_id, resource_id, link) VALUES (?, ?, ?, ?, ?, ?, ?)`
   ),
   getNotificationsByTournament: db.prepare(
-    `SELECT * FROM tournament_notifications WHERE tournament_id = ? ORDER BY created_at DESC`
+    `SELECT * FROM notifications WHERE tournament_id = ? ORDER BY created_at DESC`
+  ),
+  getNotificationById: db.prepare(
+    `SELECT * FROM notifications WHERE id = ?`
+  ),
+  deleteNotification: db.prepare(
+    `DELETE FROM notifications WHERE id = ?`
+  ),
+  getAllNotifications: db.prepare(
+    `SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ),
+  countNotifications: db.prepare(
+    `SELECT COUNT(*) as count FROM notifications`
   ),
 
   // Player Stats (Hall of Fame foundation)
@@ -595,19 +723,34 @@ if (pushSubscriptionsEnabled) {
   statements.deletePushSubscription = db.prepare(
     `DELETE FROM push_subscriptions WHERE tournament_id = ? AND endpoint = ?`
   );
-  // Notification read tracking
+}
+
+if (globalPushSubscriptionsEnabled) {
+  statements.insertGlobalPushSubscription = db.prepare(
+    `INSERT INTO global_push_subscriptions (endpoint, p256dh, auth) VALUES (?, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`
+  );
+  statements.getGlobalPushSubscriptions = db.prepare(
+    `SELECT * FROM global_push_subscriptions`
+  );
+  statements.deleteGlobalPushSubscription = db.prepare(
+    `DELETE FROM global_push_subscriptions WHERE endpoint = ?`
+  );
+}
+
+// Notification read tracking (available when push tables are set up)
+if (pushSubscriptionsEnabled || globalPushSubscriptionsEnabled) {
   statements.getRecentNotifications = db.prepare(
-    `SELECT tn.id, tn.tournament_id, tn.type, tn.message, tn.created_at,
+    `SELECT n.id, n.scope, n.tournament_id, n.type, n.title, n.message, n.link, n.created_at,
             ct.name as tournament_name
-     FROM tournament_notifications tn
-     JOIN community_tournaments ct ON tn.tournament_id = ct.id
-     ORDER BY tn.created_at DESC
+     FROM notifications n
+     LEFT JOIN community_tournaments ct ON n.tournament_id = ct.id
+     ORDER BY n.created_at DESC
      LIMIT 30`
   );
   statements.getUnreadNotificationCount = db.prepare(
     `SELECT COUNT(*) as count
-     FROM tournament_notifications tn
-     LEFT JOIN notification_reads nr ON tn.id = nr.notification_id AND nr.endpoint = ?
+     FROM notifications n
+     LEFT JOIN notification_reads nr ON n.id = nr.notification_id AND nr.endpoint = ?
      WHERE nr.id IS NULL`
   );
   statements.markNotificationRead = db.prepare(
@@ -615,7 +758,7 @@ if (pushSubscriptionsEnabled) {
   );
   statements.markAllNotificationsRead = db.prepare(
     `INSERT OR IGNORE INTO notification_reads (notification_id, endpoint)
-     SELECT id, ? FROM tournament_notifications`
+     SELECT id, ? FROM notifications`
   );
   statements.getNotificationReadsByEndpoint = db.prepare(
     `SELECT notification_id FROM notification_reads WHERE endpoint = ?`
@@ -651,4 +794,4 @@ function getDbDiagnostics() {
   };
 }
 
-export { db, statements, getDbDiagnostics, dbPath, dbDir };
+export { db, statements, getDbDiagnostics, dbPath, dbDir, pushSubscriptionsEnabled, globalPushSubscriptionsEnabled };

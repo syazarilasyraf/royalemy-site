@@ -257,7 +257,7 @@ export function getHallOfFame(limit = 50) {
 }
 
 export function getVapidPublicKey() {
-  return fetchAPI('/community-tournaments/vapid-public-key');
+  return fetchAPI('/notifications/vapid-public-key');
 }
 
 export function subscribeToPush(tournamentId, subscription) {
@@ -274,20 +274,34 @@ export function unsubscribeFromPush(tournamentId, endpoint) {
   });
 }
 
+export function subscribeToSitePush(subscription) {
+  return fetchAPI('/notifications/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(subscription)
+  });
+}
+
+export function unsubscribeFromSitePush(endpoint) {
+  return fetchAPI('/notifications/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint })
+  });
+}
+
 export function getNotifications(endpoint) {
   const qs = endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : '';
-  return fetchAPI(`/community-tournaments/notifications${qs}`);
+  return fetchAPI(`/notifications${qs}`);
 }
 
 export function markNotificationRead(id, endpoint) {
-  return fetchAPI(`/community-tournaments/notifications/${id}/read`, {
+  return fetchAPI(`/notifications/${id}/read`, {
     method: 'POST',
     body: JSON.stringify({ endpoint })
   });
 }
 
 export function markAllNotificationsRead(endpoint) {
-  return fetchAPI(`/community-tournaments/notifications/read-all`, {
+  return fetchAPI(`/notifications/read-all`, {
     method: 'POST',
     body: JSON.stringify({ endpoint })
   });
@@ -625,6 +639,41 @@ export function getAdminAuditTrail(key, params = {}) {
 
 export function getAdminRateLimits(key) {
   return fetchAPI(`/admin/rate-limits`, {
+    headers: adminHeaders(key)
+  });
+}
+
+// ==================== ADMIN NOTIFICATIONS ====================
+
+export function getAdminNotifications(key, params = {}) {
+  const query = new URLSearchParams();
+  if (params.scope) query.append('scope', params.scope);
+  if (params.search) query.append('search', params.search);
+  if (params.limit) query.append('limit', String(params.limit));
+  if (params.offset) query.append('offset', String(params.offset));
+  return fetchAPI(`/admin/notifications?${query.toString()}`, {
+    headers: adminHeaders(key)
+  });
+}
+
+export function createAdminNotification(key, data) {
+  return fetchAPI('/admin/notifications', {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
+  });
+}
+
+export function deleteAdminNotification(id, key) {
+  return fetchAPI(`/admin/notifications/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
+  });
+}
+
+export function sendAdminNotificationPush(id, key) {
+  return fetchAPI(`/admin/notifications/${id}/send-push`, {
+    method: 'POST',
     headers: adminHeaders(key)
   });
 }

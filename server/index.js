@@ -11,11 +11,14 @@ import communityTournamentRouter from './routes/communityTournaments.js';
 import communityClanRouter from './routes/communityClans.js';
 import statePlayerRouter from './routes/statePlayers.js';
 import communityDeckRouter from './routes/communityDecks.js';
+import notificationRouter from './routes/notifications.js';
+import adminNotificationRouter from './routes/adminNotifications.js';
 import adminRouter from './routes/admin.js';
 import { log, logRequest, logError } from './logger.js';
 import { db, getDbDiagnostics, dbPath, dbDir, statements } from './db.js';
 import { fetchFromCR, clearCache, deleteCacheKey, getCacheKey, CACHE_TTL, cache, MAX_CACHE_SIZE } from './services/crApi.js';
 import { fetchMetaDecks, META_DECK_CACHE_KEY } from './services/metaDecks.js';
+import { createTournamentNotification } from './services/notifications.js';
 import { validateAdminKey, validateAdminKey as validateAdminKeyForEndpoint, sanitizeTag } from './middleware/auth.js';
 import fs from 'fs';
 
@@ -647,10 +650,12 @@ app.use('/api/community-tournaments', communityTournamentRouter);
 app.use('/api/community-clans', communityClanRouter);
 app.use('/api/state-players', statePlayerRouter);
 app.use('/api/community-decks', communityDeckRouter);
+app.use('/api/notifications', notificationRouter);
 
 // ==================== ADMIN ====================
 
 app.use('/api/admin', adminRouter);
+app.use('/api/admin/notifications', adminNotificationRouter);
 
 // ==================== HEALTH / VERSION ====================
 
@@ -766,14 +771,14 @@ function setupTournamentReminders() {
         if (diffHours <= 24 && diffHours > 23 && !tournament.notified_24h) {
           // Send 24h reminder
           db.prepare(`UPDATE community_tournaments SET notified_24h = 1 WHERE id = ?`).run(tournament.id);
-          statements.insertNotification.run(tournament.id, 'reminder_24h', `Tournament "${tournament.name}" starts in 24 hours!`);
+          createTournamentNotification(tournament.id, 'reminder_24h', `Tournament "${tournament.name}" starts in 24 hours!`);
           log('info', `Sent 24h reminder for tournament ${tournament.id}`);
         }
 
         if (diffHours <= 1 && diffHours > 0 && !tournament.notified_1h) {
           // Send 1h reminder
           db.prepare(`UPDATE community_tournaments SET notified_1h = 1 WHERE id = ?`).run(tournament.id);
-          statements.insertNotification.run(tournament.id, 'reminder_1h', `Tournament "${tournament.name}" starts in 1 hour! Get ready!`);
+          createTournamentNotification(tournament.id, 'reminder_1h', `Tournament "${tournament.name}" starts in 1 hour! Get ready!`);
           log('info', `Sent 1h reminder for tournament ${tournament.id}`);
         }
       }

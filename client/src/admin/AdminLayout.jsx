@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { path: '/admin/clans', label: 'Clans', icon: '🛡️' },
   { path: '/admin/decks', label: 'Decks', icon: '🃏' },
   { path: '/admin/roadmap', label: 'Roadmap', icon: '🗺️' },
+  { path: '/admin/notifications', label: 'Notifications', icon: '🔔' },
   { path: '/admin/logs', label: 'Logs', icon: '📜' },
   { path: '/admin/audit', label: 'Audit', icon: '📋' },
 ];

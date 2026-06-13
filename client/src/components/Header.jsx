@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getNotifications, markNotificationRead, markAllNotificationsRead, getVapidPublicKey, subscribeToPush } from '../services/api.js';
+import {
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  getVapidPublicKey,
+  subscribeToSitePush
+} from '../services/api.js';
 
 function getDeviceId() {
   let id = localStorage.getItem('royalemy_device_id');
@@ -32,6 +38,17 @@ function formatTimeAgo(dateStr) {
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 7) return `${diffDay}d ago`;
   return date.toLocaleDateString();
+}
+
+function scopeLabel(scope) {
+  switch (scope) {
+    case 'tournament': return 'Tournament';
+    case 'clan': return 'Clan';
+    case 'deck': return 'Deck';
+    case 'roadmap': return 'Roadmap';
+    case 'global': return 'Site';
+    default: return 'Update';
+  }
 }
 
 function Header() {
@@ -96,8 +113,16 @@ function Header() {
       }
     }
     setDropdownOpen(false);
-    if (notif.tournament_id) {
+    if (notif.link) {
+      navigate(notif.link);
+    } else if (notif.tournament_id) {
       navigate(`/tournaments?tournament=${notif.tournament_id}`);
+    } else if (notif.scope === 'clan') {
+      navigate('/clan');
+    } else if (notif.scope === 'deck') {
+      navigate('/communitydecks');
+    } else if (notif.scope === 'roadmap') {
+      navigate('/roadmap');
     }
   };
 
@@ -130,6 +155,11 @@ function Header() {
       const reg = await navigator.serviceWorker.ready;
       const existingSub = await reg.pushManager.getSubscription();
       if (existingSub) {
+        // Re-register existing subscription with the backend in case it was lost
+        await subscribeToSitePush({
+          endpoint: existingSub.endpoint,
+          keys: existingSub.toJSON().keys
+        });
         savePushEndpoint(existingSub.endpoint);
         setPushLoading(false);
         return;
@@ -138,6 +168,10 @@ function Header() {
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+      await subscribeToSitePush({
+        endpoint: sub.endpoint,
+        keys: sub.toJSON().keys
       });
       savePushEndpoint(sub.endpoint);
     } catch (err) {
@@ -189,7 +223,7 @@ function Header() {
                 <div className="notification-dropdown-body">
                   {showEnablePrompt && !hasPush && (
                     <div className="notification-enable-prompt">
-                      <p>Get notified when tournaments update</p>
+                      <p>Get notified about tournaments, clans, decks, and site updates</p>
                       <button
                         className="enable-push-btn"
                         onClick={handleEnablePush}
@@ -216,9 +250,10 @@ function Header() {
                         >
                           <span className={`notification-type-dot type-${n.type}`}></span>
                           <div className="notification-row-content">
+                            {n.title && <p className="notification-row-title">{n.title}</p>}
                             <p className="notification-row-message">{n.message}</p>
                             <div className="notification-row-meta">
-                              <span className="notification-row-tournament">{n.tournament_name}</span>
+                              <span className="notification-row-scope">{n.tournament_name || scopeLabel(n.scope)}</span>
                               <span className="notification-row-time">{formatTimeAgo(n.created_at)}</span>
                             </div>
                           </div>
@@ -231,9 +266,9 @@ function Header() {
 
                 {notifications.length > 0 && (
                   <div className="notification-dropdown-footer">
-                    <Link to="/tournaments" className="view-all-link" onClick={() => setDropdownOpen(false)}>
-                      View all tournaments →
-                    </Link>
+                    <span className="view-all-text">
+                      {notifications.filter(n => n.scope === 'tournament').length} tournament updates
+                    </span>
                   </div>
                 )}
               </div>
@@ -522,6 +557,18 @@ function Header() {
           min-width: 0;
         }
 
+        .notification-row-title {
+          margin: 0 0 2px;
+          font-size: 0.875rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1.3;
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
         .notification-row-message {
           margin: 0 0 2px;
           font-size: 0.875rem;
@@ -540,7 +587,7 @@ function Header() {
           font-size: 0.75rem;
         }
 
-        .notification-row-tournament {
+        .notification-row-scope {
           color: var(--accent-primary);
           font-weight: 600;
         }
@@ -564,15 +611,10 @@ function Header() {
           text-align: center;
         }
 
-        .view-all-link {
-          color: var(--accent-primary);
-          text-decoration: none;
+        .view-all-text {
+          color: var(--text-muted);
           font-size: 0.875rem;
-          font-weight: 600;
-        }
-
-        .view-all-link:hover {
-          text-decoration: underline;
+          font-weight: 500;
         }
 
         /* Mobile */
