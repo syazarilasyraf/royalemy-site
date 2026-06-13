@@ -28,7 +28,8 @@ app.set('trust proxy', 1);
 // Security headers
 app.use(helmet({
   contentSecurityPolicy: false, // Allow inline styles/scripts for now
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false // Let our CORS middleware control cross-origin access
 }));
 
 const PORT = process.env.PORT || 3001;
