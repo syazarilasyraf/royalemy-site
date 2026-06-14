@@ -59,6 +59,8 @@ A reality-checked changelog. Items marked ⚠️ are "shipped but flawed"; items
 - ✅ **Tournament calendar view** — list/calendar toggle in `TournamentFinder.jsx`.
 - ✅ **Automated tournament status transitions** — approved → registration_open → registration_closed → live → completed based on dates.
 - ✅ **Tournament match tracker / brackets** — admins record pairings and results round-by-round.
+- ✅ **Simplified tournament registration** — players register with Clash Royale tag + optional TikTok username; player-name field removed.
+- ✅ **Admin-only in-site notifications** — public registrations and automated status transitions no longer create `notifications` rows; only admin-controlled actions do.
 - ✅ **Docker multi-stage build + healthcheck**.
 - ✅ **CI pre-deploy verification** — install + build before Docker push.
 

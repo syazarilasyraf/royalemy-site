@@ -23,7 +23,7 @@ A fan-made Clash Royale community platform built for Malaysian players. Search p
 ### Tournament System
 - **Tournament Hub** — Public listing of community tournaments with live countdown timers.
 - **Tournament Submission** — Community members submit tournaments for admin approval.
-- **Registration System** — Players register with name, player tag, and optional TikTok username.
+- **Registration System** — Players register with their Clash Royale player tag and an optional TikTok username (no name required).
 - **Waitlist** — Automatically join a waitlist when full; auto-promoted when a spot opens.
 - **Automated Status Transitions** — Tournaments advance through `registration_open` → `registration_closed` → `live` → `completed` based on dates.
 - **Automated Reminders** — In-site and push notifications at 24h and 1h before start.
