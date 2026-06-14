@@ -792,6 +792,67 @@ function setupTournamentReminders() {
   log('info', 'Automated tournament reminders initialized (checking every 5 minutes)');
 }
 
+// ==================== AUTOMATED TOURNAMENT STATUS TRANSITIONS ====================
+
+function setupTournamentStatusTransitions() {
+  // Check every 5 minutes and advance tournament status based on dates.
+  // Note: this assumes tournament dates are stored in the server's local timezone.
+  // For production, ensure the container timezone matches the date input timezone,
+  // or store dates as ISO strings with timezone offsets.
+  setInterval(() => {
+    try {
+      const now = Date.now();
+      const tournaments = db.prepare(`SELECT * FROM community_tournaments WHERE status IN ('approved', 'registration_open', 'registration_closed', 'live')`).all();
+
+      for (const tournament of tournaments) {
+        const status = tournament.status;
+        const registrationDeadline = tournament.registration_deadline ? new Date(tournament.registration_deadline).getTime() : null;
+        const startDate = tournament.start_date ? new Date(tournament.start_date).getTime() : null;
+        const endDate = tournament.end_date ? new Date(tournament.end_date).getTime() : null;
+
+        // approved -> registration_open (open registration once approved)
+        if (status === 'approved') {
+          db.prepare(`UPDATE community_tournaments SET status = 'registration_open' WHERE id = ?`).run(tournament.id);
+          createTournamentNotification(tournament.id, 'status_change', `Registration is now open for "${tournament.name}".`);
+          sendPushNotifications(tournament.id, '📝 Registration Open!', `Registration is now open for ${tournament.name}.`);
+          log('info', `Tournament ${tournament.id} status auto-transitioned: approved -> registration_open`);
+          continue;
+        }
+
+        // registration_open -> registration_closed at deadline
+        if (status === 'registration_open' && registrationDeadline && now >= registrationDeadline) {
+          db.prepare(`UPDATE community_tournaments SET status = 'registration_closed' WHERE id = ?`).run(tournament.id);
+          createTournamentNotification(tournament.id, 'status_change', `Registration has closed for "${tournament.name}".`);
+          sendPushNotifications(tournament.id, '🔒 Registration Closed', `Registration has closed for ${tournament.name}.`);
+          log('info', `Tournament ${tournament.id} status auto-transitioned: registration_open -> registration_closed`);
+          continue;
+        }
+
+        // registration_closed -> live at start date
+        if (status === 'registration_closed' && startDate && now >= startDate) {
+          db.prepare(`UPDATE community_tournaments SET status = 'live' WHERE id = ?`).run(tournament.id);
+          createTournamentNotification(tournament.id, 'status_change', `"${tournament.name}" is now live!`);
+          sendPushNotifications(tournament.id, '🔴 Tournament is Live!', `${tournament.name} has started. Good luck!`);
+          log('info', `Tournament ${tournament.id} status auto-transitioned: registration_closed -> live`);
+          continue;
+        }
+
+        // live -> completed at end date
+        if (status === 'live' && endDate && now >= endDate) {
+          db.prepare(`UPDATE community_tournaments SET status = 'completed' WHERE id = ?`).run(tournament.id);
+          createTournamentNotification(tournament.id, 'status_change', `"${tournament.name}" has ended. Results coming soon!`);
+          sendPushNotifications(tournament.id, '✅ Tournament Completed', `${tournament.name} has ended. Check back for results!`);
+          log('info', `Tournament ${tournament.id} status auto-transitioned: live -> completed`);
+        }
+      }
+    } catch (e) {
+      log('warn', `Tournament status transition check failed: ${e.message}`);
+    }
+  }, 5 * 60 * 1000);
+
+  log('info', 'Automated tournament status transitions initialized (checking every 5 minutes)');
+}
+
 // ==================== START SERVER ====================
 
 const server = app.listen(PORT, () => {
@@ -813,6 +874,7 @@ const server = app.listen(PORT, () => {
   console.log('');
 
   setupTournamentReminders();
+  setupTournamentStatusTransitions();
 });
 
 // Graceful shutdown
