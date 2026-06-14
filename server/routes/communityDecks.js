@@ -216,17 +216,80 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
 
 router.get('/', (req, res) => {
   try {
-    const decks = statements.getApprovedCommunityDecks.all();
+    const { sort = 'top' } = req.query;
+    let decks = statements.getApprovedCommunityDecks.all();
+
     // Parse card_ids JSON string back to array
-    const parsed = decks.map(d => ({
+    let parsed = decks.map(d => ({
       ...d,
       cardIds: JSON.parse(d.card_ids || '[]'),
       tags: JSON.parse(d.tags || '[]')
     }));
+
+    if (sort === 'trending') {
+      const now = Date.now();
+      parsed = parsed.map(d => {
+        const hours = Math.max(1, (now - new Date(d.created_at).getTime()) / (1000 * 60 * 60));
+        const trendingScore = d.votes / Math.pow(hours + 2, 1.5);
+        return { ...d, trendingScore };
+      }).sort((a, b) => b.trendingScore - a.trendingScore);
+    }
+    // 'top' uses the default ORDER BY from the prepared statement
+
     res.json({ decks: parsed });
   } catch (error) {
     log('error', `Failed to fetch community decks: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch community decks' });
+  }
+});
+
+// Public share page for rich social media previews
+router.get('/:id/share', (req, res) => {
+  try {
+    const deck = statements.getCommunityDeckById.get(req.params.id);
+    if (!deck || deck.status !== 'approved') {
+      return res.status(404).send('<html><body><h1>Deck not found</h1></body></html>');
+    }
+
+    const cardIds = JSON.parse(deck.card_ids || '[]');
+    const firstCardId = cardIds[0] || '';
+    const frontUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    const shareUrl = `${frontUrl}/communitydecks?deck=${deck.id}`;
+    const imageUrl = firstCardId ? `${frontUrl}/cards/${firstCardId}.webp` : `${frontUrl}/android-chrome-512x512.png`;
+    const title = `Community Deck by ${deck.author_name || 'Anonymous'} | RoyaleMY`;
+    const description = deck.description
+      ? sanitizeHtml(deck.description).slice(0, 160)
+      : `Check out this community deck on RoyaleMY!`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <meta name="description" content="${description.replace(/"/g, '&quot;')}">
+  <meta property="og:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta property="og:description" content="${description.replace(/"/g, '&quot;')}">
+  <meta property="og:image" content="${imageUrl}">
+  <meta property="og:url" content="${shareUrl}">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}">
+  <meta name="twitter:image" content="${imageUrl}">
+  <script>window.location.href = "${shareUrl}";</script>
+</head>
+<body>
+  <p>Redirecting to RoyaleMY...</p>
+  <p>If you are not redirected, <a href="${shareUrl}">click here</a>.</p>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    log('error', `Failed to generate deck share page: ${error.message}`);
+    res.status(500).send('<html><body><h1>Failed to generate share page</h1></body></html>');
   }
 });
 

@@ -524,12 +524,16 @@ export function bulkStatePlayers(action, ids, key, extra = {}) {
 
 // ==================== COMMUNITY DECKS ====================
 
-export function getCommunityDecks() {
-  return fetchAPI('/community-decks');
+export function getCommunityDecks(sort = 'top') {
+  return fetchAPI(`/community-decks?sort=${encodeURIComponent(sort)}`);
 }
 
 export function getCommunityDeck(id) {
   return fetchAPI(`/community-decks/${id}`);
+}
+
+export function getCommunityDeckShareUrl(id) {
+  return `${API_BASE}/community-decks/${id}/share`;
 }
 
 export function submitCommunityDeck(data) {

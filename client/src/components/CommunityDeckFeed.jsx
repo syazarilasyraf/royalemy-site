@@ -1,7 +1,7 @@
 import { useState, useEffect, memo } from 'react';
 import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById } from '../utils/cardMapping';
-import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck } from '../services/api';
+import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck, getCommunityDeckShareUrl } from '../services/api';
 import { isChampionCard } from '../data/deckSources';
 import DeckPreview from './DeckPreview';
 
@@ -47,10 +47,34 @@ function CommunityDeckFeed() {
     try { return JSON.parse(localStorage.getItem('cr_voted_decks') || '[]'); }
     catch { return []; }
   });
+  const [sortBy, setSortBy] = useState(() => {
+    try { return localStorage.getItem('cr_deck_sort') || 'top'; }
+    catch { return 'top'; }
+  });
 
   useEffect(() => {
     loadDecks();
-  }, []);
+  }, [sortBy]);
+
+  // Highlight a specific deck from ?deck=ID
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const deckId = params.get('deck');
+    if (!deckId) return;
+
+    const timer = setInterval(() => {
+      const el = document.getElementById(`deck-${deckId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('deck-highlight');
+        setTimeout(() => el.classList.remove('deck-highlight'), 2500);
+        clearInterval(timer);
+      }
+    }, 100);
+
+    const timeout = setTimeout(() => clearInterval(timer), 5000);
+    return () => { clearInterval(timer); clearTimeout(timeout); };
+  }, [decks]);
 
   useEffect(() => {
     if (!deckLink.trim()) {
@@ -67,13 +91,19 @@ function CommunityDeckFeed() {
   const loadDecks = async () => {
     setLoading(true);
     try {
-      const data = await getCommunityDecks();
+      const data = await getCommunityDecks(sortBy);
       setDecks(data.decks || []);
     } catch (err) {
       setError('Failed to load community decks');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    try { localStorage.setItem('cr_deck_sort', newSort); }
+    catch { /* ignore */ }
   };
 
   const handleSubmit = async (e) => {
@@ -111,6 +141,27 @@ function CommunityDeckFeed() {
     }
   };
 
+  const handleShare = async (deck) => {
+    const shareUrl = getCommunityDeckShareUrl(deck.id);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Community Deck by ${deck.author_name || 'Anonymous'} | RoyaleMY`,
+          text: deck.description || 'Check out this community deck on RoyaleMY!',
+          url: shareUrl
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Deck share link copied to clipboard!');
+      } else {
+        window.prompt('Copy this link:', shareUrl);
+      }
+    } catch (err) {
+      // User cancelled share or clipboard failed
+      console.error('Share failed:', err);
+    }
+  };
+
   const handleVote = async (id) => {
     if (votedDecks.includes(id)) return;
     try {
@@ -131,9 +182,22 @@ function CommunityDeckFeed() {
           <h1>🌟 Community Decks</h1>
           <p className="feed-subtitle">Decks shared by the community. Vote for your favorites!</p>
         </div>
-        <button className="submit-deck-toggle" onClick={() => setShowSubmitForm(!showSubmitForm)}>
-          {showSubmitForm ? 'Cancel' : '+ Share Your Deck'}
-        </button>
+        <div className="feed-controls">
+          <div className="sort-control">
+            <label htmlFor="deck-sort">Sort by</label>
+            <select
+              id="deck-sort"
+              value={sortBy}
+              onChange={(e) => handleSortChange(e.target.value)}
+            >
+              <option value="top">🏆 Top Rated</option>
+              <option value="trending">🔥 Trending</option>
+            </select>
+          </div>
+          <button className="submit-deck-toggle" onClick={() => setShowSubmitForm(!showSubmitForm)}>
+            {showSubmitForm ? 'Cancel' : '+ Share Your Deck'}
+          </button>
+        </div>
       </div>
 
       {showSubmitForm && (
@@ -196,7 +260,7 @@ function CommunityDeckFeed() {
       ) : (
         <div className="community-decks-grid">
           {decks.map((deck) => (
-            <div key={deck.id} className="community-deck-card">
+            <div key={deck.id} id={`deck-${deck.id}`} className="community-deck-card">
               <div className="community-deck-header">
                 <div className="community-deck-meta">
                   <span className="community-deck-author">{deck.author_name || 'Anonymous'}</span>
@@ -214,7 +278,12 @@ function CommunityDeckFeed() {
               <DeckPreview cardIds={deck.cardIds} compact />
               <div className="community-deck-footer">
                 <span className="avg-elixir">💧 Avg: {deck.avg_elixir || calculateDynamicAvgElixir(deck.cardIds)}</span>
-                <a href={deck.deck_link} target="_blank" rel="noopener noreferrer" className="open-deck-btn">Open in CR</a>
+                <div className="deck-actions">
+                  <button className="share-deck-btn" onClick={() => handleShare(deck)} title="Share deck">
+                    🔗 Share
+                  </button>
+                  <a href={deck.deck_link} target="_blank" rel="noopener noreferrer" className="open-deck-btn">Open in CR</a>
+                </div>
               </div>
             </div>
           ))}
@@ -236,6 +305,31 @@ function CommunityDeckFeed() {
           align-items: flex-start;
           flex-wrap: wrap;
           gap: var(--spacing-md);
+        }
+        .feed-controls {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          flex-wrap: wrap;
+        }
+        .sort-control {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+        .sort-control label {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          font-weight: 500;
+        }
+        .sort-control select {
+          padding: 8px 12px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--bg-tertiary);
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+          cursor: pointer;
         }
         .feed-header h1 {
           margin: 0 0 4px;
@@ -378,6 +472,26 @@ function CommunityDeckFeed() {
           align-items: center;
           margin-top: var(--spacing-xs);
         }
+        .deck-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+          align-items: center;
+        }
+        .share-deck-btn {
+          padding: 6px 12px;
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .share-deck-btn:hover {
+          background: var(--accent-primary);
+          color: white;
+        }
         .open-deck-btn {
           padding: 6px 12px;
           background: var(--accent-primary);
@@ -386,6 +500,15 @@ function CommunityDeckFeed() {
           font-size: 0.75rem;
           font-weight: 600;
           text-decoration: none;
+        }
+        .deck-highlight {
+          animation: deckPulse 2.5s ease;
+          border-color: var(--accent-primary);
+        }
+        @keyframes deckPulse {
+          0% { box-shadow: 0 0 0 0 var(--accent-primary); }
+          70% { box-shadow: 0 0 0 12px transparent; }
+          100% { box-shadow: 0 0 0 0 transparent; }
         }
         .empty-state {
           text-align: center;
@@ -423,6 +546,10 @@ function CommunityDeckFeed() {
           }
           .feed-header h1 {
             font-size: 1.5rem;
+          }
+          .feed-controls {
+            width: 100%;
+            justify-content: space-between;
           }
         }
       `}</style>
