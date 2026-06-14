@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import TournamentBracket from './TournamentBracket';
 import {
   getCommunityTournaments,
   getCommunityTournament,
-  getTournamentArchive,
   submitCommunityTournament,
   registerForTournament,
   getTournamentRegistrations,
-  getHallOfFame,
   updateTournamentStatus,
   updateTournament,
   deleteTournament,
@@ -844,172 +842,6 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
   );
 }
 
-// ==================== ARCHIVE VIEW ====================
-
-function ArchiveView({ onBack, onViewDetails }) {
-  const [tournaments, setTournaments] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadArchive();
-  }, []);
-
-  const loadArchive = async () => {
-    setLoading(true);
-    try {
-      const data = await getTournamentArchive();
-      setTournaments(data.tournaments || []);
-    } catch (err) {
-      console.error('Failed to load archive:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="tournament-archive">
-      <button className="back-btn" onClick={onBack}>← Back</button>
-      <h2 className="section-title">🏛️ Tournament Archive</h2>
-      <p className="section-desc">Completed tournaments and their results</p>
-
-      {loading ? (
-        <div className="loading-state">
-          <div className="loading-spinner"></div>
-          <p>Loading archive...</p>
-        </div>
-      ) : tournaments.length > 0 ? (
-        <div className="archive-list">
-          {tournaments.map((t) => (
-            <div key={t.id} className="archive-card" onClick={() => onViewDetails && onViewDetails(t)}>
-              <div className="archive-header">
-                <h4>{t.name}</h4>
-                <span className="archive-date">{formatDateOnly(t.start_date)}</span>
-              </div>
-              <div className="archive-meta">
-                <span>{t.format}</span>
-                <span>{t.participant_count || 0} / {t.max_players || '∞'} players</span>
-                {t.prize && <span className="archive-prize">{t.prize}</span>}
-              </div>
-              <div className="archive-winners">
-                {t.winner_1st && (
-                  <div className="archive-winner first">
-                    <span>🥇</span>
-                    <span>{t.winner_1st}</span>
-                  </div>
-                )}
-                {t.winner_2nd && (
-                  <div className="archive-winner second">
-                    <span>🥈</span>
-                    <span>{t.winner_2nd}</span>
-                  </div>
-                )}
-                {t.winner_3rd && (
-                  <div className="archive-winner third">
-                    <span>🥉</span>
-                    <span>{t.winner_3rd}</span>
-                  </div>
-                )}
-              </div>
-              {onViewDetails && <div className="archive-click-hint">Click to view details →</div>}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state-box">
-          <div className="empty-icon">🏛️</div>
-          <h4>No completed tournaments yet</h4>
-          <p className="empty-helper">Check back after tournaments conclude!</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ==================== HALL OF FAME ====================
-
-function HallOfFameView({ onBack }) {
-  const [stats, setStats] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = async () => {
-    setLoading(true);
-    try {
-      const data = await getHallOfFame(50);
-      setStats(data.stats || []);
-    } catch (err) {
-      console.error('Failed to load hall of fame:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="hall-of-fame">
-      <button className="back-btn" onClick={onBack}>← Back</button>
-      <h2 className="section-title">🏆 Hall of Fame</h2>
-      <p className="section-desc">Top tournament performers</p>
-
-      {loading ? (
-        <div className="loading-state">
-          <div className="loading-spinner"></div>
-          <p>Loading rankings...</p>
-        </div>
-      ) : stats.length > 0 ? (
-        <>
-          <div className="hof-header-row">
-            <span className="hof-header-rank">Rank</span>
-            <span className="hof-header-player">Player</span>
-            <span className="hof-header-stat">Wins</span>
-            <span className="hof-header-stat">Top 3</span>
-            <span className="hof-header-stat">Joined</span>
-          </div>
-          <div className="hof-list">
-            {stats.map((s, idx) => {
-              const rank = idx + 1;
-              const rankClass = rank === 1 ? 'hof-rank-1' : rank === 2 ? 'hof-rank-2' : rank === 3 ? 'hof-rank-3' : 'hof-rank-other';
-              const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
-              const showTag = s.player_name && s.player_name !== s.player_tag;
-              return (
-                <div key={s.id} className={`hof-card ${rank <= 3 ? 'hof-card-top' : ''}`}>
-                  <div className={`hof-rank-badge ${rankClass}`}>
-                    {medal || rank}
-                  </div>
-                  <div className="hof-player-info">
-                    <span className="hof-player-name">{s.player_tag}</span>
-                    {showTag && <span className="hof-player-tag">{s.player_name}</span>}
-                  </div>
-                  <div className="hof-stat hof-stat-wins">
-                    <span className="hof-stat-value">{s.tournament_wins}</span>
-                    <span className="hof-stat-label">Wins</span>
-                  </div>
-                  <div className="hof-stat hof-stat-top3">
-                    <span className="hof-stat-value">{s.top_3_finishes}</span>
-                    <span className="hof-stat-label">Top 3</span>
-                  </div>
-                  <div className="hof-stat hof-stat-part">
-                    <span className="hof-stat-value">{s.total_participations}</span>
-                    <span className="hof-stat-label">Joined</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      ) : (
-        <div className="empty-state-box">
-          <div className="empty-icon">🏆</div>
-          <h4>No rankings yet</h4>
-          <p className="empty-helper">Complete tournaments to build the Hall of Fame!</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ==================== SUBMIT MODAL ====================
 
 function SubmitModal({ onClose, onSuccess }) {
@@ -1612,10 +1444,11 @@ function TournamentFinder() {
   const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [selectedTournamentFull, setSelectedTournamentFull] = useState(null);
-  const [view, setView] = useState('list'); // list, detail, archive, halloffame
+  const [view, setView] = useState('list'); // list, detail, official-detail
   const [listViewMode, setListViewMode] = useState('list'); // list, calendar
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const adminKey = searchParams.get('admin');
 
   // Registration modal
@@ -1756,24 +1589,6 @@ function TournamentFinder() {
     );
   }
 
-  if (view === 'archive') {
-    return (
-      <div className="tournament-finder">
-        <ArchiveView onBack={handleBack} onViewDetails={viewTournamentDetails} />
-
-      </div>
-    );
-  }
-
-  if (view === 'halloffame') {
-    return (
-      <div className="tournament-finder">
-        <HallOfFameView onBack={handleBack} />
-
-      </div>
-    );
-  }
-
   return (
     <div className="tournament-finder">
       {/* Header */}
@@ -1784,12 +1599,12 @@ function TournamentFinder() {
           <button className="submit-tournament-btn" onClick={() => setShowSubmitModal(true)}>
             ➕ Submit Tournament
           </button>
-          <button className="archive-btn" onClick={() => setView('archive')}>
+          <Link className="archive-btn" to="/tournaments/archive">
             🏛️ Archive
-          </button>
-          <button className="hof-btn" onClick={() => setView('halloffame')}>
+          </Link>
+          <Link className="hof-btn" to="/tournaments/hall-of-fame">
             🏆 Hall of Fame
-          </button>
+          </Link>
           <button
             className="btn btn-secondary"
             onClick={() => setListViewMode(listViewMode === 'list' ? 'calendar' : 'list')}
@@ -3359,286 +3174,6 @@ function TournamentFinder() {
           transform: translateY(-2px);
           box-shadow: 0 8px 24px rgba(0,0,0,0.2);
           border-color: var(--accent-primary);
-        }
-
-        /* Archive */
-        .tournament-archive {
-          animation: fadeIn 0.3s ease;
-        }
-
-        .archive-list {
-          display: grid;
-          gap: var(--spacing-lg);
-        }
-
-        .archive-card {
-          background: linear-gradient(145deg, var(--bg-secondary), rgba(255,255,255,0.02));
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-xl);
-          transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .archive-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #f59e0b, #ef4444, #3b82f6);
-          opacity: 0.6;
-        }
-
-        .archive-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 12px 32px rgba(0,0,0,0.25);
-          border-color: rgba(255,255,255,0.08);
-        }
-
-        .archive-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: var(--spacing-md);
-          gap: var(--spacing-md);
-        }
-
-        .archive-header h4 {
-          margin: 0;
-          color: var(--text-primary);
-          font-size: 1.15rem;
-          font-weight: 700;
-          line-height: 1.3;
-          flex: 1;
-        }
-
-        .archive-date {
-          font-size: 0.8125rem;
-          color: var(--text-muted);
-          background: var(--bg-primary);
-          padding: 4px 10px;
-          border-radius: var(--radius-md);
-          white-space: nowrap;
-          flex-shrink: 0;
-        }
-
-        .archive-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-md);
-        }
-
-        .archive-meta span {
-          font-size: 0.8125rem;
-          color: var(--text-secondary);
-          background: var(--bg-primary);
-          padding: 5px 12px;
-          border-radius: var(--radius-md);
-          font-weight: 500;
-          border: 1px solid var(--bg-tertiary);
-        }
-
-        .archive-prize {
-          color: #fbbf24 !important;
-          font-weight: 700;
-          border-color: rgba(251, 191, 36, 0.2) !important;
-        }
-
-        .archive-winners {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--spacing-sm);
-        }
-
-        .archive-winner {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          font-size: 0.875rem;
-          color: var(--text-primary);
-          background: var(--bg-primary);
-          padding: 6px 12px;
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--bg-tertiary);
-          font-weight: 600;
-        }
-
-        /* Hall of Fame */
-        .hall-of-fame {
-          animation: fadeIn 0.3s ease;
-        }
-
-        .hof-header-row {
-          display: grid;
-          grid-template-columns: 56px 1fr 56px 56px 56px;
-          align-items: center;
-          gap: var(--spacing-md);
-          padding: 8px var(--spacing-lg);
-          margin-bottom: 8px;
-          font-size: 0.6875rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-        }
-
-        .hof-header-rank { text-align: center; }
-        .hof-header-player { padding-left: 4px; }
-        .hof-header-stat { text-align: center; }
-
-        .hof-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-md);
-        }
-
-        .hof-card {
-          display: grid;
-          grid-template-columns: 56px 1fr 56px 56px 56px;
-          align-items: center;
-          gap: var(--spacing-md);
-          background: var(--bg-secondary);
-          border: 1px solid var(--bg-tertiary);
-          border-radius: var(--radius-xl);
-          padding: var(--spacing-md) var(--spacing-lg);
-          transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
-        }
-
-        .hof-card-top {
-          border-color: rgba(255, 215, 0, 0.25);
-          background: linear-gradient(90deg, rgba(255,215,0,0.06) 0%, var(--bg-secondary) 100%);
-        }
-
-        .hof-card:hover {
-          transform: translateX(4px);
-          border-color: rgba(255,255,255,0.12);
-          box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-        }
-
-        .hof-rank-badge {
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          font-weight: 800;
-          font-size: 1rem;
-          flex-shrink: 0;
-          margin: 0 auto;
-        }
-
-        .hof-rank-1 {
-          background: linear-gradient(135deg, #fbbf24, #f59e0b);
-          color: #1a1a1a;
-          box-shadow: 0 0 16px rgba(251, 191, 36, 0.45);
-          font-size: 1.25rem;
-        }
-
-        .hof-rank-2 {
-          background: linear-gradient(135deg, #e5e7eb, #9ca3af);
-          color: #1a1a1a;
-          font-size: 1.25rem;
-        }
-
-        .hof-rank-3 {
-          background: linear-gradient(135deg, #fdba74, #ea580c);
-          color: #1a1a1a;
-          font-size: 1.25rem;
-        }
-
-        .hof-rank-other {
-          background: var(--bg-primary);
-          color: var(--text-muted);
-          border: 1px solid var(--bg-tertiary);
-          font-size: 0.875rem;
-        }
-
-        .hof-player-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
-        }
-
-        .hof-player-name {
-          font-weight: 700;
-          font-size: 1.0625rem;
-          color: var(--text-primary);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-family: monospace;
-          letter-spacing: 0.02em;
-        }
-
-        .hof-player-tag {
-          font-family: inherit;
-          color: var(--text-secondary);
-          font-size: 0.8125rem;
-        }
-
-        .hof-stat {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2px;
-          min-width: 56px;
-        }
-
-        .hof-stat-value {
-          font-weight: 800;
-          font-size: 1.125rem;
-        }
-
-        .hof-stat-label {
-          font-size: 0.6875rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          font-weight: 600;
-          letter-spacing: 0.03em;
-        }
-
-        .hof-stat-wins .hof-stat-value {
-          color: #fbbf24;
-        }
-
-        .hof-stat-top3 .hof-stat-value {
-          color: #60a5fa;
-        }
-
-        .hof-stat-part .hof-stat-value {
-          color: var(--text-secondary);
-        }
-
-        @media (max-width: 640px) {
-          .hof-card {
-            grid-template-columns: auto 1fr auto auto auto;
-            gap: var(--spacing-sm);
-            padding: var(--spacing-sm) var(--spacing-md);
-          }
-
-          .hof-rank-badge {
-            width: 32px;
-            height: 32px;
-            font-size: 0.75rem;
-          }
-
-          .hof-stat {
-            min-width: 44px;
-          }
-
-          .hof-stat-value {
-            font-size: 0.875rem;
-          }
-
-          .hof-stat-label {
-            font-size: 0.625rem;
-          }
         }
 
         /* Modal */
