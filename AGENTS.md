@@ -87,6 +87,7 @@ if (!columnExists('existing_table', 'new_column')) {
 | `server/db.js` | Database initialization, schema, prepared statements | **HIGH** — affects data persistence |
 | `server/index.js` | Express server, API routes, CORS, middleware | Medium |
 | `server/routes/communityTournaments.js` | Tournament API | Medium |
+| `server/routes/admin.js` | Admin dashboard, logs, audit trail, rate limits | Low |
 | `Dockerfile` | Docker image for JustRunMyApp | **HIGH** — affects deployment |
 | `client/src/services/api.js` | Frontend API client | Low |
 | `client/src/components/TournamentFinder.jsx` | Tournament UI | Low |
@@ -146,7 +147,7 @@ Tournaments are stored in `community_tournaments` table with these key fields:
 
 ### Related Tables
 - `tournament_registrations` — player signups
-- `tournament_notifications` — in-site notifications
+- `notifications` — generalized in-site notifications (scope: tournament/clan/deck/roadmap/global)
 - `player_stats` — Hall of Fame foundation (wins, top 3, participations)
 
 ---
@@ -220,7 +221,12 @@ console.log('DB path:', db.name);
 | `FRONTEND_URL` | Yes | `https://royalemy.netlify.app` |
 | `ROADMAP_ADMIN_KEY` | Yes | Random secret string |
 | `DB_DIR` | Yes (prod) | `/data` |
+| `VAPID_PUBLIC_KEY` | No* | Web Push public key |
+| `VAPID_PRIVATE_KEY` | No* | Web Push private key |
+| `VAPID_SUBJECT` | No | Contact email for push |
 | `PORT` | No | `3001` |
+
+\* Required only if using browser push notifications.
 
 ---
 

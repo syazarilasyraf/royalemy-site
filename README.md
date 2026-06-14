@@ -223,31 +223,49 @@ When deploying new code, bump the cache version in `client/public/sw.js` (e.g., 
 
 ## Admin Features
 
-Admin panels are accessed by appending `?admin=YOUR_ADMIN_KEY` to the relevant page URL.
+Admin panels are accessed from the unified admin area at `/admin?admin=YOUR_ADMIN_KEY`. The key is sent to the API via the `X-Admin-Key` header for most operations.
 
-### Tournament Admin (`/tournaments?admin=KEY`)
+### Admin Dashboard (`/admin?admin=KEY`)
+- View pending counts across tournaments, clans, decks, roadmap features, and state players
+- See recent rate-limit hits and top offending IPs
+- Quick links to all moderation panels
+
+### Tournament Admin (`/admin/tournaments?admin=KEY`)
 - Approve / reject tournament submissions
 - Update tournament status through the full lifecycle
 - Edit tournament details
+- Manage registrations and promote players from the waitlist
 - Enter winners (1st, 2nd, 3rd)
 - Track prize status (`pending` → `contacted` → `paid`)
-- Delete tournaments or individual registrations
+- Export registrations to CSV
+- Bulk approve / reject / delete / change status
 
-### Roadmap Admin (`/roadmap?admin=KEY`)
+### Roadmap Admin (`/admin/roadmap?admin=KEY`)
 - View all feature suggestions including pending
 - Approve suggestions → `planned`
 - Reject suggestions
 - Update status to any valid state
+- Bulk operations
 
-### Community Deck Admin (`/communitydecks?admin=KEY`)
+### Community Deck Admin (`/admin/decks?admin=KEY`)
 - Approve / reject deck submissions
 - Update deck status
 - Delete decks
+- Bulk operations
 
-### Clan Admin (`/clan?admin=KEY`)
+### Clan Admin (`/admin/clans?admin=KEY`)
 - Approve / reject community clan submissions
 - Update clan status
 - Delete clans
+- Bulk operations
+
+### Notifications Admin (`/admin/notifications?admin=KEY`)
+- Create scoped in-site notifications (tournament, clan, deck, roadmap, global)
+- Resend push notifications
+- Delete notifications
+
+### Audit Trail (`/admin/audit?admin=KEY`)
+- View logged admin actions with resource filter and pagination
 
 ### Admin Logs (`/admin/logs?admin=KEY`)
 - Query server logs with filtering and pagination
@@ -260,32 +278,37 @@ Admin panels are accessed by appending `?admin=YOUR_ADMIN_KEY` to the relevant p
 
 Features likely to be implemented based on existing architecture and community needs:
 
-- **State Rankings** — Complete the "By State" tab in MY Rankings by wiring the existing `state_players` backend to the frontend.
-- **Tournament Waitlist** — Allow players to join a waitlist when `max_players` is reached, with auto-promotion if spots open.
+- **State Rankings** — Complete the "By State" tab in MY Rankings and add a state-player admin panel. The backend is already implemented.
+- **Tournament Waitlist Auto-Promotion** — Automatically promote waitlisted players when a spot opens.
 - **Tournament Brackets** — Simple match tracker for 1v1 tournaments so admins can record results round-by-round.
-- **Player Profiles** — Link Hall of Fame entries to a detail page showing tournament history and stats.
+- **Player Profiles** — Link Hall of Fame entries to a detail page combining CR API stats with RoyaleMY tournament history.
 - **Deck Comments** — Allow strategy discussions on community decks.
 - **Trending Decks** — Sort by recent vote velocity instead of just total votes.
-- **Tournament Calendar View** — Calendar/grid layout for easier discovery of upcoming events.
+- **Global Search** — One search input across tournaments, clans, decks, and players.
+- **Social Sharing** — Shareable links and Open Graph images for tournaments, decks, and player profiles.
 
 ## Known Limitations
 
 Current unfinished or partially broken functionality:
 
 - **State Rankings** — The "By State" tab renders a placeholder. Backend routes and table exist, but the frontend is not wired up.
-- **Tournament Reminders** — The `notified_24h` and `notified_1h` schema columns exist, but no automated reminder logic runs.
 - **State Players Admin UI** — Backend admin endpoints exist, but there is no frontend admin panel for managing state player submissions.
+- **Tournament Waitlist** — Waitlist registration works, but players are not automatically promoted when a spot opens.
+- **Tournament Reminder Pushes** — A background job creates in-site notifications at 24h and 1h before tournaments, but push notifications are not sent yet.
+- **Admin Key in URLs** — The admin area still propagates the key via `?admin=KEY`, which can leak to browser history and referrers.
+- **Audit Trail Identity** — The audit trail logs actions but does not identify which admin key performed them.
 
 ## Technical Roadmap
 
 Engineering improvements to increase reliability, performance, and maintainability:
 
-- **Security** — Move admin key from URL query params to `X-Admin-Key` header.
-- **Observability** — Add request correlation IDs; switch to structured JSON logging in production.
-- **Code Organization** — Extract CR proxy and meta-deck logic from `server/index.js` into service modules; consolidate duplicated middleware.
-- **Deployment** — Add Docker health check; use multi-stage builds to exclude dev dependencies; add pre-deploy verification in CI.
+- **Security** — Remove the `?key=` admin-key fallback and move the admin key out of the URL entirely (`sessionStorage` + context).
+- **Code Organization** — Finish extracting CR proxy routes from `server/index.js` into dedicated route modules; consolidate duplicated `logAdminAction` helpers.
+- **Input Validation** — Adopt `zod` for request-body validation across the API.
+- **Caching** — Replace the FIFO in-memory cache with `lru-cache` and expose hit/miss metrics.
+- **Testing** — Add a test suite for services and route integration; run it in CI.
 
-**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production.
+**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations/push subscriptions/submissions, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard and area, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production, admin key in `X-Admin-Key` header, bulk admin operations, admin search and filter, tournament waitlist, admin audit trail, automated tournament reminders, tournament calendar view, Docker multi-stage build + healthcheck, CI pre-deploy verification.
 
 See `docs/FUTURE_ROADMAP.md` for the complete audit and ranked recommendations.
 
