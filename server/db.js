@@ -497,13 +497,13 @@ const statements = {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ),
   getApprovedTournaments: db.prepare(
-    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id) as participant_count FROM community_tournaments ct WHERE ct.status IN ('approved', 'registration_open', 'registration_closed', 'live') ORDER BY ct.start_date ASC`
+    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id AND tr.status = 'registered') as participant_count FROM community_tournaments ct WHERE ct.status IN ('approved', 'registration_open', 'registration_closed', 'live') ORDER BY ct.start_date ASC`
   ),
   getArchiveTournaments: db.prepare(
-    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id) as participant_count FROM community_tournaments ct WHERE ct.status = 'completed' ORDER BY ct.start_date DESC`
+    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id AND tr.status = 'registered') as participant_count FROM community_tournaments ct WHERE ct.status = 'completed' ORDER BY ct.start_date DESC`
   ),
   getAllTournaments: db.prepare(
-    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id) as participant_count FROM community_tournaments ct ORDER BY ct.created_at DESC`
+    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id AND tr.status = 'registered') as participant_count FROM community_tournaments ct ORDER BY ct.created_at DESC`
   ),
   getTournamentById: db.prepare(
     `SELECT * FROM community_tournaments WHERE id = ?`
@@ -564,6 +564,9 @@ const statements = {
   ),
   updateRegistrationStatus: db.prepare(
     `UPDATE tournament_registrations SET status = ?, waitlist_position = ? WHERE id = ?`
+  ),
+  decrementWaitlistPositions: db.prepare(
+    `UPDATE tournament_registrations SET waitlist_position = waitlist_position - 1 WHERE tournament_id = ? AND status = 'waitlisted' AND waitlist_position > ?`
   ),
 
   // Notifications (generalized, site-wide)
