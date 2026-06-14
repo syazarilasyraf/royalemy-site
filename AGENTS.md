@@ -103,9 +103,7 @@ if (!columnExists('existing_table', 'new_column')) {
 2. Netlify auto-builds from `client/` directory
 3. Build command: `npm run build`
 4. Publish directory: `client/dist`
-5. **Required env vars:**
-   - `VITE_API_URL=https://YOUR-BACKEND-URL/api`
-   - `VITE_SITE_URL=https://royalemy.com` (used for share links)
+5. **Required env var:** `VITE_API_URL=https://YOUR-BACKEND-URL/api`
 
 ### Backend (JustRunMyApp)
 1. Push to GitHub
@@ -215,7 +213,6 @@ console.log('DB path:', db.name);
 | Var | Example |
 |-----|---------|
 | `VITE_API_URL` | `https://gitr_jm64t-613.f.jrnm.app/api` |
-| `VITE_SITE_URL` | `https://royalemy.com` |
 
 ### Netlify Edge Functions
 | File | Purpose |

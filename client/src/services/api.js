@@ -568,11 +568,12 @@ export function getCommunityDeck(id) {
 }
 
 export function getCommunityDeckShareUrl(id) {
-  const siteUrl = import.meta.env.VITE_SITE_URL;
-  if (siteUrl) {
-    return `${siteUrl.replace(/\/$/, '')}/share/deck/${id}`;
+  // Use the current public domain so share links work on Netlify custom domains
+  // without requiring a separate env var. Falls back to backend endpoint for local dev.
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  if (origin && !origin.includes('localhost')) {
+    return `${origin}/share/deck/${id}`;
   }
-  // Fallback for local dev without a configured public domain
   return `${API_BASE}/community-decks/${id}/share`;
 }
 

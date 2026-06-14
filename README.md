@@ -128,7 +128,6 @@ curl http://localhost:3001/api/health
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
 | `VITE_API_URL` | **Yes** | Full URL to backend API | `https://your-backend.f.jrnm.app/api` |
-| `VITE_SITE_URL` | No | Public frontend domain (used for share links) | `https://royalemy.com` |
 
 ### Backend (`server/.env` or JustRunMyApp Dashboard)
 
