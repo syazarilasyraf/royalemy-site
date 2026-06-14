@@ -64,6 +64,7 @@ function AdminTournaments() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [detailTournament, setDetailTournament] = useState(null);
 
   const fetchAdminData = useCallback(async () => {
     if (!adminKey) return;
@@ -262,6 +263,9 @@ function AdminTournaments() {
                   </div>
                 </div>
                 <div className="tournament-admin-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
+                    👁 View
+                  </button>
                   <button className="btn btn-success btn-sm" onClick={() => handleApprove(t.id)}>
                     Approve
                   </button>
@@ -297,6 +301,9 @@ function AdminTournaments() {
                   </div>
                 </div>
                 <div className="tournament-admin-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
+                    👁 View
+                  </button>
                   <select
                     className="input"
                     style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}
@@ -340,6 +347,9 @@ function AdminTournaments() {
                     </div>
                   </div>
                   <div className="tournament-admin-actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
+                      👁 View
+                    </button>
                     <select
                       className="input"
                       style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}
@@ -398,12 +408,102 @@ function AdminTournaments() {
                   </div>
                 </div>
                 <div className="tournament-admin-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
+                    👁 View
+                  </button>
                   <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
                     🗑️
                   </button>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {detailTournament && (
+        <div className="modal-overlay" onClick={() => setDetailTournament(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+            <div className="modal-header">
+              <h3>{detailTournament.name}</h3>
+              <button className="modal-close" onClick={() => setDetailTournament(null)}>✕</button>
+            </div>
+            <div className="detail-body">
+              <div className="detail-section">
+                <div className="detail-row">
+                  <span className="detail-label">Status</span>
+                  <span className={`badge ${STATUS_BADGES[detailTournament.status]}`}>{STATUS_LABELS[detailTournament.status]}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Host</span>
+                  <span className="detail-value">{detailTournament.host_name || '-'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Format</span>
+                  <span className="detail-value">{detailTournament.format || '-'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Max Players</span>
+                  <span className="detail-value">{detailTournament.max_players || '-'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Participants</span>
+                  <span className="detail-value">{detailTournament.participant_count ?? 0}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Start</span>
+                  <span className="detail-value">{formatDate(detailTournament.start_date)}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">End</span>
+                  <span className="detail-value">{formatDate(detailTournament.end_date)}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Registration Deadline</span>
+                  <span className="detail-value">{formatDate(detailTournament.registration_deadline)}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Prize</span>
+                  <span className="detail-value">{detailTournament.prize || '-'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Prize Status</span>
+                  <span className="detail-value">{PRIZE_STATUS_LABELS[detailTournament.prize_status] || 'Pending'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">TikTok</span>
+                  <span className="detail-value">{detailTournament.tiktok_username ? `@${detailTournament.tiktok_username}` : '-'}</span>
+                </div>
+                {detailTournament.tiktok_live_url && (
+                  <div className="detail-row">
+                    <span className="detail-label">Live URL</span>
+                    <a href={detailTournament.tiktok_live_url} target="_blank" rel="noopener noreferrer">Open</a>
+                  </div>
+                )}
+                <div className="detail-row">
+                  <span className="detail-label">Password</span>
+                  <span className="detail-value">{detailTournament.tournament_password || '-'}</span>
+                </div>
+              </div>
+              <div className="detail-block">
+                <h4>Description</h4>
+                <p>{detailTournament.description || '-'}</p>
+              </div>
+              <div className="detail-block">
+                <h4>Rules</h4>
+                <p>{detailTournament.rules || '-'}</p>
+              </div>
+              {(detailTournament.winner_1st || detailTournament.winner_2nd || detailTournament.winner_3rd) && (
+                <div className="detail-block">
+                  <h4>Winners</h4>
+                  <p>
+                    {detailTournament.winner_1st && <span>🥇 {detailTournament.winner_1st} </span>}
+                    {detailTournament.winner_2nd && <span>🥈 {detailTournament.winner_2nd} </span>}
+                    {detailTournament.winner_3rd && <span>🥉 {detailTournament.winner_3rd}</span>}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -604,7 +704,59 @@ function AdminTournaments() {
           font-weight: 700;
           cursor: pointer;
         }
+        .detail-body {
+          padding: var(--spacing-lg);
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-lg);
+          max-height: 70vh;
+          overflow-y: auto;
+        }
+        .detail-section {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: var(--spacing-sm);
+        }
+        .detail-row {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: var(--spacing-sm);
+          background: var(--bg-primary);
+          border-radius: var(--radius-md);
+        }
+        .detail-label {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .detail-value {
+          font-size: 0.9375rem;
+          color: var(--text-primary);
+          word-break: break-word;
+        }
+        .detail-block h4 {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          margin: 0 0 var(--spacing-sm);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .detail-block p {
+          margin: 0;
+          color: var(--text-primary);
+          line-height: 1.5;
+          white-space: pre-wrap;
+        }
+        .detail-block a {
+          color: var(--accent-primary);
+          text-decoration: underline;
+        }
         @media (max-width: 640px) {
+          .detail-section {
+            grid-template-columns: 1fr;
+          }
           .tournament-admin-item {
             flex-direction: column;
             align-items: flex-start;
