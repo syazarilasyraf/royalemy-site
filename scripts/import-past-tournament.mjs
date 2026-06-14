@@ -6,9 +6,17 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbDir = process.env.DB_DIR || path.join(__dirname, '..', 'server', 'data');
-const dbPath = path.join(dbDir, 'roadmap.db');
-const dataPath = process.argv[2] || path.join(__dirname, 'past-tournament-data.json');
+const args = process.argv.slice(2);
+const dbArg = args.find(a => a.startsWith('--db='))?.slice(5);
+const dataPath = args.find(a => !a.startsWith('--db=')) || path.join(__dirname, 'past-tournament-data.json');
+
+let dbPath;
+if (dbArg) {
+  dbPath = path.resolve(dbArg);
+} else {
+  const dbDir = process.env.DB_DIR || path.join(__dirname, '..', 'server', 'data');
+  dbPath = path.join(dbDir, 'roadmap.db');
+}
 
 if (!fs.existsSync(dbPath)) {
   console.error(`Database not found: ${dbPath}`);
