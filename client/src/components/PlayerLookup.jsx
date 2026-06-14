@@ -74,6 +74,77 @@ function PlayerLookup() {
     return num.toLocaleString();
   };
 
+  const recentBattles = useMemo(() => battleLog.slice(0, 10).map((battle, index) => {
+    const isWin = battle.team[0]?.crowns > battle.opponent[0]?.crowns;
+    const opponent = battle.opponent[0];
+    const opponentDeck = opponent?.cards || [];
+    const opponentDeckIds = opponentDeck.map(c => c.id);
+    const opponentDeckLink = opponentDeckIds.length === 8 ? buildDeckLink(opponentDeckIds) : null;
+
+    return (
+      <div key={index} className={`battle-item ${isWin ? 'win' : 'loss'}`}>
+        <div className="battle-header">
+          <div className="battle-main">
+            <div className="battle-result">
+              {isWin ? '✅ Victory' : '❌ Defeat'}
+            </div>
+            <div className="battle-crowns">
+              {battle.team[0]?.crowns} - {opponent?.crowns}
+            </div>
+            <div className="battle-mode">{battle.gameMode?.name || 'Unknown Mode'}</div>
+          </div>
+          
+          {opponent && (
+            <div className="battle-opponent-wrapper">
+              <div 
+                className="battle-opponent" 
+                onClick={() => navigate(`/player?tag=${opponent.tag}`)}
+              >
+                <span className="opponent-label">vs</span>
+                <span className="opponent-name">{opponent.name}</span>
+                <span className="opponent-tag-inline">#{opponent.tag}</span>
+              </div>
+              <button 
+                className="copy-tag-btn"
+                onClick={() => navigator.clipboard.writeText(opponent.tag)}
+                title="Copy tag"
+              >
+                📋
+              </button>
+            </div>
+          )}
+        </div>
+        
+        {/* Opponent Deck */}
+        {opponentDeck.length > 0 && (
+          <div className="battle-deck">
+            <span className="deck-label">Opponent's Deck:</span>
+            <div className="battle-deck-grid">
+              {opponentDeck.map((card, cardIndex) => (
+                <div key={cardIndex} className="battle-deck-card">
+                  <img 
+                    src={card.iconUrls?.medium || `/cards/${card.id}.webp`}
+                    alt={card.name}
+                    onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
+                  />
+                </div>
+              ))}
+            </div>
+            {opponentDeckLink && (
+              <button 
+                className="open-deck-cr-btn"
+                onClick={() => window.open(opponentDeckLink, '_blank')}
+              >
+                <span>🎮</span>
+                <span>Open in CR</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }), [battleLog]);
+
   return (
     <div className="player-lookup">
       {/* Search Section */}
@@ -266,76 +337,7 @@ function PlayerLookup() {
                   </div>
                 ) : (
                   <div className="battle-list">
-                    {useMemo(() => battleLog.slice(0, 10).map((battle, index) => {
-                      const isWin = battle.team[0]?.crowns > battle.opponent[0]?.crowns;
-                      const opponent = battle.opponent[0];
-                      const opponentDeck = opponent?.cards || [];
-                      const opponentDeckIds = opponentDeck.map(c => c.id);
-                      const opponentDeckLink = opponentDeckIds.length === 8 ? buildDeckLink(opponentDeckIds) : null;
-
-                      return (
-                        <div key={index} className={`battle-item ${isWin ? 'win' : 'loss'}`}>
-                          <div className="battle-header">
-                            <div className="battle-main">
-                              <div className="battle-result">
-                                {isWin ? '✅ Victory' : '❌ Defeat'}
-                              </div>
-                              <div className="battle-crowns">
-                                {battle.team[0]?.crowns} - {opponent?.crowns}
-                              </div>
-                              <div className="battle-mode">{battle.gameMode?.name || 'Unknown Mode'}</div>
-                            </div>
-                            
-                            {opponent && (
-                              <div className="battle-opponent-wrapper">
-                                <div 
-                                  className="battle-opponent" 
-                                  onClick={() => navigate(`/player?tag=${opponent.tag}`)}
-                                >
-                                  <span className="opponent-label">vs</span>
-                                  <span className="opponent-name">{opponent.name}</span>
-                                  <span className="opponent-tag-inline">#{opponent.tag}</span>
-                                </div>
-                                <button 
-                                  className="copy-tag-btn"
-                                  onClick={() => navigator.clipboard.writeText(opponent.tag)}
-                                  title="Copy tag"
-                                >
-                                  📋
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Opponent Deck */}
-                          {opponentDeck.length > 0 && (
-                            <div className="battle-deck">
-                              <span className="deck-label">Opponent's Deck:</span>
-                              <div className="battle-deck-grid">
-                                {opponentDeck.map((card, cardIndex) => (
-                                  <div key={cardIndex} className="battle-deck-card">
-                                    <img 
-                                      src={card.iconUrls?.medium || `/cards/${card.id}.webp`}
-                                      alt={card.name}
-                                      onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                              {opponentDeckLink && (
-                                <button 
-                                  className="open-deck-cr-btn"
-                                  onClick={() => window.open(opponentDeckLink, '_blank')}
-                                >
-                                  <span>🎮</span>
-                                  <span>Open in CR</span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }), [battleLog])}
+                    {recentBattles}
                   </div>
                 )}
               </div>

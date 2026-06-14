@@ -173,6 +173,42 @@ function DeckStats() {
     return colors[rarity] || colors.common;
   };
 
+  const elixirDistribution = useMemo(() => {
+    if (!deckData) return null;
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9].map(cost => {
+      const count = deckData.elixirCosts.filter(e => e === cost).length;
+      return (
+        <div key={cost} className="dist-bar">
+          <div className="dist-count">{count > 0 ? count : '·'}</div>
+          <div
+            className="dist-fill"
+            style={{
+              height: count > 0 ? `${Math.max((count / 4) * 40, 4)}px` : '4px',
+              maxHeight: '40px'
+            }}
+          />
+          <div className="dist-label">{cost}⚡</div>
+        </div>
+      );
+    });
+  }, [deckData]);
+
+  const rarityList = useMemo(() => {
+    if (!deckData) return null;
+    return Object.entries(deckData.rarityCount)
+      .filter(([, count]) => count > 0)
+      .map(([rarity, count]) => (
+        <div key={rarity} className="rarity-item">
+          <span
+            className="rarity-dot"
+            style={{ background: getRarityColor(rarity) }}
+          />
+          <span className="rarity-name">{rarity}</span>
+          <span className="rarity-count">{count}</span>
+        </div>
+      ));
+  }, [deckData]);
+
   return (
     <div className="deck-stats">
       <section className="input-section">
@@ -386,22 +422,7 @@ function DeckStats() {
             <h4>Elixir Cost Distribution</h4>
             <p className="section-hint">How many cards at each elixir cost</p>
             <div className="elixir-distribution">
-              {useMemo(() => [1, 2, 3, 4, 5, 6, 7, 8, 9].map(cost => {
-                const count = deckData.elixirCosts.filter(e => e === cost).length;
-                return (
-                  <div key={cost} className="dist-bar">
-                    <div className="dist-count">{count > 0 ? count : '·'}</div>
-                    <div
-                      className="dist-fill"
-                      style={{
-                        height: count > 0 ? `${Math.max((count / 4) * 40, 4)}px` : '4px',
-                        maxHeight: '40px'
-                      }}
-                    />
-                    <div className="dist-label">{cost}⚡</div>
-                  </div>
-                );
-              }), [deckData.elixirCosts])}
+              {elixirDistribution}
             </div>
           </div>
 
@@ -610,18 +631,7 @@ function DeckStats() {
           <div className="breakdown-section">
             <h4>Rarity</h4>
             <div className="rarity-list">
-              {useMemo(() => Object.entries(deckData.rarityCount)
-                .filter(([, count]) => count > 0)
-                .map(([rarity, count]) => (
-                  <div key={rarity} className="rarity-item">
-                    <span
-                      className="rarity-dot"
-                      style={{ background: getRarityColor(rarity) }}
-                    />
-                    <span className="rarity-name">{rarity}</span>
-                    <span className="rarity-count">{count}</span>
-                  </div>
-                )), [deckData.rarityCount])}
+              {rarityList}
             </div>
           </div>
 
