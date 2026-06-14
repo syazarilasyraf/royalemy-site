@@ -39,6 +39,7 @@ const PRIZE_STATUS_LABELS = {
   pending: 'Pending',
   contacted: 'Contacted',
   paid: 'Paid',
+  awarded: 'Awarded',
 };
 
 function formatDate(dateString) {
@@ -63,6 +64,7 @@ function AdminTournaments() {
   const [winnerForm, setWinnerForm] = useState({ id: null, winner_1st: '', winner_2nd: '', winner_3rd: '' });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [detailTournament, setDetailTournament] = useState(null);
 
@@ -185,12 +187,22 @@ function AdminTournaments() {
     }
   };
 
-  const { pending, active, completed, other } = useMemo(() => ({
-    pending: allTournaments.filter((t) => t.status === 'pending'),
-    active: allTournaments.filter((t) => PUBLIC_STATUSES.includes(t.status)),
-    completed: allTournaments.filter((t) => t.status === 'completed'),
-    other: allTournaments.filter((t) => ['rejected', 'cancelled'].includes(t.status)),
-  }), [allTournaments]);
+  const { pending, active, completed, other } = useMemo(() => {
+    const visible = allTournaments.filter((t) => {
+      if (groupFilter === 'all') return true;
+      if (groupFilter === 'pending') return t.status === 'pending';
+      if (groupFilter === 'active') return PUBLIC_STATUSES.includes(t.status);
+      if (groupFilter === 'completed') return t.status === 'completed';
+      if (groupFilter === 'other') return ['rejected', 'cancelled'].includes(t.status);
+      return true;
+    });
+    return {
+      pending: visible.filter((t) => t.status === 'pending'),
+      active: visible.filter((t) => PUBLIC_STATUSES.includes(t.status)),
+      completed: visible.filter((t) => t.status === 'completed'),
+      other: visible.filter((t) => ['rejected', 'cancelled'].includes(t.status)),
+    };
+  }, [allTournaments, groupFilter]);
 
   return (
     <div className="tournament-admin-page">
@@ -199,11 +211,59 @@ function AdminTournaments() {
         <p>Manage community tournaments, statuses, prizes, and winners.</p>
       </div>
 
+      {!adminKey && (
+        <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
+          ⚠️ Admin key missing. Add <code>?admin=YOUR_ADMIN_KEY</code> to the URL to manage tournaments.
+        </div>
+      )}
+
       {message && (
         <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
           {message}
         </div>
       )}
+
+      <div className="admin-group-tabs" style={{ marginBottom: '1rem' }}>
+        {[
+          { key: 'all', label: 'All' },
+          { key: 'pending', label: 'Pending' },
+          { key: 'active', label: 'Active' },
+          { key: 'completed', label: 'Completed' },
+          { key: 'other', label: 'Rejected / Cancelled' },
+        ].map((tab) => {
+          const count = allTournaments.filter((t) => {
+            if (tab.key === 'all') return true;
+            if (tab.key === 'pending') return t.status === 'pending';
+            if (tab.key === 'active') return PUBLIC_STATUSES.includes(t.status);
+            if (tab.key === 'completed') return t.status === 'completed';
+            if (tab.key === 'other') return ['rejected', 'cancelled'].includes(t.status);
+            return false;
+          }).length;
+          const active = groupFilter === tab.key;
+          return (
+            <button
+              key={tab.key}
+              className={`btn btn-sm ${active ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setGroupFilter(tab.key)}
+              style={{ position: 'relative' }}
+            >
+              {tab.label}
+              <span
+                style={{
+                  marginLeft: '8px',
+                  background: active ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)',
+                  borderRadius: '10px',
+                  padding: '2px 8px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                }}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="admin-filters-bar">
         <input
@@ -342,7 +402,7 @@ function AdminTournaments() {
                         {STATUS_LABELS[t.status]}
                       </span>
                       <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        Prize: {PRIZE_STATUS_LABELS[t.prize_status] || 'Pending'}
+                        {t.host_name} — {formatDate(t.start_date)} — Prize: {PRIZE_STATUS_LABELS[t.prize_status] || 'Pending'}
                       </p>
                     </div>
                   </div>
@@ -359,6 +419,7 @@ function AdminTournaments() {
                       <option value="pending">Pending</option>
                       <option value="contacted">Contacted</option>
                       <option value="paid">Paid</option>
+                      <option value="awarded">Awarded</option>
                     </select>
                     <button
                       className="btn btn-success btn-sm"

@@ -337,7 +337,7 @@ router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
   try {
     const { id } = req.params;
     const { prize_status } = req.body;
-    if (!['pending', 'contacted', 'paid'].includes(prize_status)) {
+    if (!['pending', 'contacted', 'paid', 'awarded'].includes(prize_status)) {
       return res.status(400).json({ error: 'Invalid prize status' });
     }
     const tournament = statements.getTournamentById.get(id);
