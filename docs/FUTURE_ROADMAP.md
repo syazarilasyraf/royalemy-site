@@ -9,16 +9,16 @@ This document tracks what is actually built, what is half-built, and what should
 
 ## Executive Summary
 
-RoyaleMY has evolved from a simple CR-API wrapper into a real community platform. The recent consolidation of the admin area and the generalized notification system are solid foundations. However, several "completed" roadmap items are only partially done, and the public product still has large gaps that matter more to users than backend polish.
+RoyaleMY has evolved from a simple CR-API wrapper into a real community platform. The recent focus on community-building features (tournaments and community decks) has closed the biggest gaps. State rankings remain intentionally deferred because it requires players to manually submit data before the audience is large enough.
 
 **The biggest opportunities right now are:**
 
-1. **Finish State Rankings** — the backend is complete; only the frontend is missing.
-2. **Build Player Profiles** — link Hall of Fame entries to a real player page with tournament history.
-3. **Complete the Tournament Platform** — brackets/match tracking, auto-promotion from waitlist, and reliable reminder pushes.
-4. **Add Social Discovery** — global search, deck comments/trending, shareable links.
+1. **Player Profiles** — link Hall of Fame entries to a real player page with RoyaleMY tournament history.
+2. **Global Search** — one search input across tournaments, clans, decks, and players.
+3. **Tournament Share Cards** — rich Open Graph previews for individual tournaments.
+4. **Fix remaining technical debt** — admin key leakage, audit trail identity, `server/index.js` refactor, `zod` validation.
 
-The technical debt list is real but mostly invisible to users. Tackle it after the public gaps above are closed, or in parallel when a feature touches the same code.
+State rankings and clan war history are valuable but should wait until the core community loop is working.
 
 ---
 
@@ -32,6 +32,9 @@ A reality-checked changelog. Items marked ⚠️ are "shipped but flawed"; items
 - ⚠️ **Admin area is not fully isolated** — `TournamentFinder.jsx` still renders inline admin controls when `?admin=` is present (edit cards, promote waitlist, status changes, export). The admin panel exists, but the public page still doubles as one.
 - ✅ **Generalized notification system** — `notifications` table replaces `tournament_notifications` with `scope` (tournament/clan/deck/roadmap/global). Site-wide push via `global_push_subscriptions`.
 - ✅ **`AdminNotifications.jsx`** — create scoped notifications, filter, delete, resend push.
+- ✅ **Deck trending sort** — sort decks by vote velocity.
+- ✅ **Deck comments** — strategy discussions on community decks.
+- ✅ **Deck share links with rich previews** — Open Graph / Twitter Card previews served on the public domain via Netlify Edge Function.
 
 ### Previously Completed (2025-06-09 batches)
 
@@ -47,13 +50,15 @@ A reality-checked changelog. Items marked ⚠️ are "shipped but flawed"; items
 - ✅ **Bulk admin operations** — tournaments, clans, decks, roadmap features, state players.
 - ✅ **Admin search and filter** — status filters + text search in every admin panel.
 - ✅ **Tournament waitlist** — `waitlist_position`/`status`, manual promote from admin and public page.
-- ⚠️ **No auto-promotion** when a spot opens or `max_players` increases. Waitlisted players can be stuck until an admin manually promotes them.
+- ✅ **Waitlist auto-promotion** — automatically promotes waitlisted players when a registered slot opens or `max_players` increases.
 - ✅ **Admin audit trail** — `admin_actions` table + `AdminAuditTrail.jsx`.
 - ⚠️ **Audit trail does not identify the admin** — `admin_key_hash` column exists but is never populated; only IP is recorded.
-- ✅ **Automated tournament reminders** — 5-minute interval checks for 24h and 1h reminders.
-- ⚠️ **Reminders only create in-site notifications** — no push is sent. There is also a timezone mismatch (`datetime('now')` UTC vs local `start_date`) and a narrow 1-hour firing window.
+- ✅ **Automated tournament reminders** — 5-minute interval checks for 24h and 1h reminders with push notifications.
+- ⚠️ **Timezone assumption** — status transitions and reminders use the server's local timezone. If the container is UTC but dates are entered in local time, behavior may be off by several hours.
 - ⚠️ **`server/index.js` refactor** — CR HTTP client and meta-deck builder were moved to `services/`, but the route handlers for players, clans, locations, cards, etc. are still inline. The file is still ~832 lines.
 - ✅ **Tournament calendar view** — list/calendar toggle in `TournamentFinder.jsx`.
+- ✅ **Automated tournament status transitions** — approved → registration_open → registration_closed → live → completed based on dates.
+- ✅ **Tournament match tracker / brackets** — admins record pairings and results round-by-round.
 - ✅ **Docker multi-stage build + healthcheck**.
 - ✅ **CI pre-deploy verification** — install + build before Docker push.
 
@@ -63,32 +68,14 @@ A reality-checked changelog. Items marked ⚠️ are "shipped but flawed"; items
 
 These are the highest-priority fixes because they are visible to users or undermine trust in the platform.
 
-### 2.1 State Rankings — Public UI Is a Placeholder
+### 2.1 State Rankings — Public UI Is a Placeholder (Deferred)
 
 - **Backend:** Complete. `state_players` table, `server/routes/statePlayers.js`, public list/detail/submit, admin endpoints, duplicate detection.
 - **Frontend:** `MYRankings.jsx` renders a hardcoded "🚧 In Progress" message. ~200 lines of CSS for state filters/forms are unused. No component calls the `state_players` API.
 - **Admin:** There is **no** `AdminStatePlayers.jsx` and no `/admin/state-players` route, despite full backend support.
-- **Data:** Local DB has 0 state players.
-- **Impact:** A major community feature is advertised but undeliverable.
-- **Recommendation:** Build the state rankings tab and admin panel. This is the quickest high-impact win.
+- **Decision:** Intentionally deferred. State rankings requires players to submit their tag and state, which only works once RoyaleMY already has regular traffic. Prioritize tournament and deck community loops first.
 
-### 2.2 Tournament Waitlist Does Not Auto-Promote
-
-- **Current behavior:** Players are waitlisted when `max_players` is reached. Admins can promote manually.
-- **Missing:** Auto-promotion when a registered player is removed or `max_players` is increased.
-- **Bug:** Waitlisted players are counted in `participant_count`, so a tournament can look full while registered slots are actually free.
-- **Impact:** Admins must micromanage every waitlist; UX is worse than no waitlist.
-- **Recommendation:** Add `promoteNextWaitlisted(tournamentId)` and call it after registration deletion and max-players increase. Re-number `waitlist_position` after promotion.
-
-### 2.3 Tournament Reminders Do Not Send Push
-
-- **Current behavior:** `setupTournamentReminders()` creates `notifications` rows at 24h and 1h.
-- **Missing:** It never calls `sendPushNotifications()`. The `notified_24h`/`notified_1h` flags are also never reset if `start_date` changes.
-- **Bug:** Timezone comparison between SQLite UTC and local server time can fire reminders at the wrong hour or skip them entirely.
-- **Impact:** Players who subscribed to push will not get reminder notifications.
-- **Recommendation:** Send push via the existing subscription table, widen the firing window (or use a `reminder_job` table), and store all datetimes in UTC.
-
-### 2.4 Admin Key Still in URLs
+### 2.2 Admin Key Still in URLs
 
 - **Current behavior:** `AdminLayout` stores/shares the key as `?admin=KEY`. Backend accepts `req.query.key` fallback. CSV export uses `?key=`.
 - **Impact:** Key leaks to browser history, server logs, and referrer headers.
@@ -97,14 +84,14 @@ These are the highest-priority fixes because they are visible to users or underm
   2. Store the admin key in `sessionStorage` and provide it via `AdminKeyContext` (already created but unused).
   3. For CSV export, serve the file through a fetch + blob download so the header can be used.
 
-### 2.5 Audit Trail Does Not Identify the Admin
+### 2.3 Audit Trail Does Not Identify the Admin
 
 - **Current behavior:** `admin_actions` records action, resource, details, and IP.
 - **Missing:** `admin_key_hash` is defined but never inserted.
 - **Impact:** You cannot tell which admin key performed a destructive action.
 - **Recommendation:** Hash the key with `crypto.createHash('sha256')` and insert it into `admin_key_hash`.
 
-### 2.6 `server/index.js` Is Still Monolithic
+### 2.4 `server/index.js` Is Still Monolithic
 
 - **Current behavior:** ~832 lines. Players, clans, locations, cards, chests, and admin DB endpoints are inline.
 - **Impact:** Hard to test, review, and extend.
@@ -118,33 +105,34 @@ Features that extend the platform and are worth doing once the broken/half-built
 
 ### 3.1 Tournament Platform (High Impact)
 
-| Feature | Why It Matters | Effort |
-|---------|----------------|--------|
-| **Tournament brackets / match tracker** | Transforms RoyaleMY from a listing site into a tournament platform. | Large |
-| **Automated status transitions** | Move tournaments through `registration_closed` → `live` → `completed` based on deadlines. | Medium |
-| **Live push on status change** | Notify subscribers when a tournament goes live. | Small |
-| **Tournament filters** | Filter by format, prize, date range, host. | Small |
-| **Upcoming events banner** | Show next 3 tournaments on the home page. | Small |
+| Feature | Why It Matters | Effort | Status |
+|---------|----------------|--------|--------|
+| **Tournament brackets / match tracker** | Transforms RoyaleMY from a listing site into a tournament platform. | Large | ✅ Done |
+| **Automated status transitions** | Move tournaments through `registration_closed` → `live` → `completed` based on deadlines. | Medium | ✅ Done |
+| **Live push on status change** | Notify subscribers when a tournament goes live. | Small | ✅ Done via status transition job |
+| **Tournament share cards / OG images** | Share tournaments on social media with rich previews. | Medium | Not started |
+| **Tournament filters** | Filter by format, prize, date range, host. | Small | Not started |
+| **Upcoming events banner** | Show next 3 tournaments on the home page. | Small | Not started |
 
 ### 3.2 Rankings & Player Identity (High Impact)
 
-| Feature | Why It Matters | Effort |
-|---------|----------------|--------|
-| **State Rankings completion** | Backend is done; frontend is the blocker. | Medium |
-| **Player profile pages** | Combine CR API stats with RoyaleMY tournament history. Link from Hall of Fame. | Medium |
-| **Historical ranking snapshots** | Track Malaysian leaderboard trends over time. | Medium |
-| **Clan war tracking** | Historical war performance for featured Malaysian clans. | Medium |
+| Feature | Why It Matters | Effort | Status |
+|---------|----------------|--------|--------|
+| **State Rankings completion** | Backend is done; frontend is the blocker. | Medium | Deferred |
+| **Player profile pages** | Combine CR API stats with RoyaleMY tournament history. Link from Hall of Fame. | Medium | Not started |
+| **Historical ranking snapshots** | Track Malaysian leaderboard trends over time. | Medium | Not started |
+| **Clan war tracking** | Historical war performance for featured Malaysian clans. | Medium | Not started |
 
 ### 3.3 Community & Discovery (Medium Impact)
 
-| Feature | Why It Matters | Effort |
-|---------|----------------|--------|
-| **Global search** | One input to search tournaments, clans, decks, players. | Medium |
-| **Deck comments** | Strategy discussions on community decks. | Medium |
-| **Trending decks** | Sort by recent vote velocity, not just total votes. | Small |
-| **Deck share links** | Copyable URLs and native share for decks. | Small |
-| **Tournament share cards / OG images** | Share tournaments on social media with rich previews. | Medium |
-| **Notification badge** | Unread count on the header bell (read tracking exists but could be cleaner). | Small |
+| Feature | Why It Matters | Effort | Status |
+|---------|----------------|--------|--------|
+| **Global search** | One input to search tournaments, clans, decks, players. | Medium | Not started |
+| **Deck comments** | Strategy discussions on community decks. | Medium | ✅ Done |
+| **Trending decks** | Sort by recent vote velocity, not just total votes. | Small | ✅ Done |
+| **Deck share links** | Copyable URLs and native share for decks. | Small | ✅ Done |
+| **Tournament share cards / OG images** | Share tournaments on social media with rich previews. | Medium | Not started |
+| **Notification badge** | Unread count on the header bell (read tracking exists but could be cleaner). | Small | Not started |
 
 ### 3.4 Admin & Operations (Low User Impact, High Trust)
 
@@ -249,13 +237,13 @@ Move beyond listings to a full tournament operations platform:
 
 If you can only pick a few things, do these in order:
 
-1. **State Rankings frontend + admin panel** — unblock a feature that is already 80% built.
-2. **Tournament waitlist auto-promotion** — fix the broken UX of the waitlist feature.
-3. **Tournament reminder pushes** — actually deliver the value players subscribed for.
-4. **Player profile pages** — connect Hall of Fame to a real identity.
-5. **Clean up admin key leakage** — remove `?key=` fallback and move `?admin=` to `sessionStorage`.
+1. **Player profile pages** — connect Hall of Fame entries to a real identity with tournament history.
+2. **Global search** — one input to find tournaments, clans, decks, and players.
+3. **Tournament share cards** — rich Open Graph previews for individual tournaments.
+4. **Clean up admin key leakage** — remove `?key=` fallback and move `?admin=` to `sessionStorage`.
+5. **Fix timezone handling** — store tournament dates as UTC or align container timezone with input timezone.
 
-These five items close the biggest gaps between "shipped" and "actually works." After that, the next batch should be brackets, global search, and deck comments.
+State rankings should stay deferred until the community is large enough to sustain it. The recent tournament and deck features are now the core loop; the next batch should make discovery (player profiles, global search, tournament share cards) easier.
 
 ---
 

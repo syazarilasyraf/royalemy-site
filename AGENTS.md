@@ -13,7 +13,7 @@ This file provides critical context for any agent (AI or human) working on this 
 └─────────────┘                  └─────────────────┘                       └──────────┘
 ```
 
-- **Frontend:** React + Vite, deployed to Netlify (`royalemy.netlify.app`)
+- **Frontend:** React + Vite, deployed to Netlify (`royalemy.com` custom domain)
 - **Backend:** Express.js, deployed to JustRunMyApp via Docker
 - **Database:** SQLite (`better-sqlite3`) on persistent volume at `/data`
 
@@ -103,7 +103,9 @@ if (!columnExists('existing_table', 'new_column')) {
 2. Netlify auto-builds from `client/` directory
 3. Build command: `npm run build`
 4. Publish directory: `client/dist`
-5. **Required env var:** `VITE_API_URL=https://YOUR-BACKEND-URL/api`
+5. **Required env vars:**
+   - `VITE_API_URL=https://YOUR-BACKEND-URL/api`
+   - `VITE_SITE_URL=https://royalemy.com` (used for share links)
 
 ### Backend (JustRunMyApp)
 1. Push to GitHub
@@ -213,6 +215,13 @@ console.log('DB path:', db.name);
 | Var | Example |
 |-----|---------|
 | `VITE_API_URL` | `https://gitr_jm64t-613.f.jrnm.app/api` |
+| `VITE_SITE_URL` | `https://royalemy.com` |
+
+### Netlify Edge Functions
+| File | Purpose |
+|------|---------|
+| `client/netlify/edge-functions/share-deck.mjs` | Serves rich social previews for deck shares on the public domain |
+| `client/netlify.toml` | Edge function routing config |
 
 ### Backend (JustRunMyApp)
 | Var | Required | Example |

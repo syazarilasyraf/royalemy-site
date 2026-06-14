@@ -15,19 +15,25 @@ A fan-made Clash Royale community platform built for Malaysian players. Search p
 
 ### Clan & Community
 - **Clan Finder** — Search clans by name, trophies, or members. Browse featured Malaysian clans and view clan details including River Race.
-- **Community Decks** — Browse, submit, and upvote community-built decks. Admin moderation panel for approving submissions.
+- **Community Decks** — Browse, submit, and upvote community-built decks. Sort by top rated or trending.
+- **Deck Comments** — Discuss strategy and ask questions on community decks.
+- **Deck Sharing** — Copy deck links with Open Graph / Twitter Card rich previews.
 - **MY Rankings** — Malaysian leaderboards for Path of Legend, Top Clans, and Clan Wars.
 
 ### Tournament System
 - **Tournament Hub** — Public listing of community tournaments with live countdown timers.
 - **Tournament Submission** — Community members submit tournaments for admin approval.
 - **Registration System** — Players register with name, player tag, and optional TikTok username.
+- **Waitlist** — Automatically join a waitlist when full; auto-promoted when a spot opens.
+- **Automated Status Transitions** — Tournaments advance through `registration_open` → `registration_closed` → `live` → `completed` based on dates.
+- **Automated Reminders** — In-site and push notifications at 24h and 1h before start.
+- **Match Tracker / Brackets** — Admins record match pairings and results round-by-round.
 - **Status Workflow** — Full lifecycle: `pending` → `approved` → `registration_open` → `registration_closed` → `live` → `completed`.
 - **TikTok Integration** — Organizers can share TikTok username and live stream URL on tournament pages.
 - **Results Tracking** — Record 1st, 2nd, and 3rd place winners with prize status tracking.
 - **Tournament Archive** — Browse completed tournaments with full results history.
 - **Hall of Fame** — Aggregate player stats across tournaments (wins, top-3 finishes, total participations).
-- **Push Notifications** — Browser push subscriptions for tournament updates (status changes, winner announcements).
+- **Push Notifications** — Browser push subscriptions for tournament updates (status changes, winner announcements, reminders).
 
 ### Platform Features
 - **Roadmap** — Public feature suggestion board with voting. Admins can approve, reject, and update status of suggestions.
@@ -122,13 +128,14 @@ curl http://localhost:3001/api/health
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
 | `VITE_API_URL` | **Yes** | Full URL to backend API | `https://your-backend.f.jrnm.app/api` |
+| `VITE_SITE_URL` | No | Public frontend domain (used for share links) | `https://royalemy.com` |
 
 ### Backend (`server/.env` or JustRunMyApp Dashboard)
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
 | `CR_API_TOKEN` | **Yes** | Clash Royale API token | `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...` |
-| `FRONTEND_URL` | **Yes** | Netlify URL for CORS | `https://royalemy.netlify.app` |
+| `FRONTEND_URL` | **Yes** | Netlify URL for CORS and share previews | `https://royalemy.com` |
 | `ROADMAP_ADMIN_KEY` | **Yes** | Shared secret for admin endpoints | `your-random-secret-key` |
 | `DB_DIR` | Yes (prod) | Database directory path | `/data` |
 | `VAPID_PUBLIC_KEY` | No* | Web Push public key | `BFCdK...` |
@@ -278,25 +285,20 @@ Admin panels are accessed from the unified admin area at `/admin?admin=YOUR_ADMI
 
 Features likely to be implemented based on existing architecture and community needs:
 
-- **State Rankings** — Complete the "By State" tab in MY Rankings and add a state-player admin panel. The backend is already implemented.
-- **Tournament Waitlist Auto-Promotion** — Automatically promote waitlisted players when a spot opens.
-- **Tournament Brackets** — Simple match tracker for 1v1 tournaments so admins can record results round-by-round.
 - **Player Profiles** — Link Hall of Fame entries to a detail page combining CR API stats with RoyaleMY tournament history.
-- **Deck Comments** — Allow strategy discussions on community decks.
-- **Trending Decks** — Sort by recent vote velocity instead of just total votes.
 - **Global Search** — One search input across tournaments, clans, decks, and players.
-- **Social Sharing** — Shareable links and Open Graph images for tournaments, decks, and player profiles.
+- **Tournament Share Cards** — Rich Open Graph previews for individual tournaments.
+- **State Rankings** — Complete the "By State" tab in MY Rankings and add a state-player admin panel. The backend is already implemented (deferred until the community grows).
 
 ## Known Limitations
 
 Current unfinished or partially broken functionality:
 
-- **State Rankings** — The "By State" tab renders a placeholder. Backend routes and table exist, but the frontend is not wired up.
+- **State Rankings** — The "By State" tab renders a placeholder. Backend routes and table exist, but the frontend is not wired up. Intentionally deferred until the community grows.
 - **State Players Admin UI** — Backend admin endpoints exist, but there is no frontend admin panel for managing state player submissions.
-- **Tournament Waitlist** — Waitlist registration works, but players are not automatically promoted when a spot opens.
-- **Tournament Reminder Pushes** — A background job creates in-site notifications at 24h and 1h before tournaments, but push notifications are not sent yet.
 - **Admin Key in URLs** — The admin area still propagates the key via `?admin=KEY`, which can leak to browser history and referrers.
 - **Audit Trail Identity** — The audit trail logs actions but does not identify which admin key performed them.
+- **Automated Transition Timezone** — Status transitions and reminder jobs assume tournament dates are in the server's local timezone. If the container is UTC but dates are entered in local time, transitions may be off by several hours.
 
 ## Technical Roadmap
 
@@ -308,7 +310,7 @@ Engineering improvements to increase reliability, performance, and maintainabili
 - **Caching** — Replace the FIFO in-memory cache with `lru-cache` and expose hit/miss metrics.
 - **Testing** — Add a test suite for services and route integration; run it in CI.
 
-**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations/push subscriptions/submissions, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard and area, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production, admin key in `X-Admin-Key` header, bulk admin operations, admin search and filter, tournament waitlist, admin audit trail, automated tournament reminders, tournament calendar view, Docker multi-stage build + healthcheck, CI pre-deploy verification.
+**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations/push subscriptions/submissions, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard and area, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production, admin key in `X-Admin-Key` header, bulk admin operations, admin search and filter, tournament waitlist with auto-promotion, admin audit trail, automated tournament reminders with push, automated tournament status transitions, tournament match tracker / brackets, Docker multi-stage build + healthcheck, CI pre-deploy verification, deck trending sort, deck comments, deck share links with Open Graph previews.
 
 See `docs/FUTURE_ROADMAP.md` for the complete audit and ranked recommendations.
 

@@ -568,6 +568,11 @@ export function getCommunityDeck(id) {
 }
 
 export function getCommunityDeckShareUrl(id) {
+  const siteUrl = import.meta.env.VITE_SITE_URL;
+  if (siteUrl) {
+    return `${siteUrl.replace(/\/$/, '')}/share/deck/${id}`;
+  }
+  // Fallback for local dev without a configured public domain
   return `${API_BASE}/community-decks/${id}/share`;
 }
 
