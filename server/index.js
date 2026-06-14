@@ -18,7 +18,7 @@ import { log, logRequest, logError } from './logger.js';
 import { db, getDbDiagnostics, dbPath, dbDir, statements } from './db.js';
 import { fetchFromCR, clearCache, deleteCacheKey, getCacheKey, CACHE_TTL, cache, MAX_CACHE_SIZE } from './services/crApi.js';
 import { fetchMetaDecks, META_DECK_CACHE_KEY } from './services/metaDecks.js';
-import { createTournamentNotification } from './services/notifications.js';
+import { createTournamentNotification, sendPushNotifications } from './services/notifications.js';
 import { validateAdminKey, validateAdminKey as validateAdminKeyForEndpoint, sanitizeTag } from './middleware/auth.js';
 import fs from 'fs';
 
@@ -768,10 +768,11 @@ function setupTournamentReminders() {
         const diffMs = startDate - now;
         const diffHours = diffMs / (1000 * 60 * 60);
 
-        if (diffHours <= 24 && diffHours > 23 && !tournament.notified_24h) {
-          // Send 24h reminder
+        if (diffHours <= 24 && diffHours > 1 && !tournament.notified_24h) {
+          // Send 24h reminder (wider window so a missed tick doesn't skip it)
           db.prepare(`UPDATE community_tournaments SET notified_24h = 1 WHERE id = ?`).run(tournament.id);
           createTournamentNotification(tournament.id, 'reminder_24h', `Tournament "${tournament.name}" starts in 24 hours!`);
+          sendPushNotifications(tournament.id, '⏰ Tournament Starts in 24 Hours!', `${tournament.name} starts tomorrow. Get your deck ready!`);
           log('info', `Sent 24h reminder for tournament ${tournament.id}`);
         }
 
@@ -779,6 +780,7 @@ function setupTournamentReminders() {
           // Send 1h reminder
           db.prepare(`UPDATE community_tournaments SET notified_1h = 1 WHERE id = ?`).run(tournament.id);
           createTournamentNotification(tournament.id, 'reminder_1h', `Tournament "${tournament.name}" starts in 1 hour! Get ready!`);
+          sendPushNotifications(tournament.id, '🔴 Tournament Starts in 1 Hour!', `${tournament.name} starts in 1 hour. Don't miss it!`);
           log('info', `Sent 1h reminder for tournament ${tournament.id}`);
         }
       }
