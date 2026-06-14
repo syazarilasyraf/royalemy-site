@@ -536,6 +536,17 @@ export function getCommunityDeckShareUrl(id) {
   return `${API_BASE}/community-decks/${id}/share`;
 }
 
+export function getDeckComments(id) {
+  return fetchAPI(`/community-decks/${id}/comments`);
+}
+
+export function addDeckComment(id, data) {
+  return fetchAPI(`/community-decks/${id}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
 export function submitCommunityDeck(data) {
   return fetchAPI('/community-decks', {
     method: 'POST',

@@ -1,7 +1,7 @@
 import { useState, useEffect, memo } from 'react';
 import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById } from '../utils/cardMapping';
-import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck, getCommunityDeckShareUrl } from '../services/api';
+import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck, getCommunityDeckShareUrl, getDeckComments, addDeckComment } from '../services/api';
 import { isChampionCard } from '../data/deckSources';
 import DeckPreview from './DeckPreview';
 
@@ -51,6 +51,10 @@ function CommunityDeckFeed() {
     try { return localStorage.getItem('cr_deck_sort') || 'top'; }
     catch { return 'top'; }
   });
+  const [expandedDecks, setExpandedDecks] = useState({});
+  const [deckComments, setDeckComments] = useState({});
+  const [commentInputs, setCommentInputs] = useState({});
+  const [commentLoading, setCommentLoading] = useState({});
 
   useEffect(() => {
     loadDecks();
@@ -138,6 +142,46 @@ function CommunityDeckFeed() {
       setSubmitMessage(`❌ ${err.message || 'Failed to submit deck'}`);
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const toggleComments = async (deckId) => {
+    setExpandedDecks(prev => ({ ...prev, [deckId]: !prev[deckId] }));
+    if (!deckComments[deckId]) {
+      try {
+        const data = await getDeckComments(deckId);
+        setDeckComments(prev => ({ ...prev, [deckId]: data.comments || [] }));
+      } catch (err) {
+        console.error('Failed to load comments:', err);
+      }
+    }
+  };
+
+  const handleCommentChange = (deckId, field, value) => {
+    setCommentInputs(prev => ({
+      ...prev,
+      [deckId]: { ...(prev[deckId] || {}), [field]: value }
+    }));
+  };
+
+  const handleSubmitComment = async (deckId) => {
+    const input = commentInputs[deckId] || {};
+    const comment = (input.comment || '').trim();
+    if (!comment) return;
+
+    setCommentLoading(prev => ({ ...prev, [deckId]: true }));
+    try {
+      await addDeckComment(deckId, {
+        author_name: input.author_name || '',
+        comment
+      });
+      const data = await getDeckComments(deckId);
+      setDeckComments(prev => ({ ...prev, [deckId]: data.comments || [] }));
+      setCommentInputs(prev => ({ ...prev, [deckId]: { ...(prev[deckId] || {}), comment: '' } }));
+    } catch (err) {
+      alert(err.message || 'Failed to post comment');
+    } finally {
+      setCommentLoading(prev => ({ ...prev, [deckId]: false }));
     }
   };
 
@@ -279,12 +323,56 @@ function CommunityDeckFeed() {
               <div className="community-deck-footer">
                 <span className="avg-elixir">💧 Avg: {deck.avg_elixir || calculateDynamicAvgElixir(deck.cardIds)}</span>
                 <div className="deck-actions">
+                  <button className="comment-deck-btn" onClick={() => toggleComments(deck.id)} title="Comments">
+                    💬 {deckComments[deck.id]?.length || 0}
+                  </button>
                   <button className="share-deck-btn" onClick={() => handleShare(deck)} title="Share deck">
                     🔗 Share
                   </button>
                   <a href={deck.deck_link} target="_blank" rel="noopener noreferrer" className="open-deck-btn">Open in CR</a>
                 </div>
               </div>
+              {expandedDecks[deck.id] && (
+                <div className="deck-comments-section">
+                  <h4>Comments</h4>
+                  <div className="comment-list">
+                    {(deckComments[deck.id] || []).length === 0 ? (
+                      <p className="no-comments">No comments yet. Be the first!</p>
+                    ) : (
+                      deckComments[deck.id].map(comment => (
+                        <div key={comment.id} className="deck-comment">
+                          <div className="comment-header">
+                            <span className="comment-author">{comment.author_name || 'Anonymous'}</span>
+                            <span className="comment-date">{new Date(comment.created_at).toLocaleString()}</span>
+                          </div>
+                          <p className="comment-text">{comment.comment}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="comment-form">
+                    <input
+                      type="text"
+                      placeholder="Your name (optional)"
+                      value={(commentInputs[deck.id]?.author_name) || ''}
+                      onChange={(e) => handleCommentChange(deck.id, 'author_name', e.target.value)}
+                      className="comment-name-input"
+                    />
+                    <textarea
+                      placeholder="Add a strategy tip or comment..."
+                      value={(commentInputs[deck.id]?.comment) || ''}
+                      onChange={(e) => handleCommentChange(deck.id, 'comment', e.target.value)}
+                      rows={2}
+                    />
+                    <button
+                      onClick={() => handleSubmitComment(deck.id)}
+                      disabled={commentLoading[deck.id] || !(commentInputs[deck.id]?.comment || '').trim()}
+                    >
+                      {commentLoading[deck.id] ? 'Posting...' : 'Post Comment'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -477,7 +565,8 @@ function CommunityDeckFeed() {
           gap: var(--spacing-sm);
           align-items: center;
         }
-        .share-deck-btn {
+        .share-deck-btn,
+        .comment-deck-btn {
           padding: 6px 12px;
           background: var(--bg-tertiary);
           color: var(--text-secondary);
@@ -488,7 +577,8 @@ function CommunityDeckFeed() {
           cursor: pointer;
           transition: all 0.2s;
         }
-        .share-deck-btn:hover {
+        .share-deck-btn:hover,
+        .comment-deck-btn:hover {
           background: var(--accent-primary);
           color: white;
         }
@@ -509,6 +599,90 @@ function CommunityDeckFeed() {
           0% { box-shadow: 0 0 0 0 var(--accent-primary); }
           70% { box-shadow: 0 0 0 12px transparent; }
           100% { box-shadow: 0 0 0 0 transparent; }
+        }
+        .deck-comments-section {
+          margin-top: var(--spacing-sm);
+          padding-top: var(--spacing-md);
+          border-top: 1px solid var(--bg-tertiary);
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-md);
+        }
+        .deck-comments-section h4 {
+          margin: 0;
+          font-size: 0.9375rem;
+          color: var(--text-primary);
+        }
+        .comment-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+          max-height: 240px;
+          overflow-y: auto;
+        }
+        .no-comments {
+          margin: 0;
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          font-style: italic;
+        }
+        .deck-comment {
+          background: var(--bg-primary);
+          border-radius: var(--radius-md);
+          padding: var(--spacing-sm);
+        }
+        .comment-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 4px;
+        }
+        .comment-author {
+          font-weight: 600;
+          font-size: 0.8125rem;
+          color: var(--text-primary);
+        }
+        .comment-date {
+          font-size: 0.6875rem;
+          color: var(--text-muted);
+        }
+        .comment-text {
+          margin: 0;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          line-height: 1.4;
+          white-space: pre-wrap;
+        }
+        .comment-form {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+        .comment-form input,
+        .comment-form textarea {
+          padding: 8px 12px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--bg-tertiary);
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          font-size: 0.8125rem;
+          width: 100%;
+          resize: vertical;
+        }
+        .comment-form button {
+          padding: 8px 16px;
+          background: var(--accent-primary);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          cursor: pointer;
+          align-self: flex-start;
+        }
+        .comment-form button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .empty-state {
           text-align: center;

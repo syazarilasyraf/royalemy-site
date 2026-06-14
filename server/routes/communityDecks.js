@@ -34,6 +34,22 @@ const submitLimiter = rateLimit({
   }
 });
 
+// Rate limit for deck comments: 10 per hour per IP
+const commentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: {
+    error: 'You can only post 10 deck comments per hour. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    log('warn', `Deck comment rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json(options.message);
+  }
+});
+
 // Rate limit for deck voting: 30 per hour per IP
 const voteLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -309,6 +325,50 @@ router.get('/:id', (req, res) => {
   } catch (error) {
     log('error', `Failed to fetch community deck: ${error.message}`);
     res.status(500).json({ error: 'Failed to fetch deck' });
+  }
+});
+
+// Public: get comments for a deck
+router.get('/:id/comments', (req, res) => {
+  try {
+    const deck = statements.getCommunityDeckById.get(req.params.id);
+    if (!deck) {
+      return res.status(404).json({ error: 'Deck not found' });
+    }
+    const comments = statements.getDeckComments.all(req.params.id);
+    res.json({ comments });
+  } catch (error) {
+    log('error', `Failed to fetch deck comments: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+// Public: add a comment to a deck
+router.post('/:id/comments', commentLimiter, (req, res) => {
+  try {
+    const { id } = req.params;
+    const deck = statements.getCommunityDeckById.get(id);
+    if (!deck) {
+      return res.status(404).json({ error: 'Deck not found' });
+    }
+    if (deck.status !== 'approved') {
+      return res.status(400).json({ error: 'Comments are only allowed on approved decks' });
+    }
+
+    let { author_name, comment } = req.body;
+    author_name = sanitizeHtml((author_name || '').trim()) || 'Anonymous';
+    comment = sanitizeHtml((comment || '').trim());
+
+    if (!comment || comment.length < 2 || comment.length > 500) {
+      return res.status(400).json({ error: 'Comment must be between 2 and 500 characters' });
+    }
+
+    const result = statements.insertDeckComment.run(id, author_name, comment);
+    log('success', `Comment added to deck ${id} by ${author_name}`);
+    res.status(201).json({ id: result.lastInsertRowid, message: 'Comment added' });
+  } catch (error) {
+    log('error', `Failed to add deck comment: ${error.message}`);
+    res.status(500).json({ error: 'Failed to add comment' });
   }
 });
 

@@ -255,6 +255,17 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_community_decks_status ON community_decks(status);
   CREATE INDEX IF NOT EXISTS idx_decks_status_votes ON community_decks(status, votes DESC, created_at DESC);
 
+  CREATE TABLE IF NOT EXISTS deck_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    deck_id INTEGER NOT NULL,
+    author_name TEXT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (deck_id) REFERENCES community_decks(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_deck_comments_deck_id ON deck_comments(deck_id);
+
   CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     level TEXT NOT NULL,
@@ -711,6 +722,15 @@ const statements = {
   ),
   checkDuplicateDeck: db.prepare(
     `SELECT id FROM community_decks WHERE deck_link = ? AND created_at > datetime('now', '-1 hour')`
+  ),
+  insertDeckComment: db.prepare(
+    `INSERT INTO deck_comments (deck_id, author_name, comment) VALUES (?, ?, ?)`
+  ),
+  getDeckComments: db.prepare(
+    `SELECT * FROM deck_comments WHERE deck_id = ? ORDER BY created_at ASC`
+  ),
+  getDeckCommentCount: db.prepare(
+    `SELECT COUNT(*) as count FROM deck_comments WHERE deck_id = ?`
   ),
 
 };
