@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import TournamentBracket from './TournamentBracket';
 import {
   getCommunityTournaments,
   getCommunityTournament,
@@ -869,6 +870,8 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
             </div>
           </div>
         )}
+
+        <TournamentBracket tournament={tournament} adminKey={adminKey} />
       </div>
     </div>
   );

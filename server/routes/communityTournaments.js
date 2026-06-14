@@ -789,6 +789,164 @@ router.post('/admin/:id/waitlist/:regId/promote', validateAdminKey, (req, res) =
   }
 });
 
+// ==================== MATCH TRACKER / BRACKETS ====================
+
+// Public: get matches for a tournament
+router.get('/:id/matches', (req, res) => {
+  try {
+    const { id } = req.params;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const matches = statements.getTournamentMatches.all(id);
+    res.json({ matches });
+  } catch (error) {
+    log('error', `Failed to fetch tournament matches: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch matches' });
+  }
+});
+
+// Admin: create a match
+router.post('/admin/:id/matches', validateAdminKey, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { round = 1, match_number, player1_tag, player2_tag, player1_name, player2_name } = req.body;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const p1 = validatePlayerTag(player1_tag);
+    const p2 = validatePlayerTag(player2_tag);
+    if (!p1 || !p2) {
+      return res.status(400).json({ error: 'Both player tags must be valid' });
+    }
+    if (p1 === p2) {
+      return res.status(400).json({ error: 'Player 1 and Player 2 must be different' });
+    }
+
+    let num = match_number ? parseInt(match_number) : null;
+    if (!num) {
+      const max = statements.getMaxMatchNumber.get(id, parseInt(round));
+      num = (max?.max || 0) + 1;
+    }
+
+    const result = statements.insertTournamentMatch.run(
+      id,
+      parseInt(round),
+      num,
+      p1,
+      p2,
+      sanitizeHtml(player1_name) || p1,
+      sanitizeHtml(player2_name) || p2
+    );
+    log('success', `Match created for tournament ${id}: ${p1} vs ${p2}`);
+    logAdminAction(req, 'create_match', 'tournament', id, { round, match_number: num, p1, p2 });
+    res.status(201).json({ id: result.lastInsertRowid, message: 'Match created' });
+  } catch (error) {
+    log('error', `Failed to create tournament match: ${error.message}`);
+    res.status(500).json({ error: 'Failed to create match' });
+  }
+});
+
+// Admin: update match result
+router.post('/admin/:id/matches/:matchId/result', validateAdminKey, (req, res) => {
+  try {
+    const { id, matchId } = req.params;
+    const { winner_tag, player1_score, player2_score } = req.body;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const match = statements.getTournamentMatchById.get(matchId);
+    if (!match || match.tournament_id !== parseInt(id)) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const winner = validatePlayerTag(winner_tag);
+    if (!winner) {
+      return res.status(400).json({ error: 'Invalid winner tag' });
+    }
+    if (winner !== match.player1_tag && winner !== match.player2_tag) {
+      return res.status(400).json({ error: 'Winner must be one of the two players' });
+    }
+
+    statements.updateTournamentMatchResult.run(
+      winner,
+      player1_score !== undefined ? parseInt(player1_score) : null,
+      player2_score !== undefined ? parseInt(player2_score) : null,
+      matchId
+    );
+    log('success', `Match ${matchId} result updated: ${winner} wins`);
+    logAdminAction(req, 'match_result', 'tournament', id, { matchId, winner, player1_score, player2_score });
+    res.json({ message: 'Match result updated', id: matchId });
+  } catch (error) {
+    log('error', `Failed to update match result: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update match result' });
+  }
+});
+
+// Admin: edit match details (before result is set)
+router.post('/admin/:id/matches/:matchId', validateAdminKey, (req, res) => {
+  try {
+    const { id, matchId } = req.params;
+    const { round, match_number, player1_tag, player2_tag, player1_name, player2_name } = req.body;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const match = statements.getTournamentMatchById.get(matchId);
+    if (!match || match.tournament_id !== parseInt(id)) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const p1 = player1_tag ? validatePlayerTag(player1_tag) : match.player1_tag;
+    const p2 = player2_tag ? validatePlayerTag(player2_tag) : match.player2_tag;
+    if (!p1 || !p2) {
+      return res.status(400).json({ error: 'Both player tags must be valid' });
+    }
+
+    statements.updateTournamentMatch.run(
+      round !== undefined ? parseInt(round) : match.round,
+      match_number !== undefined ? parseInt(match_number) : match.match_number,
+      p1,
+      p2,
+      sanitizeHtml(player1_name) || match.player1_name,
+      sanitizeHtml(player2_name) || match.player2_name,
+      matchId
+    );
+    log('success', `Match ${matchId} updated in tournament ${id}`);
+    logAdminAction(req, 'edit_match', 'tournament', id, { matchId, p1, p2 });
+    res.json({ message: 'Match updated', id: matchId });
+  } catch (error) {
+    log('error', `Failed to update match: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update match' });
+  }
+});
+
+// Admin: delete a match
+router.delete('/admin/:id/matches/:matchId', validateAdminKey, (req, res) => {
+  try {
+    const { id, matchId } = req.params;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const match = statements.getTournamentMatchById.get(matchId);
+    if (!match || match.tournament_id !== parseInt(id)) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    statements.deleteTournamentMatch.run(matchId);
+    log('success', `Match ${matchId} deleted from tournament ${id}`);
+    logAdminAction(req, 'delete_match', 'tournament', id, { matchId });
+    res.json({ message: 'Match deleted', id: matchId });
+  } catch (error) {
+    log('error', `Failed to delete match: ${error.message}`);
+    res.status(500).json({ error: 'Failed to delete match' });
+  }
+});
+
 // Push subscription endpoints (must be after /:id because they use POST/DELETE)
 router.post('/:id/subscribe', pushSubscribeLimiter, (req, res) => {
   if (!pushDbEnabled) {

@@ -159,6 +159,27 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_registrations_tournament ON tournament_registrations(tournament_id);
   CREATE INDEX IF NOT EXISTS idx_registrations_player ON tournament_registrations(player_tag);
 
+  CREATE TABLE IF NOT EXISTS tournament_matches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
+    round INTEGER NOT NULL DEFAULT 1,
+    match_number INTEGER NOT NULL DEFAULT 1,
+    player1_tag TEXT NOT NULL,
+    player2_tag TEXT NOT NULL,
+    player1_name TEXT,
+    player2_name TEXT,
+    winner_tag TEXT,
+    player1_score INTEGER,
+    player2_score INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tournament_id, round, match_number)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_matches_tournament ON tournament_matches(tournament_id);
+  CREATE INDEX IF NOT EXISTS idx_matches_tournament_round ON tournament_matches(tournament_id, round);
+
   CREATE TABLE IF NOT EXISTS tournament_notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tournament_id INTEGER REFERENCES community_tournaments(id) ON DELETE CASCADE,
@@ -577,6 +598,30 @@ const statements = {
     `UPDATE tournament_registrations SET status = ?, waitlist_position = ? WHERE id = ?`
   ),
   decrementWaitlistPositions: db.prepare(
+    `UPDATE tournament_registrations SET waitlist_position = waitlist_position - 1 WHERE tournament_id = ? AND status = 'waitlisted' AND waitlist_position > ?`
+  ),
+  insertTournamentMatch: db.prepare(
+    `INSERT INTO tournament_matches (tournament_id, round, match_number, player1_tag, player2_tag, player1_name, player2_name) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ),
+  getTournamentMatches: db.prepare(
+    `SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round ASC, match_number ASC`
+  ),
+  getTournamentMatchById: db.prepare(
+    `SELECT * FROM tournament_matches WHERE id = ?`
+  ),
+  updateTournamentMatchResult: db.prepare(
+    `UPDATE tournament_matches SET winner_tag = ?, player1_score = ?, player2_score = ?, status = 'completed', updated_at = datetime('now') WHERE id = ?`
+  ),
+  updateTournamentMatch: db.prepare(
+    `UPDATE tournament_matches SET round = ?, match_number = ?, player1_tag = ?, player2_tag = ?, player1_name = ?, player2_name = ? WHERE id = ?`
+  ),
+  deleteTournamentMatch: db.prepare(
+    `DELETE FROM tournament_matches WHERE id = ?`
+  ),
+  getMaxMatchNumber: db.prepare(
+    `SELECT MAX(match_number) as max FROM tournament_matches WHERE tournament_id = ? AND round = ?`
+  ),
+  getMaxMatchNumber: db.prepare(
     `UPDATE tournament_registrations SET waitlist_position = waitlist_position - 1 WHERE tournament_id = ? AND status = 'waitlisted' AND waitlist_position > ?`
   ),
 

@@ -400,6 +400,41 @@ export function bulkTournaments(action, ids, key, extra = {}) {
   });
 }
 
+export function getTournamentMatches(id) {
+  return fetchAPI(`/community-tournaments/${id}/matches`);
+}
+
+export function createTournamentMatch(tournamentId, data, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/matches`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
+  });
+}
+
+export function updateTournamentMatch(tournamentId, matchId, data, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/matches/${matchId}`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
+  });
+}
+
+export function updateTournamentMatchResult(tournamentId, matchId, data, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/matches/${matchId}/result`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
+  });
+}
+
+export function deleteTournamentMatch(tournamentId, matchId, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/matches/${matchId}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
+  });
+}
+
 // ==================== COMMUNITY CLANS ====================
 
 export function getCommunityClans() {
