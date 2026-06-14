@@ -813,8 +813,6 @@ function setupTournamentStatusTransitions() {
         // approved -> registration_open (open registration once approved)
         if (status === 'approved') {
           db.prepare(`UPDATE community_tournaments SET status = 'registration_open' WHERE id = ?`).run(tournament.id);
-          createTournamentNotification(tournament.id, 'status_change', `Registration is now open for "${tournament.name}".`);
-          sendPushNotifications(tournament.id, '📝 Registration Open!', `Registration is now open for ${tournament.name}.`);
           log('info', `Tournament ${tournament.id} status auto-transitioned: approved -> registration_open`);
           continue;
         }
@@ -822,8 +820,6 @@ function setupTournamentStatusTransitions() {
         // registration_open -> registration_closed at deadline
         if (status === 'registration_open' && registrationDeadline && now >= registrationDeadline) {
           db.prepare(`UPDATE community_tournaments SET status = 'registration_closed' WHERE id = ?`).run(tournament.id);
-          createTournamentNotification(tournament.id, 'status_change', `Registration has closed for "${tournament.name}".`);
-          sendPushNotifications(tournament.id, '🔒 Registration Closed', `Registration has closed for ${tournament.name}.`);
           log('info', `Tournament ${tournament.id} status auto-transitioned: registration_open -> registration_closed`);
           continue;
         }
@@ -831,8 +827,6 @@ function setupTournamentStatusTransitions() {
         // registration_closed -> live at start date
         if (status === 'registration_closed' && startDate && now >= startDate) {
           db.prepare(`UPDATE community_tournaments SET status = 'live' WHERE id = ?`).run(tournament.id);
-          createTournamentNotification(tournament.id, 'status_change', `"${tournament.name}" is now live!`);
-          sendPushNotifications(tournament.id, '🔴 Tournament is Live!', `${tournament.name} has started. Good luck!`);
           log('info', `Tournament ${tournament.id} status auto-transitioned: registration_closed -> live`);
           continue;
         }
@@ -840,8 +834,6 @@ function setupTournamentStatusTransitions() {
         // live -> completed at end date
         if (status === 'live' && endDate && now >= endDate) {
           db.prepare(`UPDATE community_tournaments SET status = 'completed' WHERE id = ?`).run(tournament.id);
-          createTournamentNotification(tournament.id, 'status_change', `"${tournament.name}" has ended. Results coming soon!`);
-          sendPushNotifications(tournament.id, '✅ Tournament Completed', `${tournament.name} has ended. Check back for results!`);
           log('info', `Tournament ${tournament.id} status auto-transitioned: live -> completed`);
         }
       }

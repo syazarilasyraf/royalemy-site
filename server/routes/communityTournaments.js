@@ -4,7 +4,6 @@ import { statements } from '../db.js';
 import { log } from '../logger.js';
 import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
 import {
-  createTournamentNotification,
   sendPushNotifications,
   getNotificationsWithReadStatus,
   markNotificationRead,
@@ -61,7 +60,7 @@ function promoteWaitlistedPlayers(tournamentId, limit = null) {
     const toPromote = Math.max(0, Math.min(available, limit ?? available));
     if (toPromote <= 0) return { promoted: 0, names: [] };
 
-    const names = [];
+    const tags = [];
     for (let i = 0; i < toPromote; i++) {
       const waitlist = statements.getWaitlistByTournament.all(tournamentId);
       const next = waitlist[0];
@@ -69,14 +68,13 @@ function promoteWaitlistedPlayers(tournamentId, limit = null) {
       const position = next.waitlist_position;
       statements.updateRegistrationStatus.run('registered', null, next.id);
       statements.decrementWaitlistPositions.run(tournamentId, position);
-      createTournamentNotification(tournamentId, 'registration', `${next.player_name} has been promoted from the waitlist.`);
-      names.push(next.player_name);
+      tags.push(next.player_tag);
     }
 
-    if (names.length > 0) {
-      log('success', `Auto-promoted ${names.length} waitlisted player(s) for tournament ${tournamentId}: ${names.join(', ')}`);
+    if (tags.length > 0) {
+      log('success', `Auto-promoted ${tags.length} waitlisted player(s) for tournament ${tournamentId}: ${tags.join(', ')}`);
     }
-    return { promoted: names.length, names };
+    return { promoted: tags.length, tags };
   } catch (e) {
     log('warn', `Failed to promote waitlisted players for tournament ${tournamentId}: ${e.message}`);
     return { promoted: 0, names: [] };
@@ -189,17 +187,13 @@ router.post('/admin/bulk', validateAdminKey, (req, res) => {
             continue;
           }
           statements.updateTournamentStatus.run('approved', id);
-          createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been approved.`);
-          sendPushNotifications(id, 'Tournament Approved! ✅', `${tournament.name} has been approved. Registration opening soon!`);
           log('success', `Tournament ${id} approved (bulk)`);
           results.push({ id, success: true });
         } else if (action === 'reject') {
           statements.updateTournamentStatus.run('rejected', id);
-          createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been rejected.`);
           log('success', `Tournament ${id} rejected (bulk)`);
           results.push({ id, success: true });
         } else if (action === 'delete') {
-          sendPushNotifications(id, `❌ Tournament Cancelled: ${tournament.name}`, `${tournament.name} has been cancelled.`);
           statements.deleteTournament.run(id);
           log('success', `Tournament ${id} deleted (bulk)`);
           results.push({ id, success: true });
@@ -238,8 +232,6 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
       return res.status(400).json({ error: 'Tournament is not pending' });
     }
     statements.updateTournamentStatus.run('approved', id);
-    createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been approved.`);
-    sendPushNotifications(id, 'Tournament Approved! ✅', `${tournament.name} has been approved. Registration opening soon!`);
     log('success', `Tournament ${id} approved`);
     logAdminAction(req, 'approve', 'tournament', id, { name: tournament.name });
     res.json({ message: 'Tournament approved', id });
@@ -257,7 +249,6 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     statements.updateTournamentStatus.run('rejected', id);
-    createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" has been rejected.`);
     log('success', `Tournament ${id} rejected`);
     logAdminAction(req, 'reject', 'tournament', id, { name: tournament.name });
     res.json({ message: 'Tournament rejected', id });
@@ -279,17 +270,6 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     statements.updateTournamentStatus.run(status, id);
-    createTournamentNotification(id, 'status_change', `Tournament "${tournament.name}" status updated to ${status.replace('_', ' ')}.`);
-    const statusMessages = {
-      approved: 'has been approved.',
-      registration_open: 'registration is now OPEN! Sign up now.',
-      registration_closed: 'registration is now closed.',
-      live: 'is now LIVE! Good luck!',
-      completed: 'has concluded. Check the results!',
-      cancelled: 'has been cancelled.'
-    };
-    const statusMsg = statusMessages[status] || `status updated to ${status.replace('_', ' ')}.`;
-    sendPushNotifications(id, `Tournament Update: ${tournament.name}`, `${tournament.name} ${statusMsg}`);
     log('success', `Tournament ${id} status updated to ${status}`);
     logAdminAction(req, 'status', 'tournament', id, { name: tournament.name, status });
     res.json({ message: `Status updated to ${status}`, id });
@@ -339,7 +319,7 @@ router.post('/admin/:id/winners', validateAdminKey, (req, res) => {
                        tag === (winner_2nd || '').toUpperCase() ||
                        tag === (winner_3rd || '').toUpperCase();
       if (!isWinner) {
-        updatePlayerStats(tag, reg.player_name, false, false, true);
+        updatePlayerStats(tag, reg.player_name || tag, false, false, true);
       }
     }
 
@@ -365,8 +345,6 @@ router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     statements.updateTournamentPrizeStatus.run(prize_status, id);
-    createTournamentNotification(id, 'status_change', `Prize status for "${tournament.name}" updated to ${prize_status}.`);
-    sendPushNotifications(id, `💰 Prize Update: ${tournament.name}`, `Prize status updated to ${prize_status}.`);
     log('success', `Tournament ${id} prize status updated to ${prize_status}`);
     logAdminAction(req, 'prize_status', 'tournament', id, { name: tournament.name, prize_status });
     res.json({ message: 'Prize status updated', id });
@@ -414,8 +392,6 @@ router.post('/admin/:id/edit', validateAdminKey, (req, res) => {
       promoted = promoteWaitlistedPlayers(id, newMaxPlayers - tournament.max_players);
     }
 
-    createTournamentNotification(id, 'updated', `Tournament "${name || tournament.name}" has been updated.`);
-    sendPushNotifications(id, `✏️ Tournament Updated: ${name || tournament.name}`, `Details have been updated. Check the latest info.`);
     log('success', `Tournament ${id} updated by admin`);
     logAdminAction(req, 'edit', 'tournament', id, { name: tournament.name, promoted: promoted.names });
     res.json({ message: 'Tournament updated', id, promoted });
@@ -458,14 +434,13 @@ router.delete('/admin/:id/registrations/:regId', validateAdminKey, (req, res) =>
     statements.deleteRegistration.run(regId);
 
     // Auto-promote from waitlist if a registered slot was freed
-    let promoted = { promoted: 0, names: [] };
+    let promoted = { promoted: 0, tags: [] };
     if (wasRegistered) {
       promoted = promoteWaitlistedPlayers(id, 1);
     }
 
-    createTournamentNotification(id, 'updated', `Registration for ${registration.player_name} has been removed by admin.`);
     log('success', `Registration ${regId} deleted from tournament ${id}`);
-    logAdminAction(req, 'delete_registration', 'tournament', id, { regId, player: registration.player_name, promoted: promoted.names });
+    logAdminAction(req, 'delete_registration', 'tournament', id, { regId, player_tag: registration.player_tag, promoted: promoted.tags });
     res.json({ message: 'Registration deleted', id: regId, promoted });
   } catch (error) {
     log('error', `Failed to delete registration: ${error.message}`);
@@ -495,9 +470,8 @@ router.post('/admin/:id/registrations/:regId/edit', validateAdminKey, (req, res)
       tiktok_username !== undefined ? tiktok_username : registration.tiktok_username,
       regId
     );
-    createTournamentNotification(id, 'updated', `Registration for ${player_name || registration.player_name} has been updated by admin.`);
     log('success', `Registration ${regId} updated in tournament ${id}`);
-    logAdminAction(req, 'edit_registration', 'tournament', id, { regId, player: player_name || registration.player_name });
+    logAdminAction(req, 'edit_registration', 'tournament', id, { regId, player_tag: cleanTag || registration.player_tag });
     res.json({ message: 'Registration updated', id: regId });
   } catch (error) {
     log('error', `Failed to update registration: ${error.message}`);
@@ -514,10 +488,9 @@ router.get('/admin/:id/registrations/export', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     const registrations = statements.getRegistrationsByTournament.all(id);
-    const headers = ['ID', 'Player Name', 'Player Tag', 'TikTok Username', 'Registered At'];
+    const headers = ['ID', 'Player Tag', 'TikTok Username', 'Registered At'];
     const rows = registrations.map(r => [
       r.id,
-      `"${(r.player_name || '').replace(/"/g, '""')}"`,
       r.player_tag,
       `"${(r.tiktok_username || '').replace(/"/g, '""')}"`,
       r.registered_at
@@ -693,10 +666,10 @@ router.get('/:id', (req, res) => {
 router.post('/:id/register', registerLimiter, (req, res) => {
   try {
     const { id } = req.params;
-    const { player_name, player_tag, tiktok_username } = req.body;
+    const { player_tag, tiktok_username } = req.body;
 
-    if (!player_name || !player_tag) {
-      return res.status(400).json({ error: 'Player name and player tag are required' });
+    if (!player_tag) {
+      return res.status(400).json({ error: 'Player tag is required' });
     }
 
     const cleanTag = validatePlayerTag(player_tag);
@@ -729,14 +702,12 @@ router.post('/:id/register', registerLimiter, (req, res) => {
       // Add to waitlist
       const maxPos = statements.getMaxWaitlistPosition.get(id);
       const position = (maxPos?.max || 0) + 1;
-      statements.insertRegistration.run(id, player_name, cleanTag, tiktok_username || '', 'waitlisted', position);
-      createTournamentNotification(id, 'waitlist', `${player_name} joined the waitlist at position ${position}.`);
-      log('success', `Player ${player_name} (${cleanTag}) waitlisted for tournament ${id} at position ${position}`);
+      statements.insertRegistration.run(id, '', cleanTag, tiktok_username || '', 'waitlisted', position);
+      log('success', `Player (${cleanTag}) waitlisted for tournament ${id} at position ${position}`);
       res.status(201).json({ message: 'Tournament is full. You have been added to the waitlist.', waitlist: true, position });
     } else {
-      statements.insertRegistration.run(id, player_name, cleanTag, tiktok_username || '', 'registered', null);
-      createTournamentNotification(id, 'registration', `${player_name} has registered for the tournament.`);
-      log('success', `Player ${player_name} (${cleanTag}) registered for tournament ${id}`);
+      statements.insertRegistration.run(id, '', cleanTag, tiktok_username || '', 'registered', null);
+      log('success', `Player (${cleanTag}) registered for tournament ${id}`);
       res.status(201).json({ message: 'Registration successful' });
     }
   } catch (error) {
@@ -779,9 +750,8 @@ router.post('/admin/:id/waitlist/:regId/promote', validateAdminKey, (req, res) =
     const position = registration.waitlist_position;
     statements.updateRegistrationStatus.run('registered', null, regId);
     statements.decrementWaitlistPositions.run(id, position);
-    createTournamentNotification(id, 'registration', `${registration.player_name} has been promoted from the waitlist.`);
     log('success', `Registration ${regId} promoted from waitlist in tournament ${id}`);
-    logAdminAction(req, 'promote_waitlist', 'tournament', id, { regId, player: registration.player_name });
+    logAdminAction(req, 'promote_waitlist', 'tournament', id, { regId, player_tag: registration.player_tag });
     res.json({ message: 'Player promoted from waitlist', id: regId });
   } catch (error) {
     log('error', `Failed to promote waitlist: ${error.message}`);

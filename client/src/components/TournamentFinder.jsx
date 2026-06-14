@@ -170,7 +170,7 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
   const [registrations, setRegistrations] = useState([]);
   const [waitlist, setWaitlist] = useState([]);
   const [showRegister, setShowRegister] = useState(false);
-  const [registerForm, setRegisterForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
+  const [registerForm, setRegisterForm] = useState({ player_tag: '', tiktok_username: '' });
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
@@ -179,7 +179,7 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
 
   // Admin participant management state
   const [editingParticipant, setEditingParticipant] = useState(null);
-  const [participantEditForm, setParticipantEditForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
+  const [participantEditForm, setParticipantEditForm] = useState({ player_tag: '', tiktok_username: '' });
   const [participantEditLoading, setParticipantEditLoading] = useState(false);
 
   // Admin edit state
@@ -226,8 +226,8 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
     setRegisterError('');
     setRegisterSuccess('');
 
-    if (!registerForm.player_name || !registerForm.player_tag) {
-      setRegisterError('Player name and tag are required');
+    if (!registerForm.player_tag) {
+      setRegisterError('Player tag is required');
       return;
     }
 
@@ -240,7 +240,6 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
     setRegisterLoading(true);
     try {
       const res = await registerForTournament(tournament.id, {
-        player_name: registerForm.player_name,
         player_tag: cleanTag,
         tiktok_username: registerForm.tiktok_username,
       });
@@ -251,7 +250,7 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
         setRegisterSuccess('Registration successful!');
         setRegisterWaitlist(false);
       }
-      setRegisterForm({ player_name: '', player_tag: '', tiktok_username: '' });
+      setRegisterForm({ player_tag: '', tiktok_username: '' });
       loadRegistrations();
       onRefresh();
     } catch (err) {
@@ -330,7 +329,6 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
   const handleStartEditParticipant = (reg) => {
     setEditingParticipant(reg.id);
     setParticipantEditForm({
-      player_name: reg.player_name,
       player_tag: reg.player_tag,
       tiktok_username: reg.tiktok_username || '',
     });
@@ -507,28 +505,6 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
                 {registerSuccess && <div className="submit-success">{registerSuccess}</div>}
                 {registerError && <div className="submit-error">{registerError}</div>}
                 <form onSubmit={handleRegister}>
-                  <div className="form-grid" style={{ marginBottom: 0 }}>
-                    <div className="form-field">
-                      <label>Player Name *</label>
-                      <input
-                        type="text"
-                        value={registerForm.player_name}
-                        onChange={(e) => setRegisterForm((p) => ({ ...p, player_name: e.target.value }))}
-                        placeholder="Your in-game name"
-                        required
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label>Clash Royale Player Tag *</label>
-                      <input
-                        type="text"
-                        value={registerForm.player_tag}
-                        onChange={(e) => setRegisterForm((p) => ({ ...p, player_tag: e.target.value }))}
-                        placeholder="e.g. #2P0JJQ0Y"
-                        required
-                      />
-                    </div>
-                  </div>
                   <div className="form-field full-width">
                     <label>TikTok Username (optional)</label>
                     <div className="tiktok-input-wrapper">
@@ -600,13 +576,6 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
                         <span className="participant-rank">#{idx + 1}</span>
                         <input
                           type="text"
-                          className="participant-edit-input"
-                          value={participantEditForm.player_name}
-                          onChange={(e) => setParticipantEditForm((p) => ({ ...p, player_name: e.target.value }))}
-                          placeholder="Name"
-                        />
-                        <input
-                          type="text"
                           className="participant-edit-input tag-input"
                           value={participantEditForm.player_tag}
                           onChange={(e) => setParticipantEditForm((p) => ({ ...p, player_tag: e.target.value }))}
@@ -638,7 +607,6 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
                     ) : (
                       <>
                         <span className="participant-rank">#{idx + 1}</span>
-                        <span className="participant-name">{reg.player_name}</span>
                         <span className="participant-tag">{reg.player_tag}</span>
                         {reg.tiktok_username && <span className="participant-tiktok">🎵 @{reg.tiktok_username}</span>}
                         {adminKey && (
@@ -652,7 +620,7 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
                             </button>
                             <button
                               className="btn btn-danger btn-sm"
-                              onClick={() => handleDeleteParticipant(reg.id, reg.player_name)}
+                              onClick={() => handleDeleteParticipant(reg.id, reg.player_tag)}
                               title="Remove participant"
                             >
                               🗑️
@@ -677,7 +645,6 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
               {waitlist.map((reg, idx) => (
                 <div key={reg.id} className="participant-row">
                   <span className="participant-rank">#{idx + 1}</span>
-                  <span className="participant-name">{reg.player_name}</span>
                   <span className="participant-tag">{reg.player_tag}</span>
                   {reg.tiktok_username && <span className="participant-tiktok">🎵 @{reg.tiktok_username}</span>}
                   {adminKey && (
@@ -1304,7 +1271,7 @@ function OfficialTournamentDetail({ tournament, onBack }) {
 // ==================== REGISTER MODAL ====================
 
 function RegisterModal({ tournament, onClose, onSuccess }) {
-  const [form, setForm] = useState({ player_name: '', player_tag: '', tiktok_username: '' });
+  const [form, setForm] = useState({ player_tag: '', tiktok_username: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -1322,8 +1289,8 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
     setError('');
     setSuccess(false);
 
-    if (!form.player_name || !form.player_tag) {
-      setError('Player name and tag are required');
+    if (!form.player_tag) {
+      setError('Player tag is required');
       return;
     }
 
@@ -1336,17 +1303,15 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
     setLoading(true);
     try {
       await registerForTournament(tournament.id, {
-        player_name: form.player_name,
         player_tag: cleanTag,
         tiktok_username: form.tiktok_username,
       });
       setSubmittedData({
-        player_name: form.player_name,
         player_tag: cleanTag,
         tiktok_username: form.tiktok_username,
       });
       setSuccess(true);
-      setForm({ player_name: '', player_tag: '', tiktok_username: '' });
+      setForm({ player_tag: '', tiktok_username: '' });
       onSuccess();
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -1449,15 +1414,9 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
                 <span className="sd-label">Tournament</span>
                 <span className="sd-value">{tournament.name}</span>
               </div>
-              <div className="sd-row">
-                <div className="sd-section">
-                  <span className="sd-label">Your Name</span>
-                  <span className="sd-value">{submittedData.player_name}</span>
-                </div>
-                <div className="sd-section">
-                  <span className="sd-label">Player Tag</span>
-                  <span className="sd-value">#{submittedData.player_tag}</span>
-                </div>
+              <div className="sd-section">
+                <span className="sd-label">Player Tag</span>
+                <span className="sd-value">#{submittedData.player_tag}</span>
               </div>
               <div className="sd-section">
                 <span className="sd-label">Starts</span>
@@ -1520,16 +1479,6 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
         ) : (
           <form onSubmit={handleSubmit} className="submit-form register-form-body">
             {error && <div className="submit-error">{error}</div>}
-            <div className="form-field">
-              <label>Player Name *</label>
-              <input
-                type="text"
-                value={form.player_name}
-                onChange={(e) => handleChange('player_name', e.target.value)}
-                placeholder="Your in-game name"
-                required
-              />
-            </div>
             <div className="form-field">
               <label>Clash Royale Player Tag *</label>
               <input
