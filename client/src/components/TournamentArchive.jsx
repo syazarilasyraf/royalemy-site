@@ -49,7 +49,14 @@ export default function TournamentArchive() {
       ) : tournaments.length > 0 ? (
         <div className="archive-list">
           {tournaments.map((t) => (
-            <div key={t.id} className="archive-card">
+            <div
+              key={t.id}
+              className="archive-card"
+              onClick={() => navigate(`/tournaments/${t.id}`)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/tournaments/${t.id}`); }}
+            >
               <div className="archive-header">
                 <h4>{t.name}</h4>
                 <span className="archive-date">{formatDateOnly(t.start_date)}</span>
@@ -101,7 +108,26 @@ export default function TournamentArchive() {
         }
 
         .tournament-archive-page .back-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: var(--bg-secondary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-lg);
+          color: var(--text-secondary);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
           margin-bottom: var(--spacing-md);
+        }
+
+        .tournament-archive-page .back-btn:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+          border-color: var(--accent-primary);
+          transform: translateY(-1px);
         }
 
         .archive-list {
@@ -134,6 +160,12 @@ export default function TournamentArchive() {
           transform: translateY(-3px);
           box-shadow: 0 12px 32px rgba(0,0,0,0.25);
           border-color: rgba(255,255,255,0.08);
+          cursor: pointer;
+        }
+
+        .archive-card:focus-visible {
+          outline: 2px solid var(--accent-primary);
+          outline-offset: 2px;
         }
 
         .archive-header {

@@ -94,7 +94,7 @@ export default function HallOfFame() {
               const showTag = displayName !== s.player_tag;
 
               return (
-                <div key={s.id} className={`hof-card ${rank <= 3 ? 'hof-card-top' : ''}`}>
+                <div key={s.player_tag} className={`hof-card ${rank <= 3 ? 'hof-card-top' : ''}`}>
                   <div className={`hof-rank-badge ${rankClass}`}>{medal || rank}</div>
                   <div className="hof-player-info">
                     <span className="hof-player-name">{displayName}</span>

@@ -431,6 +431,63 @@ if (tableExists('notification_reads')) {
   }
 }
 
+// ==================== PLAYER STATS DEDUPLICATION ====================
+// Older databases may have duplicate player_stats rows because the UNIQUE
+// constraint on player_tag was not always enforced. Merge duplicates and
+// enforce uniqueness so the Hall of Fame does not show the same player twice.
+
+function deduplicatePlayerStats() {
+  try {
+    const duplicates = db.prepare(`
+      SELECT player_tag, COUNT(*) as c FROM player_stats GROUP BY player_tag HAVING c > 1
+    `).all();
+
+    if (duplicates.length === 0) {
+      return;
+    }
+
+    console.log(`[DB] Found ${duplicates.length} duplicate player_tag(s) in player_stats. Merging...`);
+
+    const merge = db.transaction(() => {
+      db.exec(`
+        CREATE TEMP TABLE player_stats_dedup AS
+        SELECT
+          player_tag,
+          MAX(player_name) as player_name,
+          SUM(tournament_wins) as tournament_wins,
+          SUM(top_3_finishes) as top_3_finishes,
+          SUM(total_participations) as total_participations,
+          MAX(updated_at) as updated_at
+        FROM player_stats
+        GROUP BY player_tag;
+
+        DELETE FROM player_stats;
+
+        INSERT INTO player_stats (player_tag, player_name, tournament_wins, top_3_finishes, total_participations, updated_at)
+        SELECT player_tag, player_name, tournament_wins, top_3_finishes, total_participations, updated_at
+        FROM player_stats_dedup;
+
+        DROP TABLE player_stats_dedup;
+      `);
+    });
+
+    merge();
+    console.log('[DB] Merged duplicate player_stats rows successfully');
+  } catch (e) {
+    console.error(`[DB] Failed to deduplicate player_stats: ${e.message}`);
+  }
+}
+
+deduplicatePlayerStats();
+
+// Enforce unique player_tag via index (idempotent; repairs older DBs that
+// created the table before the column-level UNIQUE clause was added)
+try {
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_player_stats_tag_unique ON player_stats(player_tag)`);
+} catch (e) {
+  console.error(`[DB] Failed to create unique index on player_stats.player_tag: ${e.message}`);
+}
+
 // Setup push_subscriptions table separately with error recovery
 let pushSubscriptionsEnabled = false;
 try {
@@ -659,7 +716,17 @@ const statements = {
     `UPDATE player_stats SET tournament_wins = tournament_wins + ?, top_3_finishes = top_3_finishes + ?, total_participations = total_participations + ?, updated_at = CURRENT_TIMESTAMP WHERE player_tag = ?`
   ),
   getTopPlayerStats: db.prepare(
-    `SELECT * FROM player_stats ORDER BY tournament_wins DESC, top_3_finishes DESC, total_participations DESC LIMIT ?`
+    `SELECT
+      player_tag,
+      MAX(player_name) as player_name,
+      SUM(tournament_wins) as tournament_wins,
+      SUM(top_3_finishes) as top_3_finishes,
+      SUM(total_participations) as total_participations,
+      MAX(updated_at) as updated_at
+     FROM player_stats
+     GROUP BY player_tag
+     ORDER BY tournament_wins DESC, top_3_finishes DESC, total_participations DESC
+     LIMIT ?`
   ),
 
   // Community Clans
