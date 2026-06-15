@@ -25,8 +25,8 @@ export default function HallOfFame() {
 
   return (
     <div className="page-container hall-of-fame-page">
-      <button className="back-btn" onClick={() => navigate('/tournaments')}>
-        ← Back to Tournaments
+      <button className="back-btn" onClick={() => navigate('/rankings')}>
+        ← Back to Rankings
       </button>
       <h2 className="section-title">🏆 Hall of Fame</h2>
       <p className="section-desc">Top tournament performers</p>

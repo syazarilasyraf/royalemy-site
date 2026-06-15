@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   getLocations, getClanRankings, getClanWarRankings, getPathOfLegendRankings, getPlayerRankings
 } from '../services/api';
@@ -173,6 +173,9 @@ function MYRankings() {
       <div className="rankings-header">
         <h2 className="section-title">🇲🇾 Malaysia Rankings</h2>
         <p className="section-desc">Top Malaysian clans and ranked players</p>
+        <Link className="hof-link" to="/tournaments/hall-of-fame">
+          🏆 Hall of Fame
+        </Link>
       </div>
 
       <div className="rankings-tabs">
@@ -349,6 +352,26 @@ function MYRankings() {
         .section-desc {
           color: var(--text-secondary);
           margin: 0;
+        }
+
+        .hof-link {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          margin-top: var(--spacing-md);
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+          color: white;
+          font-size: 0.875rem;
+          font-weight: 700;
+          border-radius: var(--radius-lg);
+          text-decoration: none;
+          transition: all 0.2s ease;
+        }
+
+        .hof-link:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
         }
 
         .rankings-tabs {

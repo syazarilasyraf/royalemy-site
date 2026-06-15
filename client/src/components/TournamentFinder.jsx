@@ -1602,9 +1602,6 @@ function TournamentFinder() {
           <Link className="archive-btn" to="/tournaments/archive">
             🏛️ Archive
           </Link>
-          <Link className="hof-btn" to="/tournaments/hall-of-fame">
-            🏆 Hall of Fame
-          </Link>
           <button
             className="btn btn-secondary"
             onClick={() => setListViewMode(listViewMode === 'list' ? 'calendar' : 'list')}

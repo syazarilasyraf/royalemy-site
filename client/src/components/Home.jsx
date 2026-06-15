@@ -11,7 +11,7 @@ const FEATURED_TOOLS = [
   {
     id: 'communitydecks',
     icon: '🌟',
-    title: 'Community Decks',
+    title: 'Deck Feed',
     desc: 'Browse and vote on decks shared by the community. Submit your own for others to try.',
     color: '#f59e0b',
   },
