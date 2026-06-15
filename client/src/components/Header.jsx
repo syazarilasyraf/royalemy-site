@@ -275,15 +275,6 @@ function Header() {
             )}
           </div>
 
-          <a
-            href="https://discord.gg/gWXeAqjSYH"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="header-discord-btn"
-          >
-            <span>💬</span>
-            <span className="discord-label">Discord</span>
-          </a>
         </div>
       </div>
 

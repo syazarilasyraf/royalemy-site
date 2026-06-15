@@ -28,9 +28,9 @@ const AdminNotifications = lazy(() => import('./admin/AdminNotifications'));
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
-  { id: 'player', label: 'Players', icon: '👤' },
-  { id: 'arenadecks', label: 'Decks', icon: '🃏' },
-  { id: 'roadmap', label: 'Roadmap', icon: '🗺️' },
+  { id: 'rankings', label: 'My Rankings', icon: '🏆' },
+  { id: 'tournaments', label: 'Tournaments', icon: '🎯' },
+  { id: 'communitydecks', label: 'Community Decks', icon: '🌟' },
   { id: 'more', label: 'More', icon: '⋮' },
 ];
 
@@ -61,8 +61,7 @@ function Footer() {
         <div className="footer-links">
           <a href="https://discord.gg/gWXeAqjSYH" target="_blank" rel="noopener noreferrer" className="footer-link">Discord</a>
           <span className="footer-dot">·</span>
-          <a href="https://discord.gg/gWXeAqjSYH" target="_blank" rel="noopener noreferrer" className="footer-link">Feature Requests</a>
-
+          <Link to="/roadmap" className="footer-link">Roadmap</Link>
         </div>
         <div className="footer-main">
           <span className="footer-brand">RoyaleMY</span>

@@ -2,11 +2,11 @@ import { useNavigate } from 'react-router-dom';
 
 const FEATURED_TOOLS = [
   {
-    id: 'player',
-    icon: '👤',
-    title: 'Player Lookup',
-    desc: 'Search player profiles, trophies, battle logs, and current decks by player tag.',
-    color: '#3b82f6',
+    id: 'rankings',
+    icon: '🏆',
+    title: 'MY Rankings',
+    desc: 'View Malaysian player leaderboards, trophies, and local rankings.',
+    color: '#eab308',
   },
   {
     id: 'communitydecks',
@@ -16,19 +16,18 @@ const FEATURED_TOOLS = [
     color: '#f59e0b',
   },
   {
-    id: 'deck',
-    icon: '🎴',
-    title: 'Deck Stats',
-    desc: 'Paste any Clash Royale deck link to analyze elixir cost, archetype, strengths, and weaknesses.',
-    color: '#a855f7',
+    id: 'clan',
+    icon: '🏰',
+    title: 'Clan Finder',
+    desc: 'Search and explore Malaysian clans, find members, and compare clan stats.',
+    color: '#ef4444',
   },
 ];
 
 const ALL_TOOLS = [
-  { id: 'rankings', icon: '🏆', title: 'MY Rankings', desc: 'Malaysian leaderboards' },
-  { id: 'tournaments', icon: '🎯', title: 'Tournaments', desc: 'Find & join tournaments' },
-  { id: 'clan', icon: '🏰', title: 'Clan Finder', desc: 'Search and explore Malaysian clans' },
-  { id: 'roadmap', icon: '🗺️', title: 'Roadmap', desc: 'Vote on upcoming features' },
+  { id: 'arenadecks', icon: '🎯', title: 'Smart Deck Finder', desc: 'Live meta decks from pro battles' },
+  { id: 'player', icon: '👤', title: 'Player Lookup', desc: 'Search player profiles & battles' },
+  { id: 'deck', icon: '🎴', title: 'Deck Stats', desc: 'Analyze any deck link' },
 ];
 
 function Home() {
@@ -51,14 +50,14 @@ function Home() {
           </p>
           <button
             className="hero-cta"
-            onClick={() => navigate('/arenadecks')}
+            onClick={() => navigate('/tournaments')}
           >
             <span className="cta-icon">🎯</span>
-            <span className="cta-text">Smart Deck Finder</span>
+            <span className="cta-text">Tournaments</span>
             <span className="cta-arrow">→</span>
           </button>
           <p className="hero-hint">
-            Live meta decks from top-ranked pro battles
+            Find & join Malaysian community tournaments
           </p>
         </div>
       </section>
@@ -118,6 +117,13 @@ function Home() {
             Join the community to suggest features, report bugs, vote on future ideas, and participate in beta testing.
           </p>
           <div className="community-actions">
+            <button
+              onClick={() => navigate('/roadmap')}
+              className="roadmap-btn"
+            >
+              <span>🗺️</span>
+              <span>Roadmap</span>
+            </button>
             <a
               href="https://discord.gg/gWXeAqjSYH"
               target="_blank"
@@ -125,7 +131,7 @@ function Home() {
               className="discord-btn"
             >
               <span>💬</span>
-              <span>Join Discord</span>
+              <span>Discord</span>
             </a>
           </div>
         </div>
@@ -397,6 +403,34 @@ function Home() {
 
         .discord-btn:hover {
           background: #4752c4;
+          transform: translateY(-1px);
+        }
+
+        .community-actions {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-md);
+          flex-wrap: wrap;
+        }
+
+        .roadmap-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-sm) var(--spacing-lg);
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          font-size: 0.9375rem;
+          font-weight: 700;
+          border: 2px solid var(--bg-tertiary);
+          border-radius: var(--radius-lg);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .roadmap-btn:hover {
+          border-color: var(--accent-primary);
           transform: translateY(-1px);
         }
 

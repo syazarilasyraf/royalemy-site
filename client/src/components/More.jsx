@@ -18,13 +18,6 @@ const LINKS = [
     href: 'https://discord.gg/gWXeAqjSYH',
     external: true,
   },
-  {
-    icon: '📋',
-    title: 'Feature Requests',
-    desc: 'Have an idea? Let us know on Discord',
-    href: 'https://discord.gg/gWXeAqjSYH',
-    external: true,
-  },
 ];
 
 function More() {
