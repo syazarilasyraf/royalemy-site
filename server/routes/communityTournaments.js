@@ -505,6 +505,128 @@ router.get('/admin/:id/registrations/export', validateAdminKey, (req, res) => {
   }
 });
 
+// Admin: get all registrations for a tournament
+router.get('/admin/:id/registrations', validateAdminKey, (req, res) => {
+  try {
+    const { id } = req.params;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    const registrations = statements.getRegistrationsByTournament.all(id);
+    const waitlist = statements.getWaitlistByTournament.all(id);
+    const registeredCount = statements.getRegistrationCount.get(id).count;
+    res.json({
+      tournament: { id: tournament.id, name: tournament.name, max_players: tournament.max_players },
+      registrations,
+      waitlist,
+      registeredCount,
+      waitlistCount: waitlist.length
+    });
+  } catch (error) {
+    log('error', `Failed to fetch registrations for admin: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch registrations' });
+  }
+});
+
+// Admin: bulk add registrations
+router.post('/admin/:id/registrations/bulk', validateAdminKey, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tags } = req.body;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    if (!Array.isArray(tags) || tags.length === 0) {
+      return res.status(400).json({ error: 'tags[] is required' });
+    }
+
+    const existingTags = new Set(
+      statements.getAllRegistrationsByTournament.all(id).map(r => r.player_tag)
+    );
+
+    let added = 0;
+    let waitlisted = 0;
+    let invalid = 0;
+    let duplicates = 0;
+
+    for (const rawTag of tags) {
+      const cleanTag = validatePlayerTag(rawTag);
+      if (!cleanTag) {
+        invalid++;
+        continue;
+      }
+      if (existingTags.has(cleanTag)) {
+        duplicates++;
+        continue;
+      }
+      existingTags.add(cleanTag);
+
+      const registeredCount = statements.getRegistrationCount.get(id).count;
+      const isFull = tournament.max_players && registeredCount >= tournament.max_players;
+
+      if (isFull) {
+        const maxPos = statements.getMaxWaitlistPosition.get(id);
+        const position = (maxPos?.max || 0) + 1;
+        statements.insertRegistration.run(id, '', cleanTag, '', 'waitlisted', position);
+        waitlisted++;
+      } else {
+        statements.insertRegistration.run(id, '', cleanTag, '', 'registered', null);
+        added++;
+      }
+    }
+
+    log('success', `Bulk added ${added} registered and ${waitlisted} waitlisted players to tournament ${id}`);
+    logAdminAction(req, 'bulk_add_registrations', 'tournament', id, { added, waitlisted, invalid, duplicates });
+    res.json({ added, waitlisted, invalid, duplicates });
+  } catch (error) {
+    log('error', `Failed to bulk add registrations: ${error.message}`);
+    res.status(500).json({ error: 'Failed to bulk add registrations' });
+  }
+});
+
+// Admin: bulk delete registrations
+router.post('/admin/:id/registrations/bulk-delete', validateAdminKey, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ids } = req.body;
+    const tournament = statements.getTournamentById.get(id);
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids[] is required' });
+    }
+
+    const allRegs = statements.getAllRegistrationsByTournament.all(id);
+    let deleted = 0;
+    let freedRegisteredSlots = 0;
+
+    for (const regId of ids) {
+      const registration = allRegs.find(r => r.id === parseInt(regId));
+      if (!registration) continue;
+      if (registration.status === 'registered') {
+        freedRegisteredSlots++;
+      }
+      statements.deleteRegistration.run(regId);
+      deleted++;
+    }
+
+    let promoted = { promoted: 0, tags: [] };
+    if (freedRegisteredSlots > 0) {
+      promoted = promoteWaitlistedPlayers(id, freedRegisteredSlots);
+    }
+
+    log('success', `Bulk deleted ${deleted} registrations from tournament ${id}`);
+    logAdminAction(req, 'bulk_delete_registrations', 'tournament', id, { deleted, promoted: promoted.tags });
+    res.json({ deleted, promoted: promoted.tags });
+  } catch (error) {
+    log('error', `Failed to bulk delete registrations: ${error.message}`);
+    res.status(500).json({ error: 'Failed to bulk delete registrations' });
+  }
+});
+
 // ==================== PUBLIC ROUTES ====================
 
 router.get('/', (req, res) => {

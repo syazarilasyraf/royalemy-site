@@ -400,6 +400,28 @@ export function bulkTournaments(action, ids, key, extra = {}) {
   });
 }
 
+export function getAdminTournamentRegistrations(tournamentId, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations`, {
+    headers: adminHeaders(key)
+  });
+}
+
+export function bulkAddRegistrations(tournamentId, tags, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/bulk`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ tags })
+  });
+}
+
+export function bulkDeleteRegistrations(tournamentId, ids, key) {
+  return fetchAPI(`/community-tournaments/admin/${tournamentId}/registrations/bulk-delete`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ ids })
+  });
+}
+
 export function getTournamentMatches(id) {
   return fetchAPI(`/community-tournaments/${id}/matches`);
 }

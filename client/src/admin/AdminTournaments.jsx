@@ -9,6 +9,14 @@ import {
   updateTournamentPrizeStatus,
   deleteTournament,
   bulkTournaments,
+  updateTournament,
+  getAdminTournamentRegistrations,
+  updateRegistration,
+  deleteRegistration,
+  promoteWaitlist,
+  bulkAddRegistrations,
+  bulkDeleteRegistrations,
+  exportTournamentRegistrations,
 } from '../services/api';
 
 const STATUS_LABELS = {
@@ -67,6 +75,20 @@ function AdminTournaments() {
   const [groupFilter, setGroupFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [detailTournament, setDetailTournament] = useState(null);
+
+  // Edit tournament modal state
+  const [editTournament, setEditTournament] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  // Manage players modal state
+  const [manageTournament, setManageTournament] = useState(null);
+  const [registrations, setRegistrations] = useState([]);
+  const [waitlist, setWaitlist] = useState([]);
+  const [registeredCount, setRegisteredCount] = useState(0);
+  const [maxPlayers, setMaxPlayers] = useState(0);
+  const [bulkTags, setBulkTags] = useState('');
+  const [selectedRegIds, setSelectedRegIds] = useState(new Set());
+  const [editingReg, setEditingReg] = useState(null);
 
   const fetchAdminData = useCallback(async () => {
     if (!adminKey) return;
@@ -185,6 +207,148 @@ function AdminTournaments() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ---------- Edit tournament handlers ----------
+  const openEditModal = (t) => {
+    setEditTournament(t);
+    setEditForm({
+      name: t.name || '',
+      host_name: t.host_name || '',
+      description: t.description || '',
+      start_date: t.start_date ? new Date(t.start_date).toISOString().slice(0, 16) : '',
+      end_date: t.end_date ? new Date(t.end_date).toISOString().slice(0, 16) : '',
+      registration_deadline: t.registration_deadline ? new Date(t.registration_deadline).toISOString().slice(0, 16) : '',
+      format: t.format || '',
+      max_players: t.max_players || '',
+      prize: t.prize || '',
+      rules: t.rules || '',
+      tiktok_username: t.tiktok_username || '',
+      tiktok_live_url: t.tiktok_live_url || '',
+      tournament_password: t.tournament_password || '',
+    });
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editTournament) return;
+    try {
+      await updateTournament(editTournament.id, editForm, adminKey);
+      setMessage('Tournament updated');
+      setEditTournament(null);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  // ---------- Manage players handlers ----------
+  const fetchRegistrations = async (tournamentId) => {
+    try {
+      const data = await getAdminTournamentRegistrations(tournamentId, adminKey);
+      setRegistrations(data.registrations || []);
+      setWaitlist(data.waitlist || []);
+      setRegisteredCount(data.registeredCount || 0);
+      setMaxPlayers(data.tournament?.max_players || 0);
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const openManageModal = (t) => {
+    setManageTournament(t);
+    setBulkTags('');
+    setSelectedRegIds(new Set());
+    setEditingReg(null);
+    fetchRegistrations(t.id);
+  };
+
+  const handleBulkAdd = async () => {
+    if (!manageTournament || !bulkTags.trim()) return;
+    const tags = bulkTags
+      .split(/[\n,\s]+/)
+      .map(t => t.trim())
+      .filter(Boolean);
+    if (tags.length === 0) return;
+    try {
+      const res = await bulkAddRegistrations(manageTournament.id, tags, adminKey);
+      setMessage(`Added: ${res.added}, waitlisted: ${res.waitlisted}, invalid: ${res.invalid}, duplicates: ${res.duplicates}`);
+      setBulkTags('');
+      fetchRegistrations(manageTournament.id);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const toggleRegSelect = (id) => {
+    setSelectedRegIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteRegs = async () => {
+    if (!manageTournament || selectedRegIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedRegIds.size} registration(s)?`)) return;
+    try {
+      const res = await bulkDeleteRegistrations(manageTournament.id, Array.from(selectedRegIds), adminKey);
+      setMessage(`Deleted: ${res.deleted}, promoted: ${res.promoted?.length || 0}`);
+      setSelectedRegIds(new Set());
+      fetchRegistrations(manageTournament.id);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleDeleteReg = async (regId) => {
+    if (!manageTournament) return;
+    if (!window.confirm('Delete this registration?')) return;
+    try {
+      await deleteRegistration(manageTournament.id, regId, adminKey);
+      setMessage('Registration deleted');
+      fetchRegistrations(manageTournament.id);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handlePromoteReg = async (regId) => {
+    if (!manageTournament) return;
+    try {
+      await promoteWaitlist(manageTournament.id, regId, adminKey);
+      setMessage('Player promoted from waitlist');
+      fetchRegistrations(manageTournament.id);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleSaveRegEdit = async (e) => {
+    e.preventDefault();
+    if (!manageTournament || !editingReg) return;
+    try {
+      await updateRegistration(manageTournament.id, editingReg.id, {
+        player_name: editingReg.player_name,
+        player_tag: editingReg.player_tag,
+        tiktok_username: editingReg.tiktok_username,
+      }, adminKey);
+      setMessage('Registration updated');
+      setEditingReg(null);
+      fetchRegistrations(manageTournament.id);
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const validateTagInput = (tag) => {
+    const clean = tag.replace('#', '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    return clean.length >= 3 && clean.length <= 10 ? clean : false;
   };
 
   const { pending, active, completed, other } = useMemo(() => {
@@ -326,6 +490,12 @@ function AdminTournaments() {
                   <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
                     👁 View
                   </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(t)}>
+                    ✏️ Edit
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openManageModal(t)}>
+                    👥 Players
+                  </button>
                   <button className="btn btn-success btn-sm" onClick={() => handleApprove(t.id)}>
                     Approve
                   </button>
@@ -363,6 +533,12 @@ function AdminTournaments() {
                 <div className="tournament-admin-actions">
                   <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
                     👁 View
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(t)}>
+                    ✏️ Edit
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openManageModal(t)}>
+                    👥 Players
                   </button>
                   <select
                     className="input"
@@ -409,6 +585,12 @@ function AdminTournaments() {
                   <div className="tournament-admin-actions">
                     <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
                       👁 View
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(t)}>
+                      ✏️ Edit
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => openManageModal(t)}>
+                      👥 Players
                     </button>
                     <select
                       className="input"
@@ -471,6 +653,12 @@ function AdminTournaments() {
                 <div className="tournament-admin-actions">
                   <button className="btn btn-secondary btn-sm" onClick={() => setDetailTournament(t)}>
                     👁 View
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(t)}>
+                    ✏️ Edit
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => openManageModal(t)}>
+                    👥 Players
                   </button>
                   <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(t.id)}>
                     🗑️
@@ -608,6 +796,186 @@ function AdminTournaments() {
                 Save Winners
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editTournament && (
+        <div className="modal-overlay" onClick={() => setEditTournament(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header">
+              <h3>✏️ Edit Tournament</h3>
+              <button className="modal-close" onClick={() => setEditTournament(null)}>✕</button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="submit-form">
+              <div className="form-field full-width">
+                <label>Name</label>
+                <input type="text" value={editForm.name} onChange={(e) => setEditForm(p => ({ ...p, name: e.target.value }))} required />
+              </div>
+              <div className="form-field full-width">
+                <label>Host Name</label>
+                <input type="text" value={editForm.host_name} onChange={(e) => setEditForm(p => ({ ...p, host_name: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>Description</label>
+                <textarea value={editForm.description} onChange={(e) => setEditForm(p => ({ ...p, description: e.target.value }))} rows="3" />
+              </div>
+              <div className="form-field full-width">
+                <label>Rules</label>
+                <textarea value={editForm.rules} onChange={(e) => setEditForm(p => ({ ...p, rules: e.target.value }))} rows="3" />
+              </div>
+              <div className="form-field full-width">
+                <label>Format</label>
+                <input type="text" value={editForm.format} onChange={(e) => setEditForm(p => ({ ...p, format: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>Max Players</label>
+                <input type="number" value={editForm.max_players} onChange={(e) => setEditForm(p => ({ ...p, max_players: parseInt(e.target.value) || '' }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>Prize</label>
+                <input type="text" value={editForm.prize} onChange={(e) => setEditForm(p => ({ ...p, prize: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>Start Date</label>
+                <input type="datetime-local" value={editForm.start_date} onChange={(e) => setEditForm(p => ({ ...p, start_date: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>End Date</label>
+                <input type="datetime-local" value={editForm.end_date} onChange={(e) => setEditForm(p => ({ ...p, end_date: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>Registration Deadline</label>
+                <input type="datetime-local" value={editForm.registration_deadline} onChange={(e) => setEditForm(p => ({ ...p, registration_deadline: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>TikTok Username</label>
+                <input type="text" value={editForm.tiktok_username} onChange={(e) => setEditForm(p => ({ ...p, tiktok_username: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>TikTok Live URL</label>
+                <input type="text" value={editForm.tiktok_live_url} onChange={(e) => setEditForm(p => ({ ...p, tiktok_live_url: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>Tournament Password</label>
+                <input type="text" value={editForm.tournament_password} onChange={(e) => setEditForm(p => ({ ...p, tournament_password: e.target.value }))} />
+              </div>
+              <button type="submit" className="submit-btn">Save Changes</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {manageTournament && (
+        <div className="modal-overlay" onClick={() => setManageTournament(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header">
+              <h3>👥 Manage Players — {manageTournament.name}</h3>
+              <button className="modal-close" onClick={() => setManageTournament(null)}>✕</button>
+            </div>
+            <div className="submit-form">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <span>Capacity: <strong>{registeredCount} / {maxPlayers || '∞'}</strong> registered</span>
+                <button className="btn btn-secondary btn-sm" onClick={() => exportTournamentRegistrations(manageTournament.id, adminKey)}>
+                  📥 Export CSV
+                </button>
+              </div>
+
+              <div className="form-field full-width">
+                <label>Bulk Add Player Tags (one per line or comma separated)</label>
+                <textarea
+                  value={bulkTags}
+                  onChange={(e) => setBulkTags(e.target.value)}
+                  rows="4"
+                  placeholder="#2P0JJQ0Y, #ABC123, ..."
+                />
+                <button className="btn btn-primary btn-sm" onClick={handleBulkAdd} style={{ marginTop: '0.5rem' }}>
+                  Add Players
+                </button>
+              </div>
+
+              {selectedRegIds.size > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <button className="btn btn-danger btn-sm" onClick={handleBulkDeleteRegs}>
+                    Delete Selected ({selectedRegIds.size})
+                  </button>
+                </div>
+              )}
+
+              <h4 style={{ margin: '1rem 0 0.5rem' }}>Registered ({registrations.length})</h4>
+              {registrations.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>No registered players.</p> : (
+                <table className="admin-table" style={{ width: '100%', marginBottom: '1rem' }}>
+                  <thead>
+                    <tr><th><input type="checkbox" onChange={(e) => setSelectedRegIds(e.target.checked ? new Set(registrations.map(r => r.id)) : new Set())} /></th><th>Tag</th><th>Name</th><th>TikTok</th><th>Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {registrations.map(r => (
+                      <tr key={r.id}>
+                        <td><input type="checkbox" checked={selectedRegIds.has(r.id)} onChange={() => toggleRegSelect(r.id)} /></td>
+                        <td>{r.player_tag}</td>
+                        <td>{r.player_name || '-'}</td>
+                        <td>{r.tiktok_username || '-'}</td>
+                        <td>
+                          <button className="btn btn-secondary btn-xs" onClick={() => setEditingReg(r)}>Edit</button>
+                          <button className="btn btn-danger btn-xs" onClick={() => handleDeleteReg(r.id)}>Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              <h4 style={{ margin: '1rem 0 0.5rem' }}>Waitlist ({waitlist.length})</h4>
+              {waitlist.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>No waitlisted players.</p> : (
+                <table className="admin-table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr><th><input type="checkbox" onChange={(e) => setSelectedRegIds(e.target.checked ? new Set(waitlist.map(r => r.id)) : new Set())} /></th><th>Tag</th><th>Name</th><th>TikTok</th><th>Position</th><th>Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {waitlist.map(r => (
+                      <tr key={r.id}>
+                        <td><input type="checkbox" checked={selectedRegIds.has(r.id)} onChange={() => toggleRegSelect(r.id)} /></td>
+                        <td>{r.player_tag}</td>
+                        <td>{r.player_name || '-'}</td>
+                        <td>{r.tiktok_username || '-'}</td>
+                        <td>{r.waitlist_position}</td>
+                        <td>
+                          <button className="btn btn-secondary btn-xs" onClick={() => setEditingReg(r)}>Edit</button>
+                          <button className="btn btn-success btn-xs" onClick={() => handlePromoteReg(r.id)}>Promote</button>
+                          <button className="btn btn-danger btn-xs" onClick={() => handleDeleteReg(r.id)}>Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingReg && (
+        <div className="modal-overlay" onClick={() => setEditingReg(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3>Edit Registration</h3>
+              <button className="modal-close" onClick={() => setEditingReg(null)}>✕</button>
+            </div>
+            <form onSubmit={handleSaveRegEdit} className="submit-form">
+              <div className="form-field full-width">
+                <label>Player Tag</label>
+                <input type="text" value={editingReg.player_tag} onChange={(e) => setEditingReg(p => ({ ...p, player_tag: e.target.value }))} required />
+              </div>
+              <div className="form-field full-width">
+                <label>Player Name</label>
+                <input type="text" value={editingReg.player_name || ''} onChange={(e) => setEditingReg(p => ({ ...p, player_name: e.target.value }))} />
+              </div>
+              <div className="form-field full-width">
+                <label>TikTok Username</label>
+                <input type="text" value={editingReg.tiktok_username || ''} onChange={(e) => setEditingReg(p => ({ ...p, tiktok_username: e.target.value }))} />
+              </div>
+              <button type="submit" className="submit-btn">Save</button>
+            </form>
           </div>
         </div>
       )}
@@ -813,6 +1181,42 @@ function AdminTournaments() {
         .detail-block a {
           color: var(--accent-primary);
           text-decoration: underline;
+        }
+        .form-field textarea {
+          width: 100%;
+          padding: var(--spacing-sm);
+          background: var(--bg-primary);
+          border: 1px solid var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          resize: vertical;
+          font-family: inherit;
+        }
+        .admin-table {
+          border-collapse: collapse;
+          font-size: 0.875rem;
+        }
+        .admin-table th,
+        .admin-table td {
+          padding: var(--spacing-sm);
+          text-align: left;
+          border-bottom: 1px solid var(--bg-tertiary);
+          vertical-align: middle;
+        }
+        .admin-table th {
+          color: var(--text-muted);
+          font-weight: 600;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          background: var(--bg-primary);
+        }
+        .admin-table td .btn {
+          margin-right: var(--spacing-xs);
+        }
+        .btn-xs {
+          font-size: 0.75rem;
+          padding: 2px 8px;
         }
         @media (max-width: 640px) {
           .detail-section {
