@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const MORE_TOOLS = [
+  { id: 'player', icon: '👤', title: 'Player Lookup', desc: 'Search player profiles & battles' },
   { id: 'deck', icon: '🎴', title: 'Deck Stats', desc: 'Analyze deck links' },
   { id: 'rankings', icon: '🏆', title: 'MY Rankings', desc: 'Malaysian leaderboards' },
   { id: 'tournaments', icon: '🎯', title: 'Tournaments', desc: 'Find & join tournaments' },

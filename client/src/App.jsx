@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
   { id: 'rankings', label: 'My Rankings', icon: '🏆' },
   { id: 'tournaments', label: 'Tournaments', icon: '🎯' },
-  { id: 'communitydecks', label: 'Community Decks', icon: '🌟' },
+  { id: 'communitydecks', label: 'Deck Feed', icon: '🌟' },
   { id: 'more', label: 'More', icon: '⋮' },
 ];
 
