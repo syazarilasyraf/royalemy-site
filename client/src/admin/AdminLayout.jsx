@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback } from 'react';
+import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
 import { Outlet, useSearchParams, Link, useLocation } from 'react-router-dom';
 
 const AdminKeyContext = createContext(null);
@@ -22,6 +22,8 @@ function AdminLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const adminKey = searchParams.get('admin') || '';
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const drawerRef = useRef(null);
 
   const setAdminKey = useCallback((key) => {
     const next = new URLSearchParams(searchParams);
@@ -32,6 +34,34 @@ function AdminLayout() {
     }
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Close mobile menu on Escape
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    }
+    if (mobileMenuOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [mobileMenuOpen]);
+
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   if (!adminKey) {
     return (
@@ -82,6 +112,7 @@ function AdminLayout() {
 
   return (
     <div className="admin-layout">
+      {/* Desktop sidebar */}
       <aside className="admin-sidebar">
         <div className="admin-brand">RoyaleMY Admin</div>
         <nav className="admin-nav">
@@ -100,6 +131,67 @@ function AdminLayout() {
           })}
         </nav>
       </aside>
+
+      {/* Mobile header */}
+      <header className="admin-mobile-header">
+        <span className="admin-mobile-brand">RoyaleMY Admin</span>
+        <button
+          className="admin-mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open admin menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          <span className="admin-menu-bar"></span>
+          <span className="admin-menu-bar"></span>
+          <span className="admin-menu-bar"></span>
+        </button>
+      </header>
+
+      {/* Mobile drawer */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="admin-mobile-backdrop"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="admin-mobile-drawer"
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Admin navigation"
+          >
+            <div className="admin-mobile-drawer-header">
+              <span className="admin-mobile-drawer-title">Admin Menu</span>
+              <button
+                className="admin-mobile-close-btn"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close admin menu"
+              >
+                ✕
+              </button>
+            </div>
+            <nav className="admin-mobile-nav">
+              {NAV_ITEMS.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={makeLink(item.path)}
+                    className={`admin-mobile-nav-link ${isActive ? 'active' : ''}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <span className="admin-mobile-nav-icon">{item.icon}</span>
+                    <span className="admin-mobile-nav-label">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </>
+      )}
+
       <main className="admin-main">
         <AdminKeyContext.Provider value={adminKey}>
           <Outlet />
@@ -163,25 +255,155 @@ function AdminLayout() {
           flex: 1;
           min-width: 0;
         }
+
+        /* Mobile header - hidden on desktop */
+        .admin-mobile-header {
+          display: none;
+        }
+
         @media (max-width: 767px) {
           .admin-layout {
             flex-direction: column;
+            gap: var(--spacing-md);
+            padding: var(--spacing-sm);
           }
           .admin-sidebar {
-            width: 100%;
-            position: static;
-          }
-          .admin-nav {
-            flex-direction: row;
-            flex-wrap: wrap;
-          }
-          .admin-nav-link {
-            flex: 1;
-            min-width: 100px;
-            justify-content: center;
-          }
-          .admin-nav-label {
             display: none;
+          }
+          .admin-mobile-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-sm) var(--spacing-md);
+            position: sticky;
+            top: var(--spacing-sm);
+            z-index: 50;
+          }
+          .admin-mobile-brand {
+            font-weight: 800;
+            font-size: 1rem;
+            color: var(--text-primary);
+          }
+          .admin-mobile-menu-btn {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            width: 40px;
+            height: 40px;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            color: var(--text-primary);
+          }
+          .admin-mobile-menu-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-primary);
+          }
+          .admin-menu-bar {
+            display: block;
+            height: 2px;
+            background: currentColor;
+            border-radius: 2px;
+          }
+          .admin-mobile-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 150;
+            animation: fadeIn 0.2s ease;
+          }
+          .admin-mobile-drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: min(280px, 80vw);
+            height: 100vh;
+            height: 100dvh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--bg-tertiary);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            animation: slideIn 0.25s ease;
+          }
+          .admin-mobile-drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--bg-tertiary);
+          }
+          .admin-mobile-drawer-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-primary);
+          }
+          .admin-mobile-close-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 1rem;
+            cursor: pointer;
+          }
+          .admin-mobile-close-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-primary);
+          }
+          .admin-mobile-nav {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-sm);
+            overflow-y: auto;
+          }
+          .admin-mobile-nav-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+          }
+          .admin-mobile-nav-link:hover,
+          .admin-mobile-nav-link.active {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+          }
+          .admin-mobile-nav-link.active {
+            border-left: 3px solid var(--accent-primary);
+          }
+          .admin-mobile-nav-icon {
+            font-size: 1.25rem;
+            width: 28px;
+            text-align: center;
+          }
+          .admin-mobile-nav-label {
+            flex: 1;
+          }
+
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
           }
         }
       `}</style>

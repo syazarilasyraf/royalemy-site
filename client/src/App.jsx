@@ -39,7 +39,12 @@ const NAV_ITEMS = [
 function Navigation() {
   const location = useLocation();
   const currentPath = location.pathname.slice(1) || '';
-  
+
+  // Hide public bottom navigation inside the admin area; admin has its own nav
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <nav className="bottom-nav">
       {NAV_ITEMS.map((item) => (
@@ -83,8 +88,11 @@ function Footer() {
 }
 
 function App() {
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
+
   return (
-    <div className="app">
+    <div className={`app ${isAdmin ? 'app-admin' : ''}`}>
       <Header />
       
       <main className="main-content">
@@ -240,6 +248,10 @@ function App() {
         @media (max-width: 767px) {
           .app {
             padding-bottom: 64px; /* Space for bottom nav */
+          }
+
+          .app.app-admin {
+            padding-bottom: 0; /* Admin uses its own sticky header, not bottom nav */
           }
 
           .bottom-nav {
