@@ -44,7 +44,7 @@ iOS Safari does **not** support `beforeinstallprompt`. Users must manually add t
 
 The service worker (`/sw.js`) uses multiple cache layers:
 
-### 1. App Shell Cache (`royalemy-shell-v1`)
+### 1. App Shell Cache (`royalemy-shell-v6`)
 
 **Contents:**
 - `/` (start_url)
@@ -52,11 +52,13 @@ The service worker (`/sw.js`) uses multiple cache layers:
 - `/offline.html`
 - `/royalemy.png`
 
-**Strategy:** `stale-while-revalidate`
-- Serve from cache immediately for instant loads.
-- Fetch updated version in the background and update the cache for next visit.
+**Strategy:** `network-first`
+- Always fetch the latest app shell from the network first.
+- Cache the response for offline fallback.
+- If offline, serve the cached shell or `offline.html`.
+- This ensures users see the latest deployment immediately, which is important because RoyaleMY is updated frequently.
 
-### 2. Image Cache (`royalemy-images-v1`)
+### 2. Image Cache (`royalemy-images-v6`)
 
 **Contents:**
 - Card images (`/cards/*.webp`)
@@ -66,7 +68,7 @@ The service worker (`/sw.js`) uses multiple cache layers:
 - Serve from cache if available.
 - Fetch from network if not cached, then store for offline use.
 
-### 3. Font Cache (`royalemy-fonts-v1`)
+### 3. Font Cache (`royalemy-fonts-v6`)
 
 **Contents:**
 - Google Fonts CSS (`fonts.googleapis.com`)
@@ -75,7 +77,7 @@ The service worker (`/sw.js`) uses multiple cache layers:
 **Strategy:** `cache-first`
 - Fonts rarely change; cache aggressively.
 
-### 4. API Cache (`royalemy-api-v1`)
+### 4. API Cache (`royalemy-api-v6`)
 
 **Selective caching based on endpoint:**
 
@@ -85,6 +87,13 @@ The service worker (`/sw.js`) uses multiple cache layers:
 | `/api/locations` | Cache First | Location list is static (24h server TTL) |
 | `/api/meta-decks` | Network First | Meta changes over time (30m server TTL) |
 | All other `/api/*` | Network Only | Player, clan, and ranking data must be fresh |
+
+### JS/CSS Bundles
+
+**Strategy:** `network-first`
+- Always fetch the latest bundles from the network.
+- Cache for offline fallback only.
+- Combined with the app shell strategy, this prevents users from seeing stale JavaScript or CSS after a deployment.
 
 ### Offline Behavior
 
@@ -96,27 +105,34 @@ The service worker (`/sw.js`) uses multiple cache layers:
 
 ## How to Update the PWA
 
-When you deploy new code, you must update the service worker so browsers know to fetch the new assets.
+When you deploy new code, the service worker will automatically detect the new `sw.js` file on the user's next visit and install it in the background.
 
-### Step 1: Bump Cache Versions
+### Update Behavior
 
-Open `client/public/sw.js` and update the cache name constants:
+1. The new service worker installs in the background on the user's next visit.
+2. It precaches the new app shell assets in a new cache (`v6`).
+3. On activation, it deletes the old cache (`v5`).
+4. The service worker calls `skipWaiting()`, so it activates immediately instead of waiting for all tabs to close.
+5. Because the app shell and JS/CSS use a **network-first** strategy, online users always fetch the latest code.
+6. If a new service worker is installed while the user is actively using the app, an **"A new version of RoyaleMY is available"** prompt appears with a **Refresh now** button.
+
+### When to Bump Cache Versions
+
+You generally do **not** need to manually bump cache versions for normal deployments because the network-first strategy fetches fresh assets automatically.
+
+Bump the version constants in `client/public/sw.js` only when:
+- You change the service worker caching logic itself.
+- You want to force a clean slate for images or fonts.
 
 ```js
 // Before
-const SHELL_CACHE = 'royalemy-shell-v1';
+const SHELL_CACHE = 'royalemy-shell-v6';
 
 // After
-const SHELL_CACHE = 'royalemy-shell-v2';
+const SHELL_CACHE = 'royalemy-shell-v7';
 ```
 
-You should bump the version whenever:
-- You change `index.html` or the app shell structure
-- You want to force a cache refresh for images or fonts
-
-**Note:** You do not need to bump API cache versions unless the caching logic itself changes.
-
-### Step 2: Rebuild and Redeploy
+### Rebuild and Redeploy
 
 ```bash
 # Build the client
@@ -124,18 +140,6 @@ cd client && npm run build
 
 # Deploy (e.g., to Netlify)
 ```
-
-### Step 3: Update Behavior
-
-1. The new service worker installs in the background on the user's next visit.
-2. It precaches the new app shell assets in a new cache (`v2`).
-3. On activation, it deletes the old cache (`v1`).
-4. The service worker calls `skipWaiting()`, so it activates immediately instead of waiting for all tabs to close.
-5. Users see the updated app on their next navigation or refresh.
-
-### Forcing Immediate Updates
-
-The current setup uses `skipWaiting()` in the install handler and `clients.claim()` in the activate handler. This means updates apply as soon as possible. If you want to notify users that an update is available, you can extend `registerSW.js` to show a "Reload to update" toast.
 
 ---
 
@@ -150,6 +154,7 @@ The current setup uses `skipWaiting()` in the install handler and `clients.claim
 | `client/src/registerSW.js` | Service worker registration logic |
 | `client/src/components/InstallButton.jsx` | Floating install button |
 | `client/src/components/InstallBanner.jsx` | Dismissible mobile install banner |
+| `client/src/components/UpdatePrompt.jsx` | "Refresh now" prompt shown when a new version is available |
 | `PWA.md` | This documentation |
 
 ---
@@ -163,11 +168,11 @@ The current setup uses `skipWaiting()` in the install handler and `clients.claim
 
 **Offline page not showing?**
 - Verify the service worker is registered in Application > Service Workers.
-- Check that `offline.html` is listed in the cache under `royalemy-shell-v1`.
+- Check that `offline.html` is listed in the cache under `royalemy-shell-v6`.
 
 **Old assets after deploy?**
-- Did you bump the cache version in `sw.js`?
-- Try unregistering the service worker in DevTools > Application > Service Workers and refresh.
+- The app shell and JS/CSS use network-first, so online users should get the latest code immediately.
+- If a user still sees old assets, they may be offline or the service worker failed to update. Ask them to refresh, or unregister the service worker in DevTools > Application > Service Workers and refresh.
 
 **iOS status bar color wrong?**
 - iOS Safari uses `black-translucent` for the status bar style, which overlays the page content.

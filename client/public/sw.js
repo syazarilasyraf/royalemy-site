@@ -1,7 +1,7 @@
-const SHELL_CACHE = 'royalemy-shell-v5';
-const IMAGE_CACHE = 'royalemy-images-v5';
-const FONT_CACHE = 'royalemy-fonts-v5';
-const API_CACHE = 'royalemy-api-v5';
+const SHELL_CACHE = 'royalemy-shell-v6';
+const IMAGE_CACHE = 'royalemy-images-v6';
+const FONT_CACHE = 'royalemy-fonts-v6';
+const API_CACHE = 'royalemy-api-v6';
 
 const SHELL_ASSETS = [
   '/',
@@ -74,9 +74,9 @@ function getStrategy(request) {
     return 'cache-first';
   }
 
-  // JS/CSS bundles and other assets
+  // JS/CSS bundles and other assets — network-first so deployments are picked up immediately
   if (request.destination === 'script' || request.destination === 'style' || request.destination === 'document') {
-    return 'stale-while-revalidate';
+    return 'network-first';
   }
 
   return 'network-first';
@@ -132,8 +132,14 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (response && response.status === 200) {
             const responseToCache = response.clone();
-            caches.open(API_CACHE).then((cache) => cache.put(request, responseToCache))
-              .then(() => pruneCache(API_CACHE, 100));
+            const cacheName = request.mode === 'navigate' || request.destination === 'document'
+              ? SHELL_CACHE
+              : (url.hostname.includes('fonts') ? FONT_CACHE : API_CACHE);
+            caches.open(cacheName).then((cache) => cache.put(request, responseToCache))
+              .then(() => {
+                const max = cacheName === SHELL_CACHE ? 50 : cacheName === FONT_CACHE ? 50 : 100;
+                pruneCache(cacheName, max);
+              });
           }
           return response;
         })
@@ -149,48 +155,6 @@ self.addEventListener('fetch', (event) => {
             throw new Error('Network error and no cache available');
           });
         })
-    );
-    return;
-  }
-
-  // Navigation requests (SPA routing): serve index.html from cache, revalidate in background
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetchPromise = fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put(request, responseToCache))
-              .then(() => pruneCache(SHELL_CACHE, 50));
-          }
-          return response;
-        }).catch(() => {
-          // Network failed: try exact cache, then index.html, then offline page
-          return cached || caches.match('/index.html').then((fallback) => {
-            return fallback || caches.match('/offline.html');
-          });
-        });
-
-        return cached || fetchPromise;
-      })
-    );
-    return;
-  }
-
-  if (strategy === 'stale-while-revalidate') {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetchPromise = fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put(request, responseToCache))
-              .then(() => pruneCache(SHELL_CACHE, 50));
-          }
-          return response;
-        }).catch(() => cached);
-
-        return cached || fetchPromise;
-      })
     );
     return;
   }

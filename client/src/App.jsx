@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Home from './components/Home';
 import InstallButton from './components/InstallButton';
 import InstallBanner from './components/InstallBanner';
+import UpdatePrompt from './components/UpdatePrompt';
 import AdminLayout from './admin/AdminLayout';
 
 const DeckStats = lazy(() => import('./components/DeckStats'));
@@ -121,6 +122,7 @@ function App() {
       <Navigation />
       <InstallButton />
       <InstallBanner />
+      <UpdatePrompt />
 
       <style>{`
         .app {

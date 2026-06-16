@@ -8,14 +8,18 @@ export function registerSW() {
 
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('[PWA] New version available. Refresh to update.');
-                  // Optionally notify user here
-                }
-              });
-            }
+            if (!newWorker) return;
+
+            newWorker.addEventListener('statechange', () => {
+              // A new service worker is waiting and the page already has an active controller.
+              // This means a new version was downloaded while the user was using the app.
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[PWA] New version available. Refresh to update.');
+                window.dispatchEvent(new CustomEvent('pwa-update-available', {
+                  detail: { registration }
+                }));
+              }
+            });
           });
         })
         .catch((error) => {
