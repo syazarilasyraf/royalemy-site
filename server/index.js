@@ -94,6 +94,15 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+// Disable HTTP caching for dynamic ranking/location data so browsers/PWAs always revalidate.
+function noStoreCache(req, res, next) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+}
+app.use('/api/locations', noStoreCache);
+
 // ==================== VALIDATION ====================
 
 function validatePlayerTag(tag) {

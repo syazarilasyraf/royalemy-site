@@ -94,27 +94,27 @@ export function getClanRiverRaceLog(clanTag) {
 // ==================== LOCATIONS / RANKINGS ====================
 
 export function getLocations() {
-  return fetchAPI('/locations');
+  return fetchAPI('/locations', { cache: 'no-store' });
 }
 
 export function getLocation(locationId) {
-  return fetchAPI(`/locations/${locationId}`);
+  return fetchAPI(`/locations/${locationId}`, { cache: 'no-store' });
 }
 
 export function getPlayerRankings(locationId) {
-  return fetchAPI(`/locations/${locationId}/rankings/players`);
+  return fetchAPI(`/locations/${locationId}/rankings/players`, { cache: 'no-store' });
 }
 
 export function getClanRankings(locationId) {
-  return fetchAPI(`/locations/${locationId}/rankings/clans`);
+  return fetchAPI(`/locations/${locationId}/rankings/clans`, { cache: 'no-store' });
 }
 
 export function getClanWarRankings(locationId) {
-  return fetchAPI(`/locations/${locationId}/rankings/clanwars`);
+  return fetchAPI(`/locations/${locationId}/rankings/clanwars`, { cache: 'no-store' });
 }
 
 export function getPathOfLegendRankings(locationId) {
-  return fetchAPI(`/locations/${locationId}/pathoflegend/players`);
+  return fetchAPI(`/locations/${locationId}/pathoflegend/players`, { cache: 'no-store' });
 }
 
 // ==================== TOURNAMENTS ====================

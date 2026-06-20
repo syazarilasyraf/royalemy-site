@@ -29,8 +29,7 @@ self.addEventListener('activate', (event) => {
             return name.startsWith('royalemy-') &&
               name !== SHELL_CACHE &&
               name !== IMAGE_CACHE &&
-              name !== FONT_CACHE &&
-              name !== API_CACHE;
+              name !== FONT_CACHE;
           })
           .map((name) => caches.delete(name))
       );
@@ -55,10 +54,11 @@ function getStrategy(request) {
 
   // API requests
   if (pathname.startsWith('/api/')) {
-    if (pathname === '/api/cards' || pathname.startsWith('/api/locations')) {
+    // Cards change very rarely; everything under /api/locations (rankings) is dynamic.
+    if (pathname === '/api/cards') {
       return 'cache-first';
     }
-    if (pathname === '/api/meta-decks') {
+    if (pathname.startsWith('/api/locations') || pathname === '/api/meta-decks') {
       return 'network-first';
     }
     return 'network-only';
