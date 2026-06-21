@@ -13,6 +13,7 @@ const ClanFinder = lazy(() => import('./components/ClanFinder'));
 const TournamentFinder = lazy(() => import('./components/TournamentFinder'));
 const TournamentArchive = lazy(() => import('./components/TournamentArchive'));
 const TournamentDetailPage = lazy(() => import('./components/TournamentDetailPage'));
+const TournamentLiveOverlay = lazy(() => import('./components/TournamentLiveOverlay'));
 const HallOfFame = lazy(() => import('./components/HallOfFame'));
 const ArenaDeckRecommender = lazy(() => import('./components/ArenaDeckRecommender'));
 const CommunityDeckFeed = lazy(() => import('./components/CommunityDeckFeed'));
@@ -90,12 +91,16 @@ function Footer() {
 function App() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
+  const isLiveOverlay = location.pathname.startsWith('/live/tournament');
 
   return (
-    <div className={`app ${isAdmin ? 'app-admin' : ''}`}>
-      <Header />
+    <div
+      className={`app ${isAdmin ? 'app-admin' : ''} ${isLiveOverlay ? 'app-live-overlay' : ''}`}
+      style={isLiveOverlay ? { background: 'transparent' } : undefined}
+    >
+      {!isLiveOverlay && <Header />}
       
-      <main className="main-content">
+      <main className={`main-content ${isLiveOverlay ? 'main-content-overlay' : ''}`}>
         <Suspense fallback={<div className="page-loader">Loading...</div>}>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -106,6 +111,7 @@ function App() {
             <Route path="/tournaments/archive" element={<TournamentArchive />} />
             <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
             <Route path="/tournaments/hall-of-fame" element={<HallOfFame />} />
+            <Route path="/live/tournament/:id" element={<TournamentLiveOverlay />} />
             <Route path="/arenadecks" element={<ArenaDeckRecommender />} />
             <Route path="/communitydecks" element={<CommunityDeckFeed />} />
             <Route path="/rankings" element={<MYRankings />} />
@@ -126,11 +132,11 @@ function App() {
         </Suspense>
       </main>
 
-      <Footer />
-      <Navigation />
-      <InstallButton />
-      <InstallBanner />
-      <UpdatePrompt />
+      {!isLiveOverlay && <Footer />}
+      {!isLiveOverlay && <Navigation />}
+      {!isLiveOverlay && <InstallButton />}
+      {!isLiveOverlay && <InstallBanner />}
+      {!isLiveOverlay && <UpdatePrompt />}
 
       <style>{`
         .app {
@@ -143,6 +149,10 @@ function App() {
         .main-content {
           flex: 1;
           padding: var(--spacing-md);
+        }
+
+        .main-content-overlay {
+          padding: 0;
         }
 
         .page-loader {

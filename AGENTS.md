@@ -91,6 +91,9 @@ if (!columnExists('existing_table', 'new_column')) {
 | `Dockerfile` | Docker image for JustRunMyApp | **HIGH** — affects deployment |
 | `client/src/services/api.js` | Frontend API client | Low |
 | `client/src/components/TournamentFinder.jsx` | Tournament UI | Low |
+| `server/services/tournamentLive.js` | Live battle validation, sync, and ranking engine | Medium |
+| `server/routes/tournamentLive.js` | Public live tournament API endpoints | Low |
+| `client/src/components/TournamentLiveOverlay.jsx` | Browser Source overlay for OBS/TikTok Live Studio | Low |
 | `client/public/_redirects` | Netlify SPA routing | Medium |
 | `client/public/sw.js` | Service worker (PWA cache) | Medium |
 
@@ -104,6 +107,10 @@ if (!columnExists('existing_table', 'new_column')) {
 3. Build command: `npm run build`
 4. Publish directory: `client/dist`
 5. **Required env var:** `VITE_API_URL=https://YOUR-BACKEND-URL/api`
+6. **Live overlay URLs** (Browser Source):
+   - Standard: `/live/tournament/:id`
+   - Transparent: `/live/tournament/:id?transparent=true`
+   - Compact: `/live/tournament/:id?compact=true`
 
 ### Backend (JustRunMyApp)
 1. Push to GitHub

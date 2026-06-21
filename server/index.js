@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import roadmapRouter from './routes/roadmap.js';
 import communityTournamentRouter from './routes/communityTournaments.js';
+import tournamentLiveRouter from './routes/tournamentLive.js';
 import communityClanRouter from './routes/communityClans.js';
 import statePlayerRouter from './routes/statePlayers.js';
 import communityDeckRouter from './routes/communityDecks.js';
@@ -19,6 +20,7 @@ import { db, getDbDiagnostics, dbPath, dbDir, statements } from './db.js';
 import { fetchFromCR, clearCache, deleteCacheKey, getCacheKey, CACHE_TTL, cache, MAX_CACHE_SIZE } from './services/crApi.js';
 import { fetchMetaDecks, META_DECK_CACHE_KEY } from './services/metaDecks.js';
 import { createTournamentNotification, sendPushNotifications } from './services/notifications.js';
+import { setupLiveTournamentSync } from './services/tournamentLive.js';
 import { validateAdminKey, validateAdminKey as validateAdminKeyForEndpoint, sanitizeTag } from './middleware/auth.js';
 import fs from 'fs';
 
@@ -653,6 +655,10 @@ app.post('/api/meta-decks/refresh', async (req, res) => {
 
 app.use('/api/roadmap', roadmapRouter);
 
+// ==================== LIVE TOURNAMENT BROADCAST ====================
+
+app.use('/api/tournament', tournamentLiveRouter);
+
 // ==================== COMMUNITY TOURNAMENTS ====================
 
 app.use('/api/community-tournaments', communityTournamentRouter);
@@ -876,6 +882,7 @@ const server = app.listen(PORT, () => {
 
   setupTournamentReminders();
   setupTournamentStatusTransitions();
+  setupLiveTournamentSync();
 });
 
 // Graceful shutdown

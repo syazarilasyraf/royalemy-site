@@ -1631,6 +1631,14 @@ function TournamentFinder() {
                     {t.prize && <span>🏆 {t.prize}</span>}
                   </div>
                   <div className="card-actions">
+                    <Link
+                      to={`/live/tournament/${t.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="card-action-btn overlay-btn"
+                    >
+                      📺 Overlay
+                    </Link>
                     {t.tiktok_live_url && (
                       <a
                         href={t.tiktok_live_url}

@@ -312,6 +312,58 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_admin_actions_resource ON admin_actions(resource);
   CREATE INDEX IF NOT EXISTS idx_admin_actions_created ON admin_actions(created_at DESC);
+
+  -- Live tournament broadcast system
+  CREATE TABLE IF NOT EXISTS tournament_battles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
+    battle_id TEXT NOT NULL,
+    player1_tag TEXT NOT NULL,
+    player2_tag TEXT NOT NULL,
+    battle_time DATETIME NOT NULL,
+    player1_crowns INTEGER NOT NULL DEFAULT 0,
+    player2_crowns INTEGER NOT NULL DEFAULT 0,
+    winner_tag TEXT,
+    game_mode TEXT,
+    battle_type TEXT,
+    processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tournament_id, battle_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tournament_battles_tournament ON tournament_battles(tournament_id);
+  CREATE INDEX IF NOT EXISTS idx_tournament_battles_battle_id ON tournament_battles(tournament_id, battle_id);
+  CREATE INDEX IF NOT EXISTS idx_tournament_battles_player1 ON tournament_battles(tournament_id, player1_tag);
+  CREATE INDEX IF NOT EXISTS idx_tournament_battles_player2 ON tournament_battles(tournament_id, player2_tag);
+  CREATE INDEX IF NOT EXISTS idx_tournament_battles_time ON tournament_battles(tournament_id, battle_time);
+
+  CREATE TABLE IF NOT EXISTS tournament_live_rankings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL REFERENCES community_tournaments(id) ON DELETE CASCADE,
+    player_tag TEXT NOT NULL,
+    player_name TEXT,
+    rank INTEGER NOT NULL DEFAULT 0,
+    previous_rank INTEGER,
+    rank_change INTEGER DEFAULT 0,
+    wins INTEGER NOT NULL DEFAULT 0,
+    losses INTEGER NOT NULL DEFAULT 0,
+    draws INTEGER NOT NULL DEFAULT 0,
+    matches_played INTEGER NOT NULL DEFAULT 0,
+    crowns_earned INTEGER NOT NULL DEFAULT 0,
+    crowns_conceded INTEGER NOT NULL DEFAULT 0,
+    current_streak INTEGER NOT NULL DEFAULT 0,
+    best_streak INTEGER NOT NULL DEFAULT 0,
+    score INTEGER NOT NULL DEFAULT 0,
+    last_battle_time DATETIME,
+    elo_rating INTEGER,
+    season_id INTEGER,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tournament_id, player_tag)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_live_rankings_tournament ON tournament_live_rankings(tournament_id);
+  CREATE INDEX IF NOT EXISTS idx_live_rankings_rank ON tournament_live_rankings(tournament_id, rank);
+  CREATE INDEX IF NOT EXISTS idx_live_rankings_player ON tournament_live_rankings(tournament_id, player_tag);
 `);
 
 // Drop unused indexes from existing databases
@@ -346,6 +398,7 @@ const tournamentCols = [
   { name: 'winner_2nd', type: 'TEXT' },
   { name: 'winner_3rd', type: 'TEXT' },
   { name: 'prize_status', type: 'TEXT DEFAULT \'pending\'' },
+  { name: 'last_battle_sync_at', type: 'DATETIME' },
 ];
 
 for (const col of tournamentCols) {
@@ -680,6 +733,55 @@ const statements = {
   ),
   getMaxMatchNumber: db.prepare(
     `UPDATE tournament_registrations SET waitlist_position = waitlist_position - 1 WHERE tournament_id = ? AND status = 'waitlisted' AND waitlist_position > ?`
+  ),
+
+  // Live Tournament Broadcast
+  insertTournamentBattle: db.prepare(
+    `INSERT OR IGNORE INTO tournament_battles (tournament_id, battle_id, player1_tag, player2_tag, battle_time, player1_crowns, player2_crowns, winner_tag, game_mode, battle_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ),
+  getTournamentBattles: db.prepare(
+    `SELECT * FROM tournament_battles WHERE tournament_id = ? ORDER BY battle_time DESC`
+  ),
+  getTournamentBattleById: db.prepare(
+    `SELECT id FROM tournament_battles WHERE tournament_id = ? AND battle_id = ?`
+  ),
+  getTournamentBattleCount: db.prepare(
+    `SELECT COUNT(*) as count FROM tournament_battles WHERE tournament_id = ?`
+  ),
+  upsertLiveRanking: db.prepare(
+    `INSERT INTO tournament_live_rankings (tournament_id, player_tag, player_name, rank, previous_rank, rank_change, wins, losses, draws, matches_played, crowns_earned, crowns_conceded, current_streak, best_streak, score, last_battle_time, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(tournament_id, player_tag) DO UPDATE SET
+       player_name = excluded.player_name,
+       rank = excluded.rank,
+       previous_rank = excluded.previous_rank,
+       rank_change = excluded.rank_change,
+       wins = excluded.wins,
+       losses = excluded.losses,
+       draws = excluded.draws,
+       matches_played = excluded.matches_played,
+       crowns_earned = excluded.crowns_earned,
+       crowns_conceded = excluded.crowns_conceded,
+       current_streak = excluded.current_streak,
+       best_streak = excluded.best_streak,
+       score = excluded.score,
+       last_battle_time = excluded.last_battle_time,
+       updated_at = excluded.updated_at`
+  ),
+  getLiveRankingsByTournament: db.prepare(
+    `SELECT * FROM tournament_live_rankings WHERE tournament_id = ? ORDER BY rank ASC, score DESC, wins DESC, crowns_earned DESC, crowns_conceded ASC, last_battle_time DESC`
+  ),
+  getLiveRankingByPlayer: db.prepare(
+    `SELECT * FROM tournament_live_rankings WHERE tournament_id = ? AND player_tag = ?`
+  ),
+  deleteLiveRankingsForTournament: db.prepare(
+    `DELETE FROM tournament_live_rankings WHERE tournament_id = ?`
+  ),
+  deleteStaleLiveRankings: db.prepare(
+    `DELETE FROM tournament_live_rankings WHERE tournament_id = ? AND player_tag NOT IN (SELECT player_tag FROM tournament_registrations WHERE tournament_id = ? AND status = 'registered')`
+  ),
+  updateTournamentLastBattleSync: db.prepare(
+    `UPDATE community_tournaments SET last_battle_sync_at = datetime('now') WHERE id = ?`
   ),
 
   // Notifications (generalized, site-wide)

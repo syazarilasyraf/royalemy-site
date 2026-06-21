@@ -35,6 +35,14 @@ A fan-made Clash Royale community platform built for Malaysian players. Search p
 - **Hall of Fame** — Aggregate player stats across tournaments (wins, top-3 finishes, total participations).
 - **Push Notifications** — Browser push subscriptions for tournament updates (status changes, winner announcements, reminders).
 
+### Live Tournament Broadcast
+- **Browser Source Overlay** — Dedicated `/live/tournament/:id` page optimized for OBS and TikTok Live Studio.
+- **Transparent & Compact Modes** — URL parameters for chroma-key and dense layouts.
+- **Auto-refreshing Leaderboard** — Polls every 5 seconds and shows top players, hot streak, biggest climber, most crowns, and most active.
+- **Battle Validation** — Only counts battles between registered participants during the tournament window; ignores ladder, friendly, clan war, challenge, and other tournament battles.
+- **Manual Sync** — Admins can force an immediate battle sync from the tournament admin panel.
+- See [`docs/LIVE_OVERLAY.md`](docs/LIVE_OVERLAY.md) for the full overlay guide.
+
 ### Platform Features
 - **Roadmap** — Public feature suggestion board with voting. Admins can approve, reject, and update status of suggestions.
 - **Admin Panel** — Unified admin interface across tournaments, roadmap, community decks, and clans via a single shared key.
@@ -142,6 +150,9 @@ curl http://localhost:3001/api/health
 | `VAPID_SUBJECT` | No | Contact email for push | `mailto:admin@royalemy.gg` |
 | `CORS_ORIGINS` | No | Additional CORS origins (comma-separated) | `https://deploy-preview-123--royalemy.netlify.app` |
 | `PORT` | No | Server port | `3001` |
+| `LIVE_TOURNAMENT_SYNC_INTERVAL_MS` | No | Live tournament battle sync interval | `30000` |
+| `LIVE_BATTLELOG_CACHE_TTL` | No | Live battle-log cache TTL (seconds) | `30` |
+| `LIVE_TOURNAMENT_SYNC_CONCURRENCY` | No | Parallel CR API fetches per sync | `5` |
 
 \* Required only if using browser push notifications for tournaments.
 
@@ -245,6 +256,7 @@ Admin panels are accessed from the unified admin area at `/admin?admin=YOUR_ADMI
 - Track prize status (`pending` → `contacted` → `paid`)
 - Export registrations to CSV
 - Bulk approve / reject / delete / change status
+- **⚡ Sync Battles** — Force an immediate live battle sync for overlay updates
 
 ### Roadmap Admin (`/admin/roadmap?admin=KEY`)
 - View all feature suggestions including pending
@@ -309,7 +321,7 @@ Engineering improvements to increase reliability, performance, and maintainabili
 - **Caching** — Replace the FIFO in-memory cache with `lru-cache` and expose hit/miss metrics.
 - **Testing** — Add a test suite for services and route integration; run it in CI.
 
-**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations/push subscriptions/submissions, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard and area, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production, admin key in `X-Admin-Key` header, bulk admin operations, admin search and filter, tournament waitlist with auto-promotion, admin audit trail, automated tournament reminders with push, automated tournament status transitions, tournament match tracker / brackets, Docker multi-stage build + healthcheck, CI pre-deploy verification, deck trending sort, deck comments, deck share links with Open Graph previews.
+**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations/push subscriptions/submissions, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard and area, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production, admin key in `X-Admin-Key` header, bulk admin operations, admin search and filter, tournament waitlist with auto-promotion, admin audit trail, automated tournament reminders with push, automated tournament status transitions, tournament match tracker / brackets, Docker multi-stage build + healthcheck, CI pre-deploy verification, deck trending sort, deck comments, deck share links with Open Graph previews, **live tournament broadcast overlay** with battle validation, ranking engine, and OBS/TikTok Live Studio Browser Source support (`/live/tournament/:id`).
 
 See `docs/FUTURE_ROADMAP.md` for the complete audit and ranked recommendations.
 

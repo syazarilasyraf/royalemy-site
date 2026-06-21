@@ -8,6 +8,7 @@ import {
   updateTournamentWinners,
   updateTournamentPrizeStatus,
   deleteTournament,
+  syncTournamentBattles,
   bulkTournaments,
   updateTournament,
   getAdminTournamentRegistrations,
@@ -540,6 +541,11 @@ function AdminTournaments() {
                   <button className="btn btn-secondary btn-sm" onClick={() => openManageModal(t)}>
                     👥 Players
                   </button>
+                  {t.status === 'live' && (
+                    <button className="btn btn-primary btn-sm" onClick={() => handleSyncBattles(t.id)}>
+                      ⚡ Sync Battles
+                    </button>
+                  )}
                   <select
                     className="input"
                     style={{ width: 'auto', fontSize: '0.8125rem', padding: '4px 8px' }}

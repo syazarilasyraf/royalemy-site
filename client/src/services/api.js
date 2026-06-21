@@ -457,6 +457,28 @@ export function deleteTournamentMatch(tournamentId, matchId, key) {
   });
 }
 
+// ==================== LIVE TOURNAMENT BROADCAST ====================
+
+export function getTournamentLeaderboard(id, limit = 3) {
+  const qs = limit !== 3 ? `?limit=${limit}` : '';
+  return fetchAPI(`/tournament/${id}/leaderboard${qs}`);
+}
+
+export function getTournamentLiveStats(id) {
+  return fetchAPI(`/tournament/${id}/stats`);
+}
+
+export function getTournamentLiveParticipants(id) {
+  return fetchAPI(`/tournament/${id}/participants`);
+}
+
+export function syncTournamentBattles(id, key) {
+  return fetchAPI(`/tournament/${id}/sync-battles`, {
+    method: 'POST',
+    headers: adminHeaders(key)
+  });
+}
+
 // ==================== COMMUNITY CLANS ====================
 
 export function getCommunityClans() {
