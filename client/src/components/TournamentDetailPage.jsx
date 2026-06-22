@@ -28,9 +28,9 @@ function WinnerPodium({ tournament, registrations = [] }) {
   const regMap = new Map(registrations.map((r) => [r.player_tag?.toUpperCase(), r]));
 
   const winners = [
-    { place: '1st', icon: '🥇', tag: tournament.winner_1st, color: '#fbbf24' },
-    { place: '2nd', icon: '🥈', tag: tournament.winner_2nd, color: '#94a3b8' },
-    { place: '3rd', icon: '🥉', tag: tournament.winner_3rd, color: '#cd7f32' },
+    { place: '1st', icon: '🥇', tag: tournament.winner_1st, name: tournament.winner_1st_name, color: '#fbbf24' },
+    { place: '2nd', icon: '🥈', tag: tournament.winner_2nd, name: tournament.winner_2nd_name, color: '#94a3b8' },
+    { place: '3rd', icon: '🥉', tag: tournament.winner_3rd, name: tournament.winner_3rd_name, color: '#cd7f32' },
   ].filter((w) => w.tag);
 
   if (winners.length === 0) return null;
@@ -41,7 +41,7 @@ function WinnerPodium({ tournament, registrations = [] }) {
       <div className="tdp-podium">
         {winners.map((w) => {
           const reg = regMap.get(w.tag.toUpperCase());
-          const playerName = reg?.player_name || reg?.tiktok_username;
+          const playerName = w.name || reg?.player_name || reg?.tiktok_username;
           return (
             <div key={w.place} className="tdp-podium-card" style={{ '--winner-color': w.color }}>
               <span className="tdp-winner-icon">{w.icon}</span>

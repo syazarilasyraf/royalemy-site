@@ -288,28 +288,32 @@ router.post('/admin/:id/winners', validateAdminKey, (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
+    // Update player stats
+    const allRegs = statements.getRegistrationsByTournament.all(id);
+    const regMap = new Map(allRegs.map(r => [r.player_tag.toUpperCase(), r.player_name || r.tiktok_username || r.player_tag]));
+
+    const name1st = winner_1st ? (regMap.get(winner_1st.toUpperCase()) || winner_1st) : tournament.winner_1st_name;
+    const name2nd = winner_2nd ? (regMap.get(winner_2nd.toUpperCase()) || winner_2nd) : tournament.winner_2nd_name;
+    const name3rd = winner_3rd ? (regMap.get(winner_3rd.toUpperCase()) || winner_3rd) : tournament.winner_3rd_name;
+
     statements.updateTournamentWinners.run(
       winner_1st || tournament.winner_1st || null,
+      name1st || null,
       winner_2nd || tournament.winner_2nd || null,
+      name2nd || null,
       winner_3rd || tournament.winner_3rd || null,
+      name3rd || null,
       id
     );
 
-    // Update player stats
-    const allRegs = statements.getRegistrationsByTournament.all(id);
-    const regMap = new Map(allRegs.map(r => [r.player_tag, r.player_name]));
-
     if (winner_1st) {
-      const name = regMap.get(winner_1st.toUpperCase()) || winner_1st;
-      updatePlayerStats(winner_1st.toUpperCase(), name, true, true, true);
+      updatePlayerStats(winner_1st.toUpperCase(), name1st, true, true, true);
     }
     if (winner_2nd) {
-      const name = regMap.get(winner_2nd.toUpperCase()) || winner_2nd;
-      updatePlayerStats(winner_2nd.toUpperCase(), name, false, true, true);
+      updatePlayerStats(winner_2nd.toUpperCase(), name2nd, false, true, true);
     }
     if (winner_3rd) {
-      const name = regMap.get(winner_3rd.toUpperCase()) || winner_3rd;
-      updatePlayerStats(winner_3rd.toUpperCase(), name, false, true, true);
+      updatePlayerStats(winner_3rd.toUpperCase(), name3rd, false, true, true);
     }
 
     // Update participation for all other registrants

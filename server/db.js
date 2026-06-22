@@ -131,8 +131,11 @@ db.exec(`
     tiktok_username TEXT,
     tiktok_live_url TEXT,
     winner_1st TEXT,
+    winner_1st_name TEXT,
     winner_2nd TEXT,
+    winner_2nd_name TEXT,
     winner_3rd TEXT,
+    winner_3rd_name TEXT,
     prize_status TEXT DEFAULT 'pending',
     status TEXT NOT NULL DEFAULT 'pending',
     notified_24h INTEGER NOT NULL DEFAULT 0,
@@ -395,8 +398,11 @@ const tournamentCols = [
   { name: 'tiktok_username', type: 'TEXT' },
   { name: 'tiktok_live_url', type: 'TEXT' },
   { name: 'winner_1st', type: 'TEXT' },
+  { name: 'winner_1st_name', type: 'TEXT' },
   { name: 'winner_2nd', type: 'TEXT' },
+  { name: 'winner_2nd_name', type: 'TEXT' },
   { name: 'winner_3rd', type: 'TEXT' },
+  { name: 'winner_3rd_name', type: 'TEXT' },
   { name: 'prize_status', type: 'TEXT DEFAULT \'pending\'' },
   { name: 'last_battle_sync_at', type: 'DATETIME' },
 ];
@@ -405,6 +411,22 @@ for (const col of tournamentCols) {
   if (!columnExists('community_tournaments', col.name)) {
     db.exec(`ALTER TABLE community_tournaments ADD COLUMN ${col.name} ${col.type}`);
   }
+}
+
+// Backfill winner names for existing completed tournaments from registrations
+// where the winner tag exists but the winner name column is still empty.
+try {
+  const completed = db.prepare("SELECT id, winner_1st, winner_2nd, winner_3rd FROM community_tournaments WHERE status = 'completed' AND (winner_1st IS NOT NULL OR winner_2nd IS NOT NULL OR winner_3rd IS NOT NULL)").all();
+  const getRegName = db.prepare(`SELECT COALESCE(NULLIF(player_name, ''), NULLIF(tiktok_username, ''), player_tag) AS name FROM tournament_registrations WHERE tournament_id = ? AND UPPER(player_tag) = UPPER(?) LIMIT 1`);
+  const updateNames = db.prepare(`UPDATE community_tournaments SET winner_1st_name = ?, winner_2nd_name = ?, winner_3rd_name = ? WHERE id = ?`);
+  for (const t of completed) {
+    const name1st = t.winner_1st ? (getRegName.get(t.id, t.winner_1st)?.name || t.winner_1st) : null;
+    const name2nd = t.winner_2nd ? (getRegName.get(t.id, t.winner_2nd)?.name || t.winner_2nd) : null;
+    const name3rd = t.winner_3rd ? (getRegName.get(t.id, t.winner_3rd)?.name || t.winner_3rd) : null;
+    updateNames.run(name1st, name2nd, name3rd, t.id);
+  }
+} catch (e) {
+  log('warn', `Failed to backfill winner names: ${e.message}`);
 }
 
 // ==================== NOTIFICATIONS MIGRATION ====================
@@ -657,7 +679,7 @@ const statements = {
     `UPDATE community_tournaments SET status = ? WHERE id = ?`
   ),
   updateTournamentWinners: db.prepare(
-    `UPDATE community_tournaments SET winner_1st = ?, winner_2nd = ?, winner_3rd = ? WHERE id = ?`
+    `UPDATE community_tournaments SET winner_1st = ?, winner_1st_name = ?, winner_2nd = ?, winner_2nd_name = ?, winner_3rd = ?, winner_3rd_name = ? WHERE id = ?`
   ),
   updateTournamentPrizeStatus: db.prepare(
     `UPDATE community_tournaments SET prize_status = ? WHERE id = ?`

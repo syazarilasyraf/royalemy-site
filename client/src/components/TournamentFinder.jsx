@@ -453,21 +453,24 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
                 <div className="winner-card first">
                   <span className="winner-medal">🥇</span>
                   <span className="winner-title">Champion</span>
-                  <span className="winner-tag">{tournament.winner_1st}</span>
+                  <span className="winner-name">{tournament.winner_1st_name || tournament.winner_1st}</span>
+                  {tournament.winner_1st_name && <span className="winner-tag">{tournament.winner_1st}</span>}
                 </div>
               )}
               {tournament.winner_2nd && (
                 <div className="winner-card second">
                   <span className="winner-medal">🥈</span>
                   <span className="winner-title">Runner-up</span>
-                  <span className="winner-tag">{tournament.winner_2nd}</span>
+                  <span className="winner-name">{tournament.winner_2nd_name || tournament.winner_2nd}</span>
+                  {tournament.winner_2nd_name && <span className="winner-tag">{tournament.winner_2nd}</span>}
                 </div>
               )}
               {tournament.winner_3rd && (
                 <div className="winner-card third">
                   <span className="winner-medal">🥉</span>
                   <span className="winner-title">Third Place</span>
-                  <span className="winner-tag">{tournament.winner_3rd}</span>
+                  <span className="winner-name">{tournament.winner_3rd_name || tournament.winner_3rd}</span>
+                  {tournament.winner_3rd_name && <span className="winner-tag">{tournament.winner_3rd}</span>}
                 </div>
               )}
             </div>
@@ -1638,13 +1641,13 @@ function TournamentFinder() {
                 {(t.winner_1st || t.winner_2nd || t.winner_3rd) && (
                   <div className="completed-winners">
                     {t.winner_1st && (
-                      <span className="cw-winner first">🥇 {t.winner_1st}</span>
+                      <span className="cw-winner first">🥇 {t.winner_1st_name || t.winner_1st}</span>
                     )}
                     {t.winner_2nd && (
-                      <span className="cw-winner second">🥈 {t.winner_2nd}</span>
+                      <span className="cw-winner second">🥈 {t.winner_2nd_name || t.winner_2nd}</span>
                     )}
                     {t.winner_3rd && (
-                      <span className="cw-winner third">🥉 {t.winner_3rd}</span>
+                      <span className="cw-winner third">🥉 {t.winner_3rd_name || t.winner_3rd}</span>
                     )}
                   </div>
                 )}
@@ -2479,10 +2482,19 @@ function TournamentFinder() {
           margin-bottom: 2px;
         }
 
-        .winner-tag {
+        .winner-name {
           font-size: 1rem;
           font-weight: 800;
           color: var(--text-primary);
+          text-align: center;
+          line-height: 1.2;
+        }
+
+        .winner-tag {
+          font-size: 0.8125rem;
+          font-weight: 600;
+          color: var(--text-muted);
+          font-family: monospace;
         }
 
         .prize-status {
