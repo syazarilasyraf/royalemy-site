@@ -42,12 +42,13 @@ function WinnerPodium({ tournament, registrations = [] }) {
         {winners.map((w) => {
           const reg = regMap.get(w.tag.toUpperCase());
           const playerName = w.name || reg?.player_name || reg?.tiktok_username;
+          const displayLabel = playerName || `#${w.tag.toUpperCase()}`;
           return (
             <div key={w.place} className="tdp-podium-card" style={{ '--winner-color': w.color }}>
               <span className="tdp-winner-icon">{w.icon}</span>
               <span className="tdp-winner-place">{w.place}</span>
-              {playerName && <span className="tdp-winner-name">{playerName}</span>}
-              <span className="tdp-winner-tag">#{w.tag.toUpperCase()}</span>
+              <span className="tdp-winner-name">{displayLabel}</span>
+              {!playerName && <span className="tdp-winner-tag">#{w.tag.toUpperCase()}</span>}
             </div>
           );
         })}

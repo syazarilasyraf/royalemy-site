@@ -448,32 +448,39 @@ function TournamentDetail({ tournament, onBack, onRefresh, adminKey, notificatio
         {tournament.status === 'completed' && (
           <div className="details-section winners-section">
             <h4>🏆 Tournament Results</h4>
-            <div className="winners-grid">
-              {tournament.winner_1st && (
-                <div className="winner-card first">
-                  <span className="winner-medal">🥇</span>
-                  <span className="winner-title">Champion</span>
-                  <span className="winner-name">{tournament.winner_1st_name || tournament.winner_1st}</span>
-                  {tournament.winner_1st_name && <span className="winner-tag">{tournament.winner_1st}</span>}
+            {(() => {
+              const regMap = new Map(registrations.map((r) => [r.player_tag?.toUpperCase(), r]));
+              const getWinnerName = (tag, storedName) => {
+                if (storedName) return storedName;
+                const reg = regMap.get(tag?.toUpperCase());
+                return reg?.player_name || reg?.tiktok_username || null;
+              };
+              return (
+                <div className="winners-grid">
+                  {tournament.winner_1st && (
+                    <div className="winner-card first">
+                      <span className="winner-medal">🥇</span>
+                      <span className="winner-title">Champion</span>
+                      <span className="winner-name">{getWinnerName(tournament.winner_1st, tournament.winner_1st_name) || tournament.winner_1st}</span>
+                    </div>
+                  )}
+                  {tournament.winner_2nd && (
+                    <div className="winner-card second">
+                      <span className="winner-medal">🥈</span>
+                      <span className="winner-title">Runner-up</span>
+                      <span className="winner-name">{getWinnerName(tournament.winner_2nd, tournament.winner_2nd_name) || tournament.winner_2nd}</span>
+                    </div>
+                  )}
+                  {tournament.winner_3rd && (
+                    <div className="winner-card third">
+                      <span className="winner-medal">🥉</span>
+                      <span className="winner-title">Third Place</span>
+                      <span className="winner-name">{getWinnerName(tournament.winner_3rd, tournament.winner_3rd_name) || tournament.winner_3rd}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {tournament.winner_2nd && (
-                <div className="winner-card second">
-                  <span className="winner-medal">🥈</span>
-                  <span className="winner-title">Runner-up</span>
-                  <span className="winner-name">{tournament.winner_2nd_name || tournament.winner_2nd}</span>
-                  {tournament.winner_2nd_name && <span className="winner-tag">{tournament.winner_2nd}</span>}
-                </div>
-              )}
-              {tournament.winner_3rd && (
-                <div className="winner-card third">
-                  <span className="winner-medal">🥉</span>
-                  <span className="winner-title">Third Place</span>
-                  <span className="winner-name">{tournament.winner_3rd_name || tournament.winner_3rd}</span>
-                  {tournament.winner_3rd_name && <span className="winner-tag">{tournament.winner_3rd}</span>}
-                </div>
-              )}
-            </div>
+              );
+            })()}
             <div className="prize-status">
               Prize Status: <span className={`ps-badge ps-${tournament.prize_status || 'pending'}`}>{PRIZE_STATUS_LABELS[tournament.prize_status] || 'Pending'}</span>
             </div>
