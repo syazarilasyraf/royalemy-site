@@ -12,8 +12,6 @@ import {
   deleteTournament,
   deleteRegistration,
   updateRegistration,
-  searchTournaments,
-  getTournament,
   getVapidPublicKey,
   subscribeToPush,
   unsubscribeFromPush,
@@ -1029,88 +1027,6 @@ function SubmitModal({ onClose, onSuccess }) {
   );
 }
 
-// ==================== OFFICIAL TOURNAMENT DETAIL ====================
-
-function OfficialTournamentDetail({ tournament, onBack }) {
-  const formatTimeRemaining = (endTime) => {
-    if (!endTime) return '-';
-    const end = new Date(endTime);
-    const now = new Date();
-    const diff = end - now;
-    if (diff <= 0) return 'Ended';
-    const hours = Math.floor(diff / 3600000);
-    const minutes = Math.floor((diff % 3600000) / 60000);
-    if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h left`;
-    if (hours > 0) return `${hours}h ${minutes}m left`;
-    return `${minutes}m left`;
-  };
-
-  const getStatusConfig = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'inprogress': return { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)', label: 'Active', dot: '🟢' };
-      case 'upcoming': return { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', label: 'Upcoming', dot: '🔵' };
-      case 'ended': return { color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)', label: 'Finished', dot: '⚪' };
-      default: return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', label: 'Unknown', dot: '🟡' };
-    }
-  };
-
-  const status = getStatusConfig(tournament.status);
-
-  return (
-    <div className="tournament-details">
-      <button className="back-btn" onClick={onBack}>← Back</button>
-      <div className="details-card">
-        <div className="details-hero official">
-          <div className="details-status-badge" style={{ color: status.color, background: status.bg }}>
-            {status.dot} {status.label}
-          </div>
-          <h2>{tournament.name}</h2>
-          <p className="details-tag">🏷️ #{tournament.tag}</p>
-        </div>
-
-        <div className="details-stats">
-          <div className="ds-item">
-            <span className="ds-icon">👥</span>
-            <span className="ds-value">{tournament.capacity}/{tournament.maxCapacity}</span>
-            <span className="ds-label">Players</span>
-          </div>
-          <div className="ds-item">
-            <span className="ds-icon">📅</span>
-            <span className="ds-value">{formatDate(tournament.startTime)}</span>
-            <span className="ds-label">Started</span>
-          </div>
-          <div className="ds-item">
-            <span className="ds-icon">⏰</span>
-            <span className="ds-value">{formatTimeRemaining(tournament.endTime)}</span>
-            <span className="ds-label">Time Left</span>
-          </div>
-        </div>
-
-        <div className="join-box">
-          <h4>🎮 How to Join</h4>
-          <div className="join-steps">
-            <div className="join-step">
-              <span className="join-step-num">1</span>
-              <span>Open Clash Royale app</span>
-            </div>
-            <div className="join-step">
-              <span className="join-step-num">2</span>
-              <span>Go to Tournament tab</span>
-            </div>
-            <div className="join-step">
-              <span className="join-step-num">3</span>
-              <span>Search tag: <strong>#{tournament.tag}</strong></span>
-            </div>
-          </div>
-          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(tournament.tag)}>
-            📋 Copy Tag
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ==================== REGISTER MODAL ====================
 
 function RegisterModal({ tournament, onClose, onSuccess }) {
@@ -1444,7 +1360,7 @@ function TournamentFinder() {
   const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [selectedTournamentFull, setSelectedTournamentFull] = useState(null);
-  const [view, setView] = useState('list'); // list, detail, official-detail
+  const [view, setView] = useState('list'); // list, detail
   const [listViewMode, setListViewMode] = useState('list'); // list, calendar
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [searchParams] = useSearchParams();
@@ -1454,19 +1370,6 @@ function TournamentFinder() {
   // Registration modal
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [registeringTournament, setRegisteringTournament] = useState(null);
-
-  // Official CR tournament search
-  const [searchName, setSearchName] = useState('');
-  const [officialTournaments, setOfficialTournaments] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState('');
-
-  // Tag checker
-  const [tagInput, setTagInput] = useState('');
-  const [tagResult, setTagResult] = useState(null);
-  const [tagLoading, setTagLoading] = useState(false);
-  const [tagError, setTagError] = useState('');
-  const [selectedOfficialTournament, setSelectedOfficialTournament] = useState(null);
 
   useEffect(() => {
     loadCommunityTournaments();
@@ -1520,49 +1423,12 @@ function TournamentFinder() {
     setView('list');
     setSelectedTournament(null);
     setSelectedTournamentFull(null);
-    setSelectedOfficialTournament(null);
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchName.trim()) return;
-    setSearchLoading(true);
-    setSearchError('');
-    try {
-      const data = await searchTournaments(searchName);
-      setOfficialTournaments(data.items || []);
-    } catch (err) {
-      setSearchError('Failed to search tournaments.');
-      setOfficialTournaments([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  const handleTagCheck = async (e) => {
-    e.preventDefault();
-    if (!tagInput.trim()) return;
-    setTagLoading(true);
-    setTagError('');
-    setTagResult(null);
-    try {
-      const data = await getTournament(tagInput.trim());
-      setTagResult(data);
-    } catch (err) {
-      setTagError('Tournament not found.');
-    } finally {
-      setTagLoading(false);
-    }
-  };
-
-  const viewOfficialDetails = (tournament) => {
-    setSelectedOfficialTournament(tournament);
-    setView('official-detail');
-  };
-
-  // Separate active/upcoming from live
+  // Separate tournaments by status
   const liveTournaments = useMemo(() => communityTournaments.filter((t) => t.status === 'live'), [communityTournaments]);
-  const upcomingTournaments = useMemo(() => communityTournaments.filter((t) => t.status !== 'live'), [communityTournaments]);
+  const completedTournaments = useMemo(() => communityTournaments.filter((t) => t.status === 'completed'), [communityTournaments]);
+  const upcomingTournaments = useMemo(() => communityTournaments.filter((t) => t.status !== 'live' && t.status !== 'completed'), [communityTournaments]);
 
   if (view === 'detail' && selectedTournament) {
     const t = selectedTournamentFull?.tournament || selectedTournament;
@@ -1580,15 +1446,6 @@ function TournamentFinder() {
     );
   }
 
-  if (view === 'official-detail' && selectedOfficialTournament) {
-    return (
-      <div className="tournament-finder">
-        <OfficialTournamentDetail tournament={selectedOfficialTournament} onBack={handleBack} />
-
-      </div>
-    );
-  }
-
   return (
     <div className="tournament-finder">
       {/* Header */}
@@ -1599,9 +1456,6 @@ function TournamentFinder() {
           <button className="submit-tournament-btn" onClick={() => setShowSubmitModal(true)}>
             ➕ Submit Tournament
           </button>
-          <Link className="archive-btn" to="/tournaments/archive">
-            🏛️ Archive
-          </Link>
           <button
             className="btn btn-secondary"
             onClick={() => setListViewMode(listViewMode === 'list' ? 'calendar' : 'list')}
@@ -1750,87 +1604,55 @@ function TournamentFinder() {
         )}
       </section>
 
-      {/* Official Tournament Search */}
-      <section className="tag-checker-section">
-        <h3>🔎 Find Official Tournaments</h3>
-        <p className="section-subtitle">Search for official Clash Royale tournaments</p>
-
-        <form onSubmit={handleSearch} className="tag-form">
-          <div className="tag-input-wrapper">
-            <input
-              type="text"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              placeholder="Search tournament name..."
-              className="tag-input"
-              style={{ paddingLeft: 'var(--spacing-md)' }}
-            />
-            <button type="submit" className="tag-submit-btn" disabled={searchLoading || !searchName.trim()}>
-              {searchLoading ? 'Searching...' : 'Search'}
-            </button>
+      {/* Completed Tournaments */}
+      {completedTournaments.length > 0 && (
+        <section className="completed-section">
+          <div className="section-header">
+            <div>
+              <h3>🏁 Completed Tournaments</h3>
+              <p className="section-subtitle">Past tournaments and their results</p>
+            </div>
           </div>
-        </form>
 
-        {searchError && (
-          <div className="tag-error">
-            <span>❌</span> {searchError}
-          </div>
-        )}
-
-        {officialTournaments.length > 0 && (
-          <div className="search-results">
-            <h4>Search Results</h4>
-            <div className="tournament-list">
-              {officialTournaments.map((tournament) => (
-                <div key={tournament.tag} className="tournament-card" onClick={() => viewOfficialDetails(tournament)}>
-                  <div className="tc-header">
-                    <span className="tc-status" style={{ color: getStatusConfig(tournament.status).color }}>
-                      {getStatusConfig(tournament.status).dot} {getStatusConfig(tournament.status).label}
-                    </span>
-                  </div>
-                  <h4>{tournament.name}</h4>
-                  <p>#{tournament.tag}</p>
+          <div className="completed-tournament-list">
+            {completedTournaments.map((t) => (
+              <div
+                key={t.id}
+                className="community-tournament-card completed-card"
+                onClick={() => viewTournamentDetails(t)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') viewTournamentDetails(t); }}
+              >
+                <div className="ct-card-header">
+                  <TournamentStatusBadge status={t.status} />
+                  <span className="completed-date">{formatDateOnly(t.start_date)}</span>
                 </div>
-              ))}
-            </div>
+                <h4 className="ct-name">{t.name}</h4>
+                <p className="ct-host">Organized by {t.host_name}</p>
+                <div className="ct-meta">
+                  <span>🎮 {t.format || 'Normal Battle'}</span>
+                  <span>👥 {t.participant_count ?? 0} / {t.max_players || '∞'} players</span>
+                  {t.prize && <span>🏆 {t.prize}</span>}
+                </div>
+                {(t.winner_1st || t.winner_2nd || t.winner_3rd) && (
+                  <div className="completed-winners">
+                    {t.winner_1st && (
+                      <span className="cw-winner first">🥇 {t.winner_1st}</span>
+                    )}
+                    {t.winner_2nd && (
+                      <span className="cw-winner second">🥈 {t.winner_2nd}</span>
+                    )}
+                    {t.winner_3rd && (
+                      <span className="cw-winner third">🥉 {t.winner_3rd}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-
-        <form onSubmit={handleTagCheck} className="tag-form" style={{ marginTop: 'var(--spacing-lg)' }}>
-          <div className="tag-input-wrapper">
-            <span className="tag-prefix">#</span>
-            <input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value.replace('#', ''))}
-              placeholder="Enter tournament tag"
-              className="tag-input"
-            />
-            <button type="submit" className="tag-submit-btn" disabled={tagLoading || !tagInput.trim()}>
-              {tagLoading ? 'Checking...' : 'Check Tag'}
-            </button>
-          </div>
-        </form>
-
-        {tagError && (
-          <div className="tag-error">
-            <span>❌</span> {tagError}
-          </div>
-        )}
-
-        {tagResult && (
-          <div className="tag-result" onClick={() => viewOfficialDetails(tagResult)}>
-            <div className="tr-header">
-              <span className="tr-status" style={{ color: getStatusConfig(tagResult.status).color }}>
-                {getStatusConfig(tagResult.status).dot} {getStatusConfig(tagResult.status).label}
-              </span>
-            </div>
-            <h4>{tagResult.name}</h4>
-            <p>👥 {tagResult.capacity}/{tagResult.maxCapacity} players</p>
-            <span className="tr-click">Click to view details →</span>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Submit Modal */}
       {showSubmitModal && (
@@ -1887,7 +1709,6 @@ function TournamentFinder() {
         }
 
         .submit-tournament-btn,
-        .archive-btn,
         .hof-btn {
           padding: var(--spacing-xs) var(--spacing-md);
           border: none;
@@ -1903,16 +1724,11 @@ function TournamentFinder() {
           background: linear-gradient(135deg, #22c55e, #16a34a);
         }
 
-        .archive-btn {
-          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-        }
-
         .hof-btn {
           background: linear-gradient(135deg, #f59e0b, #d97706);
         }
 
         .submit-tournament-btn:hover,
-        .archive-btn:hover,
         .hof-btn:hover {
           filter: brightness(1.1);
         }
@@ -2191,6 +2007,81 @@ function TournamentFinder() {
           color: #ff0050;
           font-weight: 600;
           margin-top: var(--spacing-xs);
+        }
+
+        .completed-section h3 {
+          color: #a855f7;
+        }
+
+        .completed-tournament-list {
+          display: grid;
+          gap: var(--spacing-md);
+        }
+
+        .completed-card {
+          position: relative;
+          overflow: hidden;
+          cursor: pointer;
+        }
+
+        .completed-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, #f59e0b, #ef4444, #3b82f6);
+          opacity: 0.6;
+        }
+
+        .completed-card:focus-visible {
+          outline: 2px solid var(--accent-primary);
+          outline-offset: 2px;
+        }
+
+        .completed-date {
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          background: var(--bg-primary);
+          padding: 4px 10px;
+          border-radius: var(--radius-md);
+          font-weight: 500;
+        }
+
+        .completed-winners {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-sm);
+          margin-top: var(--spacing-sm);
+        }
+
+        .cw-winner {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          font-size: 0.8125rem;
+          color: var(--text-primary);
+          background: var(--bg-primary);
+          padding: 5px 10px;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--bg-tertiary);
+          font-weight: 600;
+        }
+
+        .cw-winner.first {
+          border-color: rgba(245, 158, 11, 0.3);
+          background: rgba(245, 158, 11, 0.08);
+        }
+
+        .cw-winner.second {
+          border-color: rgba(156, 163, 175, 0.3);
+          background: rgba(156, 163, 175, 0.08);
+        }
+
+        .cw-winner.third {
+          border-color: rgba(234, 88, 12, 0.3);
+          background: rgba(234, 88, 12, 0.08);
         }
 
         .card-actions {

@@ -11,7 +11,6 @@ const DeckStats = lazy(() => import('./components/DeckStats'));
 const PlayerLookup = lazy(() => import('./components/PlayerLookup'));
 const ClanFinder = lazy(() => import('./components/ClanFinder'));
 const TournamentFinder = lazy(() => import('./components/TournamentFinder'));
-const TournamentArchive = lazy(() => import('./components/TournamentArchive'));
 const TournamentDetailPage = lazy(() => import('./components/TournamentDetailPage'));
 const TournamentLiveOverlay = lazy(() => import('./components/TournamentLiveOverlay'));
 const HallOfFame = lazy(() => import('./components/HallOfFame'));
@@ -108,7 +107,6 @@ function App() {
             <Route path="/player" element={<PlayerLookup />} />
             <Route path="/clan" element={<ClanFinder />} />
             <Route path="/tournaments" element={<TournamentFinder />} />
-            <Route path="/tournaments/archive" element={<TournamentArchive />} />
             <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
             <Route path="/tournaments/hall-of-fame" element={<HallOfFame />} />
             <Route path="/live/tournament/:id" element={<TournamentLiveOverlay />} />

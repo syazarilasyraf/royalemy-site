@@ -75,8 +75,8 @@ export default function TournamentDetailPage() {
 
   return (
     <div className="page-container tournament-detail-page">
-      <button className="back-btn" onClick={() => navigate('/tournaments/archive')}>
-        ← Back to Archive
+      <button className="back-btn" onClick={() => navigate('/tournaments')}>
+        ← Back to Tournaments
       </button>
 
       {loading ? (

@@ -230,10 +230,6 @@ export function getCommunityTournament(id) {
   return fetchAPI(`/community-tournaments/${id}`);
 }
 
-export function getTournamentArchive() {
-  return fetchAPI(`/community-tournaments/archive`);
-}
-
 export function submitCommunityTournament(data) {
   return fetchAPI('/community-tournaments', {
     method: 'POST',

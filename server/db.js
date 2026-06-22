@@ -639,7 +639,7 @@ const statements = {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ),
   getApprovedTournaments: db.prepare(
-    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id AND tr.status = 'registered') as participant_count FROM community_tournaments ct WHERE ct.status IN ('approved', 'registration_open', 'registration_closed', 'live') ORDER BY ct.start_date ASC`
+    `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id AND tr.status = 'registered') as participant_count FROM community_tournaments ct WHERE ct.status IN ('approved', 'registration_open', 'registration_closed', 'live', 'completed') ORDER BY ct.start_date ASC`
   ),
   getArchiveTournaments: db.prepare(
     `SELECT ct.*, (SELECT COUNT(*) FROM tournament_registrations tr WHERE tr.tournament_id = ct.id AND tr.status = 'registered') as participant_count FROM community_tournaments ct WHERE ct.status = 'completed' ORDER BY ct.start_date DESC`
