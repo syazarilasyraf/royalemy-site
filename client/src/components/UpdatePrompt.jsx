@@ -2,13 +2,27 @@ import { useState, useEffect } from 'react';
 
 function UpdatePrompt() {
   const [isVisible, setIsVisible] = useState(false);
+  const [registration, setRegistration] = useState(null);
 
   useEffect(() => {
-    const handleUpdateAvailable = () => {
+    const handleUpdateAvailable = (event) => {
       setIsVisible(true);
+      if (event.detail?.registration) {
+        setRegistration(event.detail.registration);
+      }
     };
 
+    // Listen for fresh update events
     window.addEventListener('pwa-update-available', handleUpdateAvailable);
+
+    // If the update event fired before this component mounted (race condition on mobile),
+    // the global flag still tells us a new version is waiting.
+    if (window.__pwaUpdateAvailable) {
+      setIsVisible(true);
+      if (window.__pwaRegistration) {
+        setRegistration(window.__pwaRegistration);
+      }
+    }
 
     return () => {
       window.removeEventListener('pwa-update-available', handleUpdateAvailable);
@@ -16,7 +30,18 @@ function UpdatePrompt() {
   }, []);
 
   const handleReload = () => {
-    window.location.reload();
+    // Tell the waiting service worker to activate immediately, then reload.
+    const waiting = registration?.waiting;
+    if (waiting && waiting.state === 'installed') {
+      waiting.addEventListener('statechange', () => {
+        if (waiting.state === 'activated') {
+          window.location.reload();
+        }
+      });
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
+    }
   };
 
   const handleDismiss = () => {
@@ -40,14 +65,14 @@ function UpdatePrompt() {
       <style>{`
         .update-prompt {
           position: fixed;
-          top: 16px;
+          top: max(16px, env(safe-area-inset-top));
           left: 50%;
           transform: translateX(-50%);
           z-index: 9999;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 16px;
+          gap: 12px;
           padding: 12px 16px;
           background: #1e293b;
           border: 1px solid #334155;
@@ -93,6 +118,7 @@ function UpdatePrompt() {
           border-radius: 8px;
           cursor: pointer;
           transition: background 0.2s ease;
+          white-space: nowrap;
         }
 
         .update-prompt-refresh:hover {
@@ -112,6 +138,7 @@ function UpdatePrompt() {
           border-radius: 50%;
           cursor: pointer;
           transition: background 0.2s ease, color 0.2s ease;
+          flex-shrink: 0;
         }
 
         .update-prompt-dismiss:hover {

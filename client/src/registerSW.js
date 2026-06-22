@@ -15,6 +15,8 @@ export function registerSW() {
               // This means a new version was downloaded while the user was using the app.
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 console.log('[PWA] New version available. Refresh to update.');
+                window.__pwaUpdateAvailable = true;
+                window.__pwaRegistration = registration;
                 window.dispatchEvent(new CustomEvent('pwa-update-available', {
                   detail: { registration }
                 }));

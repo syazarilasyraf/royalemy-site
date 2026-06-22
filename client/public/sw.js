@@ -19,6 +19,13 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// Allow the page to force activation of a waiting service worker
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Clean up old caches and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
