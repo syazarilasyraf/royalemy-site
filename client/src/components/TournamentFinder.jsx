@@ -1619,10 +1619,10 @@ function TournamentFinder() {
               <div
                 key={t.id}
                 className="community-tournament-card completed-card"
-                onClick={() => viewTournamentDetails(t)}
+                onClick={() => navigate(`/tournaments/${t.id}`)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') viewTournamentDetails(t); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/tournaments/${t.id}`); }}
               >
                 <div className="ct-card-header">
                   <TournamentStatusBadge status={t.status} />

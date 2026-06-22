@@ -24,7 +24,9 @@ function formatDateOnly(dateString) {
   });
 }
 
-function WinnerPodium({ tournament }) {
+function WinnerPodium({ tournament, registrations = [] }) {
+  const regMap = new Map(registrations.map((r) => [r.player_tag?.toUpperCase(), r]));
+
   const winners = [
     { place: '1st', icon: '🥇', tag: tournament.winner_1st, color: '#fbbf24' },
     { place: '2nd', icon: '🥈', tag: tournament.winner_2nd, color: '#94a3b8' },
@@ -37,13 +39,18 @@ function WinnerPodium({ tournament }) {
     <div className="tdp-section">
       <h4 className="tdp-section-title">🏆 Winners</h4>
       <div className="tdp-podium">
-        {winners.map((w) => (
-          <div key={w.place} className="tdp-podium-card" style={{ '--winner-color': w.color }}>
-            <span className="tdp-winner-icon">{w.icon}</span>
-            <span className="tdp-winner-place">{w.place}</span>
-            <span className="tdp-winner-tag">#{w.tag.toUpperCase()}</span>
-          </div>
-        ))}
+        {winners.map((w) => {
+          const reg = regMap.get(w.tag.toUpperCase());
+          const playerName = reg?.player_name || reg?.tiktok_username;
+          return (
+            <div key={w.place} className="tdp-podium-card" style={{ '--winner-color': w.color }}>
+              <span className="tdp-winner-icon">{w.icon}</span>
+              <span className="tdp-winner-place">{w.place}</span>
+              {playerName && <span className="tdp-winner-name">{playerName}</span>}
+              <span className="tdp-winner-tag">#{w.tag.toUpperCase()}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -151,7 +158,7 @@ export default function TournamentDetailPage() {
             </div>
           )}
 
-          <WinnerPodium tournament={data.tournament} />
+          <WinnerPodium tournament={data.tournament} registrations={data.registrations} />
 
           {data.tournament.tiktok_username && (
             <div className="tdp-section">
@@ -215,6 +222,7 @@ export default function TournamentDetailPage() {
           cursor: pointer;
           transition: all 0.2s ease;
           margin-bottom: var(--spacing-md);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         .tournament-detail-page .back-btn:hover {
@@ -222,6 +230,11 @@ export default function TournamentDetailPage() {
           color: var(--text-primary);
           border-color: var(--accent-primary);
           transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .tournament-detail-page .back-btn:active {
+          transform: translateY(0);
         }
 
         .tdp-card {
@@ -363,10 +376,19 @@ export default function TournamentDetailPage() {
           text-transform: uppercase;
         }
 
-        .tdp-winner-tag {
-          font-size: 1rem;
+        .tdp-winner-name {
+          font-size: 0.9375rem;
           color: var(--text-primary);
-          font-weight: 800;
+          font-weight: 700;
+          text-align: center;
+          line-height: 1.2;
+        }
+
+        .tdp-winner-tag {
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          font-weight: 600;
+          font-family: monospace;
         }
 
         .tdp-tiktok-link {
