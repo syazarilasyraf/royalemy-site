@@ -10,6 +10,8 @@ const SAMPLE_TAGS = ['L88RC989', '2P0JJQ0Y', '8L9L9GL', '9CQ2U8QJ'];
 function PlayerLookup() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const sharedRank = searchParams.get('rank');
+  const sharedBoard = searchParams.get('board');
   const [playerTag, setPlayerTag] = useState('');
   const [playerData, setPlayerData] = useState(null);
   const [battleLog, setBattleLog] = useState([]);
@@ -217,6 +219,11 @@ function PlayerLookup() {
               </div>
               <div className="profile-info">
                 <h3 className="player-name">{playerData.name || 'Unknown'}</h3>
+                {sharedRank && (
+                  <span className="shared-rank-badge">
+                    🏆 Malaysia {sharedBoard === 'ranked' ? 'Ranked Mode' : sharedBoard || 'Rankings'} #{sharedRank}
+                  </span>
+                )}
                 <span className="player-tag">#{playerData.tag}</span>
                 {playerData.clan && (
                   <span className="player-clan">🏰 {playerData.clan.name}</span>
@@ -561,6 +568,19 @@ function PlayerLookup() {
         .player-clan {
           font-size: 0.875rem;
           color: var(--accent-primary);
+        }
+
+        .shared-rank-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #0f172a;
+          background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+          padding: 4px 10px;
+          border-radius: var(--radius-full);
+          margin-bottom: var(--spacing-xs);
         }
 
         .profile-stats {

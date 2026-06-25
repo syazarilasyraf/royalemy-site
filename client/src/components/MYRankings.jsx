@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   getLocations, getClanRankings, getClanWarRankings, getPathOfLegendRankings, getPlayerRankings
 } from '../services/api';
+import ShareRankingModal from './ShareRankingModal';
 
 const MALAYSIAN_STATES = [
   'Johor', 'Kedah', 'Kelantan', 'Kuala Lumpur', 'Labuan', 'Melaka',
@@ -17,6 +18,7 @@ function MYRankings() {
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [shareTarget, setShareTarget] = useState(null);
 
   // State rankings - in progress
   const [stateLoading] = useState(false);
@@ -94,6 +96,11 @@ function MYRankings() {
 
   const handleClanClick = (clanTag) => {
     navigate(`/clan?tag=${encodeURIComponent(clanTag)}`);
+  };
+
+  const handlePlayerShareClick = (e, player, rank) => {
+    e.stopPropagation();
+    setShareTarget({ player, rank });
   };
 
   if (!loading && !malaysiaId && activeTab !== 'states') {
@@ -258,6 +265,14 @@ function MYRankings() {
                     <span className="rank-tag">#{player.tag}</span>
                   </div>
                   <span className="rank-league">🏆 {player.trophies?.toLocaleString() || 'N/A'}</span>
+                  <button
+                    className="rank-share-btn"
+                    title="Share this ranking"
+                    aria-label={`Share ${player.name}'s ranking`}
+                    onClick={(e) => handlePlayerShareClick(e, player, index + 1)}
+                  >
+                    🔗
+                  </button>
                   <span className="click-hint">→</span>
                 </div>
               ))}
@@ -325,6 +340,15 @@ function MYRankings() {
             <p className="empty-hint">Check back soon for updates!</p>
           </div>
         </div>
+      )}
+
+      {shareTarget && (
+        <ShareRankingModal
+          player={shareTarget.player}
+          rank={shareTarget.rank}
+          boardLabel="Malaysia Ranked Mode"
+          onClose={() => setShareTarget(null)}
+        />
       )}
 
       <style>{`
@@ -566,6 +590,28 @@ function MYRankings() {
 
         .ranking-item.clickable:hover .click-hint {
           opacity: 1;
+        }
+
+        .rank-share-btn {
+          background: transparent;
+          border: none;
+          color: var(--text-muted);
+          font-size: 1rem;
+          cursor: pointer;
+          padding: 4px;
+          line-height: 1;
+          border-radius: var(--radius-md);
+          transition: all 0.2s;
+          flex-shrink: 0;
+          opacity: 0.6;
+        }
+
+        .ranking-item.clickable:hover .rank-share-btn,
+        .rank-share-btn:hover,
+        .rank-share-btn:focus {
+          opacity: 1;
+          background: var(--bg-tertiary);
+          color: var(--accent-primary);
         }
 
         .empty-state {
