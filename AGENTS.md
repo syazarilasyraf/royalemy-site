@@ -17,6 +17,28 @@ This file provides critical context for any agent (AI or human) working on this 
 - **Backend:** Express.js, deployed to JustRunMyApp via Docker
 - **Database:** SQLite (`better-sqlite3`) on persistent volume at `/data`
 
+## Admin Access Model
+
+The admin area supports two roles:
+
+1. **Super Admin** — uses the `ROADMAP_ADMIN_KEY` env variable. Has unrestricted access to all admin pages, including `/admin/access-control`.
+2. **Limited Admin** — uses a key stored in the `admin_keys` table. Can see all pending counts on the dashboard, but can only access modules the super admin explicitly unlocks. Locked modules show a 🔒 icon.
+
+Super admins create and manage limited-admin keys from **Admin → Access Control**. The plaintext key is shown only once on creation; only its SHA-256 hash is stored in the database.
+
+| Permission | Controls access to |
+|------------|-------------------|
+| `dashboard` | Dashboard pending counts (visible read-only to all admins) |
+| `tournaments` | Tournament management |
+| `clans` | Clan management |
+| `decks` | Deck management |
+| `roadmap` | Roadmap / feature suggestions |
+| `notifications` | In-app / push notifications |
+| `logs` | Server logs & server info |
+| `audit` | Audit trail |
+| `statePlayers` | State player rankings (backend exists; UI pending) |
+| `accessControl` | Super only — manage limited admins |
+
 **Never assume the backend runs locally.** Production backend is on JustRunMyApp. Local development uses `localhost:3001`.
 
 ---

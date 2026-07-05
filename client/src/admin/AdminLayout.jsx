@@ -1,21 +1,32 @@
 import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
 import { Outlet, useSearchParams, Link, useLocation } from 'react-router-dom';
+import { getAdminPermissions } from '../services/api';
 
 const AdminKeyContext = createContext(null);
+const AdminPermissionsContext = createContext({
+  permissions: {},
+  isSuper: false,
+  loading: true,
+  error: '',
+});
 
 export function useAdminKey() {
   return useContext(AdminKeyContext);
 }
 
+export function useAdminPermissions() {
+  return useContext(AdminPermissionsContext);
+}
+
 const NAV_ITEMS = [
-  { path: '/admin', label: 'Dashboard', icon: '📊' },
-  { path: '/admin/tournaments', label: 'Tournaments', icon: '🏆' },
-  { path: '/admin/clans', label: 'Clans', icon: '🛡️' },
-  { path: '/admin/decks', label: 'Decks', icon: '🃏' },
-  { path: '/admin/roadmap', label: 'Roadmap', icon: '🗺️' },
-  { path: '/admin/notifications', label: 'Notifications', icon: '🔔' },
-  { path: '/admin/logs', label: 'Logs', icon: '📜' },
-  { path: '/admin/audit', label: 'Audit', icon: '📋' },
+  { path: '/admin', label: 'Dashboard', icon: '📊', permission: 'dashboard' },
+  { path: '/admin/tournaments', label: 'Tournaments', icon: '🏆', permission: 'tournaments' },
+  { path: '/admin/clans', label: 'Clans', icon: '🛡️', permission: 'clans' },
+  { path: '/admin/decks', label: 'Decks', icon: '🃏', permission: 'decks' },
+  { path: '/admin/roadmap', label: 'Roadmap', icon: '🗺️', permission: 'roadmap' },
+  { path: '/admin/notifications', label: 'Notifications', icon: '🔔', permission: 'notifications' },
+  { path: '/admin/logs', label: 'Logs', icon: '📜', permission: 'logs' },
+  { path: '/admin/audit', label: 'Audit', icon: '📋', permission: 'audit' },
 ];
 
 function AdminLayout() {
@@ -24,6 +35,12 @@ function AdminLayout() {
   const adminKey = searchParams.get('admin') || '';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const drawerRef = useRef(null);
+  const [permissionsState, setPermissionsState] = useState({
+    permissions: {},
+    isSuper: false,
+    loading: true,
+    error: '',
+  });
 
   const setAdminKey = useCallback((key) => {
     const next = new URLSearchParams(searchParams);
@@ -34,6 +51,41 @@ function AdminLayout() {
     }
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  // Fetch permissions whenever the admin key changes
+  useEffect(() => {
+    if (!adminKey) {
+      setPermissionsState({ permissions: {}, isSuper: false, loading: false, error: '' });
+      return;
+    }
+
+    let cancelled = false;
+    setPermissionsState((prev) => ({ ...prev, loading: true, error: '' }));
+
+    getAdminPermissions(adminKey)
+      .then((data) => {
+        if (cancelled) return;
+        setPermissionsState({
+          permissions: data.permissions || {},
+          isSuper: !!data.isSuper,
+          loading: false,
+          error: '',
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPermissionsState({
+          permissions: {},
+          isSuper: false,
+          loading: false,
+          error: err.message || 'Failed to load permissions',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [adminKey]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -110,25 +162,56 @@ function AdminLayout() {
 
   const makeLink = (path) => `${path}?admin=${encodeURIComponent(adminKey)}`;
 
+  const renderNavItem = (item, mobile = false) => {
+    const isActive = location.pathname === item.path;
+    const permitted = permissionsState.isSuper || permissionsState.permissions[item.permission] === true;
+    const baseClass = mobile ? 'admin-mobile-nav-link' : 'admin-nav-link';
+    const activeClass = isActive ? 'active' : '';
+
+    if (!permitted) {
+      return (
+        <div
+          key={item.path}
+          className={`${baseClass} locked ${activeClass}`}
+          title="Locked by super admin"
+        >
+          <span className={mobile ? 'admin-mobile-nav-icon' : 'admin-nav-icon'}>{item.icon}</span>
+          <span className={mobile ? 'admin-mobile-nav-label' : 'admin-nav-label'}>{item.label}</span>
+          <span className="admin-nav-lock">🔒</span>
+        </div>
+      );
+    }
+
+    return (
+      <Link
+        key={item.path}
+        to={makeLink(item.path)}
+        className={`${baseClass} ${activeClass}`}
+        onClick={mobile ? () => setMobileMenuOpen(false) : undefined}
+      >
+        <span className={mobile ? 'admin-mobile-nav-icon' : 'admin-nav-icon'}>{item.icon}</span>
+        <span className={mobile ? 'admin-mobile-nav-label' : 'admin-nav-label'}>{item.label}</span>
+      </Link>
+    );
+  };
+
   return (
     <div className="admin-layout">
       {/* Desktop sidebar */}
       <aside className="admin-sidebar">
         <div className="admin-brand">RoyaleMY Admin</div>
         <nav className="admin-nav">
-          {NAV_ITEMS.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={makeLink(item.path)}
-                className={`admin-nav-link ${isActive ? 'active' : ''}`}
-              >
-                <span className="admin-nav-icon">{item.icon}</span>
-                <span className="admin-nav-label">{item.label}</span>
-              </Link>
-            );
-          })}
+          {NAV_ITEMS.map((item) => renderNavItem(item))}
+          {permissionsState.isSuper && (
+            <Link
+              key="/admin/access-control"
+              to={makeLink('/admin/access-control')}
+              className={`admin-nav-link ${location.pathname === '/admin/access-control' ? 'active' : ''}`}
+            >
+              <span className="admin-nav-icon">🗝️</span>
+              <span className="admin-nav-label">Access Control</span>
+            </Link>
+          )}
         </nav>
       </aside>
 
@@ -173,29 +256,29 @@ function AdminLayout() {
               </button>
             </div>
             <nav className="admin-mobile-nav">
-              {NAV_ITEMS.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={makeLink(item.path)}
-                    className={`admin-mobile-nav-link ${isActive ? 'active' : ''}`}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="admin-mobile-nav-icon">{item.icon}</span>
-                    <span className="admin-mobile-nav-label">{item.label}</span>
-                  </Link>
-                );
-              })}
+              {NAV_ITEMS.map((item) => renderNavItem(item, true))}
+              {permissionsState.isSuper && (
+                <Link
+                  key="/admin/access-control"
+                  to={makeLink('/admin/access-control')}
+                  className={`admin-mobile-nav-link ${location.pathname === '/admin/access-control' ? 'active' : ''}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <span className="admin-mobile-nav-icon">🗝️</span>
+                  <span className="admin-mobile-nav-label">Access Control</span>
+                </Link>
+              )}
             </nav>
           </div>
         </>
       )}
 
       <main className="admin-main">
-        <AdminKeyContext.Provider value={adminKey}>
-          <Outlet />
-        </AdminKeyContext.Provider>
+        <AdminPermissionsContext.Provider value={permissionsState}>
+          <AdminKeyContext.Provider value={adminKey}>
+            <Outlet />
+          </AdminKeyContext.Provider>
+        </AdminPermissionsContext.Provider>
       </main>
 
       <style>{`
@@ -248,8 +331,21 @@ function AdminLayout() {
           background: var(--bg-tertiary);
           color: var(--text-primary);
         }
+        .admin-nav-link.locked {
+          opacity: 0.5;
+          cursor: not-allowed;
+          color: var(--text-muted);
+        }
+        .admin-nav-link.locked:hover {
+          background: transparent;
+          color: var(--text-muted);
+        }
         .admin-nav-icon {
           font-size: 1rem;
+        }
+        .admin-nav-lock {
+          margin-left: auto;
+          font-size: 0.75rem;
         }
         .admin-main {
           flex: 1;
@@ -387,6 +483,15 @@ function AdminLayout() {
           }
           .admin-mobile-nav-link.active {
             border-left: 3px solid var(--accent-primary);
+          }
+          .admin-mobile-nav-link.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            color: var(--text-muted);
+          }
+          .admin-mobile-nav-link.locked:hover {
+            background: transparent;
+            color: var(--text-muted);
           }
           .admin-mobile-nav-icon {
             font-size: 1.25rem;

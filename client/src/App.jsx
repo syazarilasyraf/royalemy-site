@@ -27,6 +27,7 @@ const AdminClans = lazy(() => import('./admin/AdminClans'));
 const AdminDecks = lazy(() => import('./admin/AdminDecks'));
 const AdminRoadmap = lazy(() => import('./admin/AdminRoadmap'));
 const AdminNotifications = lazy(() => import('./admin/AdminNotifications'));
+const AdminAccessControl = lazy(() => import('./admin/AdminAccessControl'));
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
@@ -124,6 +125,7 @@ function App() {
               <Route path="notifications" element={<AdminNotifications />} />
               <Route path="logs" element={<AdminLogs />} />
               <Route path="audit" element={<AdminAuditTrail />} />
+              <Route path="access-control" element={<AdminAccessControl />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -1,18 +1,20 @@
 import { useState, useEffect, memo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getAdminDashboard, getAdminRateLimits } from '../services/api';
+import { useAdminPermissions } from './AdminLayout';
 
 const MODULES = [
-  { key: 'tournaments', label: 'Tournaments', path: '/admin/tournaments', color: '#4CAF50' },
-  { key: 'clans', label: 'Clans', path: '/admin/clans', color: '#2196F3' },
-  { key: 'decks', label: 'Decks', path: '/admin/decks', color: '#9C27B0' },
-  { key: 'statePlayers', label: 'State Players', path: '/rankings', color: '#FF9800' },
-  { key: 'features', label: 'Features', path: '/admin/roadmap', color: '#00BCD4' },
+  { key: 'tournaments', label: 'Tournaments', path: '/admin/tournaments', color: '#4CAF50', permission: 'tournaments' },
+  { key: 'clans', label: 'Clans', path: '/admin/clans', color: '#2196F3', permission: 'clans' },
+  { key: 'decks', label: 'Decks', path: '/admin/decks', color: '#9C27B0', permission: 'decks' },
+  { key: 'statePlayers', label: 'State Players', path: '/rankings', color: '#FF9800', permission: 'statePlayers' },
+  { key: 'features', label: 'Features', path: '/admin/roadmap', color: '#00BCD4', permission: 'roadmap' },
 ];
 
 function AdminDashboard() {
   const [searchParams] = useSearchParams();
   const adminKey = searchParams.get('admin');
+  const { permissions, isSuper } = useAdminPermissions();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,17 +52,23 @@ function AdminDashboard() {
     ? MODULES.reduce((sum, m) => sum + (stats.pending[m.key] || 0), 0)
     : 0;
 
+  const canAccess = (permission) => isSuper || permissions[permission] === true;
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
         <h2>📊 Admin Dashboard</h2>
         <div className="dashboard-actions">
-          <Link to={`/admin/logs?admin=${encodeURIComponent(adminKey)}`} className="action-link">
-            View Logs
-          </Link>
-          <Link to={`/admin/audit?admin=${encodeURIComponent(adminKey)}`} className="action-link">
-            Audit Trail
-          </Link>
+          {canAccess('logs') && (
+            <Link to={`/admin/logs?admin=${encodeURIComponent(adminKey)}`} className="action-link">
+              View Logs
+            </Link>
+          )}
+          {canAccess('audit') && (
+            <Link to={`/admin/audit?admin=${encodeURIComponent(adminKey)}`} className="action-link">
+              Audit Trail
+            </Link>
+          )}
         </div>
       </div>
 
@@ -90,13 +98,10 @@ function AdminDashboard() {
             {MODULES.map((mod) => {
               const pending = stats.pending[mod.key] || 0;
               const total = stats.total[mod.key] || 0;
-              return (
-                <Link
-                  key={mod.key}
-                  to={`${mod.path}?admin=${encodeURIComponent(adminKey)}`}
-                  className="module-card"
-                  style={{ borderLeftColor: mod.color }}
-                >
+              const permitted = canAccess(mod.permission);
+
+              const cardContent = (
+                <>
                   <div className="module-header">
                     <h3>{mod.label}</h3>
                     {pending > 0 && <span className="pending-badge">{pending}</span>}
@@ -111,6 +116,35 @@ function AdminDashboard() {
                       <span className="module-stat-label">Total</span>
                     </div>
                   </div>
+                  {!permitted && (
+                    <div className="module-lock">
+                      <span className="module-lock-icon">🔒</span>
+                    </div>
+                  )}
+                </>
+              );
+
+              if (!permitted) {
+                return (
+                  <div
+                    key={mod.key}
+                    className="module-card locked"
+                    style={{ borderLeftColor: mod.color }}
+                    title="Locked by super admin"
+                  >
+                    {cardContent}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={mod.key}
+                  to={`${mod.path}?admin=${encodeURIComponent(adminKey)}`}
+                  className="module-card"
+                  style={{ borderLeftColor: mod.color }}
+                >
+                  {cardContent}
                 </Link>
               );
             })}
@@ -181,6 +215,7 @@ function AdminDashboard() {
           gap: var(--spacing-md);
         }
         .module-card {
+          position: relative;
           background: var(--bg-secondary);
           border-radius: 16px;
           padding: var(--spacing-lg);
@@ -194,6 +229,14 @@ function AdminDashboard() {
         .module-card:hover {
           transform: translateY(-2px);
           box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .module-card.locked {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .module-card.locked:hover {
+          transform: none;
+          box-shadow: none;
         }
         .module-header {
           display: flex;
@@ -230,6 +273,20 @@ function AdminDashboard() {
         .module-stat-label {
           font-size: 0.75rem;
           color: var(--text-muted);
+        }
+        .module-lock {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(15, 23, 42, 0.35);
+          border-radius: 16px;
+          pointer-events: none;
+        }
+        .module-lock-icon {
+          font-size: 2rem;
+          opacity: 0.85;
         }
         .loading-state {
           text-align: center;

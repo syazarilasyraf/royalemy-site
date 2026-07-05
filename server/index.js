@@ -21,7 +21,7 @@ import { fetchFromCR, clearCache, deleteCacheKey, getCacheKey, CACHE_TTL, cache,
 import { fetchMetaDecks, META_DECK_CACHE_KEY } from './services/metaDecks.js';
 import { createTournamentNotification, sendPushNotifications } from './services/notifications.js';
 import { setupLiveTournamentSync } from './services/tournamentLive.js';
-import { validateAdminKey, validateAdminKey as validateAdminKeyForEndpoint, sanitizeTag } from './middleware/auth.js';
+import { validateAdminKey, validateAdminKey as validateAdminKeyForEndpoint, requireSuperAdmin, sanitizeTag } from './middleware/auth.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -137,7 +137,7 @@ function logAdminAction(req, action, resource, resourceId, details = null) {
 
 // ==================== API ROUTES ====================
 
-app.get('/admin/db-info', validateAdminKeyForEndpoint, (req, res) => {
+app.get('/admin/db-info', validateAdminKeyForEndpoint, requireSuperAdmin, (req, res) => {
   try {
     const diagnostics = getDbDiagnostics();
     res.json(diagnostics);
@@ -148,7 +148,7 @@ app.get('/admin/db-info', validateAdminKeyForEndpoint, (req, res) => {
 });
 
 // Admin: download current database file
-app.get('/admin/download-db', validateAdminKeyForEndpoint, (req, res) => {
+app.get('/admin/download-db', validateAdminKeyForEndpoint, requireSuperAdmin, (req, res) => {
   try {
     if (!fs.existsSync(dbPath)) {
       return res.status(404).json({ error: 'Database file not found' });
@@ -166,7 +166,7 @@ app.get('/admin/download-db', validateAdminKeyForEndpoint, (req, res) => {
 // Usage: curl -X POST "https://.../admin/upload-db?key=ADMIN_KEY" \
 //            -H "Content-Type: application/octet-stream" \
 //            --data-binary @server/data/roadmap.db
-app.post('/admin/upload-db', validateAdminKeyForEndpoint, express.raw({ type: 'application/octet-stream', limit: '10mb' }), (req, res) => {
+app.post('/admin/upload-db', validateAdminKeyForEndpoint, requireSuperAdmin, express.raw({ type: 'application/octet-stream', limit: '10mb' }), (req, res) => {
   try {
     if (!req.body || req.body.length === 0) {
       return res.status(400).json({ error: 'No file data received. Send the .db file as raw binary body with Content-Type: application/octet-stream' });
@@ -213,7 +213,7 @@ app.post('/admin/upload-db', validateAdminKeyForEndpoint, express.raw({ type: 'a
 });
 
 // Clear cache (admin endpoint)
-app.post('/api/admin/clear-cache', validateAdminKeyForEndpoint, (req, res) => {
+app.post('/api/admin/clear-cache', validateAdminKeyForEndpoint, requireSuperAdmin, (req, res) => {
   clearCache();
   res.json({ status: 'ok', message: 'Cache cleared successfully' });
 });

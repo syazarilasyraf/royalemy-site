@@ -1,7 +1,7 @@
 import express from 'express';
 import { statements, db } from '../db.js';
 import { log } from '../logger.js';
-import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
+import { validateAdminKey, requirePermission, sanitizeHtml } from '../middleware/auth.js';
 import {
   createNotification,
   sendGlobalPushNotifications,
@@ -22,7 +22,7 @@ function logAdminAction(req, action, resource, resourceId, details = null) {
   }
 }
 
-router.get('/', validateAdminKey, (req, res) => {
+router.get('/', validateAdminKey, requirePermission('notifications'), (req, res) => {
   try {
     const { scope, search, limit = '50', offset = '0' } = req.query;
     const lim = Math.min(parseInt(limit, 10) || 50, 200);
@@ -55,7 +55,7 @@ router.get('/', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/', validateAdminKey, async (req, res) => {
+router.post('/', validateAdminKey, requirePermission('notifications'), async (req, res) => {
   try {
     const {
       scope = 'global',
@@ -131,7 +131,7 @@ router.post('/', validateAdminKey, async (req, res) => {
   }
 });
 
-router.delete('/:id', validateAdminKey, (req, res) => {
+router.delete('/:id', validateAdminKey, requirePermission('notifications'), (req, res) => {
   try {
     const { id } = req.params;
     const notification = statements.getNotificationById.get(id);
@@ -148,7 +148,7 @@ router.delete('/:id', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/:id/send-push', validateAdminKey, async (req, res) => {
+router.post('/:id/send-push', validateAdminKey, requirePermission('notifications'), async (req, res) => {
   try {
     const { id } = req.params;
     const notification = statements.getNotificationById.get(id);

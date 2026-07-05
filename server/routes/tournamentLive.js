@@ -1,7 +1,7 @@
 import express from 'express';
 import { syncTournamentBattles, getLeaderboard, getStats, getParticipants } from '../services/tournamentLive.js';
 import { log } from '../logger.js';
-import { validateAdminKey } from '../middleware/auth.js';
+import { validateAdminKey, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -53,7 +53,7 @@ router.get('/:id/participants', async (req, res) => {
   }
 });
 
-router.post('/:id/sync-battles', validateAdminKey, async (req, res) => {
+router.post('/:id/sync-battles', validateAdminKey, requirePermission('tournaments'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await syncTournamentBattles(id);

@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { fetchFromCR } from '../services/crApi.js';
 import { log } from '../logger.js';
-import { validateAdminKey, sanitizeTag, sanitizeHtml } from '../middleware/auth.js';
+import { validateAdminKey, requirePermission, sanitizeTag, sanitizeHtml } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -37,7 +37,7 @@ const submitLimiter = rateLimit({
 
 // ==================== ADMIN ROUTES (must be before /:id) ====================
 
-router.get('/admin', validateAdminKey, (req, res) => {
+router.get('/admin', validateAdminKey, requirePermission('clans'), (req, res) => {
   try {
     const { search, status } = req.query;
     let clans = statements.getAllClans.all();
@@ -62,7 +62,7 @@ router.get('/admin', validateAdminKey, (req, res) => {
 });
 
 // Bulk operations
-router.post('/admin/bulk', validateAdminKey, (req, res) => {
+router.post('/admin/bulk', validateAdminKey, requirePermission('clans'), (req, res) => {
   try {
     const { action, ids } = req.body;
     if (!action || !Array.isArray(ids) || ids.length === 0) {
@@ -118,7 +118,7 @@ router.post('/admin/bulk', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
+router.post('/admin/:id/approve', validateAdminKey, requirePermission('clans'), (req, res) => {
   try {
     const { id } = req.params;
     const clan = statements.getClanById.get(id);
@@ -138,7 +138,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
+router.post('/admin/:id/reject', validateAdminKey, requirePermission('clans'), (req, res) => {
   try {
     const { id } = req.params;
     const clan = statements.getClanById.get(id);
@@ -155,7 +155,7 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/status', validateAdminKey, (req, res) => {
+router.post('/admin/:id/status', validateAdminKey, requirePermission('clans'), (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -176,7 +176,7 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
   }
 });
 
-router.delete('/admin/:id', validateAdminKey, (req, res) => {
+router.delete('/admin/:id', validateAdminKey, requirePermission('clans'), (req, res) => {
   try {
     const { id } = req.params;
     const clan = statements.getClanById.get(id);

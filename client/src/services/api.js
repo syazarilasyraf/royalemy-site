@@ -773,3 +773,40 @@ export function sendAdminNotificationPush(id, key) {
     headers: adminHeaders(key)
   });
 }
+
+// ==================== ADMIN ACCESS CONTROL ====================
+
+export function getAdminPermissions(key) {
+  return fetchAPI(`/admin/permissions`, {
+    headers: adminHeaders(key)
+  });
+}
+
+export function getSubAdmins(key) {
+  return fetchAPI(`/admin/sub-admins`, {
+    headers: adminHeaders(key)
+  });
+}
+
+export function createSubAdmin(key, data) {
+  return fetchAPI('/admin/sub-admins', {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
+  });
+}
+
+export function updateSubAdmin(id, key, data) {
+  return fetchAPI(`/admin/sub-admins/${id}`, {
+    method: 'PATCH',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
+  });
+}
+
+export function deleteSubAdmin(id, key) {
+  return fetchAPI(`/admin/sub-admins/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(key)
+  });
+}

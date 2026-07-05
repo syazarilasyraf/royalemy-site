@@ -316,6 +316,20 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_admin_actions_resource ON admin_actions(resource);
   CREATE INDEX IF NOT EXISTS idx_admin_actions_created ON admin_actions(created_at DESC);
 
+  -- Admin access keys (limited admins)
+  CREATE TABLE IF NOT EXISTS admin_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    permissions TEXT NOT NULL DEFAULT '{}',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_keys_hash ON admin_keys(key_hash);
+  CREATE INDEX IF NOT EXISTS idx_admin_keys_active ON admin_keys(is_active);
+
   -- Live tournament broadcast system
   CREATE TABLE IF NOT EXISTS tournament_battles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -967,6 +981,23 @@ const statements = {
   ),
   getDeckCommentCount: db.prepare(
     `SELECT COUNT(*) as count FROM deck_comments WHERE deck_id = ?`
+  ),
+
+  // Admin keys (limited admins)
+  insertAdminKey: db.prepare(
+    `INSERT INTO admin_keys (name, key_hash, permissions, is_active) VALUES (?, ?, ?, ?)`
+  ),
+  getAdminKeyByHash: db.prepare(
+    `SELECT id, name, key_hash, permissions, is_active, created_at, updated_at FROM admin_keys WHERE key_hash = ? AND is_active = 1`
+  ),
+  getAllAdminKeys: db.prepare(
+    `SELECT id, name, permissions, is_active, created_at, updated_at FROM admin_keys ORDER BY created_at DESC`
+  ),
+  updateAdminKey: db.prepare(
+    `UPDATE admin_keys SET name = ?, permissions = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+  ),
+  deleteAdminKey: db.prepare(
+    `DELETE FROM admin_keys WHERE id = ?`
   ),
 
 };

@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
-import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
+import { validateAdminKey, requirePermission, sanitizeHtml } from '../middleware/auth.js';
 import {
   sendPushNotifications,
   getNotificationsWithReadStatus,
@@ -141,7 +141,7 @@ function logAdminAction(req, action, resource, resourceId, details = null) {
   }
 }
 
-router.get('/admin', validateAdminKey, (req, res) => {
+router.get('/admin', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { search, status } = req.query;
     let tournaments = statements.getAllTournaments.all();
@@ -165,7 +165,7 @@ router.get('/admin', validateAdminKey, (req, res) => {
 });
 
 // Bulk operations
-router.post('/admin/bulk', validateAdminKey, (req, res) => {
+router.post('/admin/bulk', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { action, ids } = req.body;
     if (!action || !Array.isArray(ids) || ids.length === 0) {
@@ -221,7 +221,7 @@ router.post('/admin/bulk', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
+router.post('/admin/:id/approve', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const tournament = statements.getTournamentById.get(id);
@@ -241,7 +241,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
+router.post('/admin/:id/reject', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const tournament = statements.getTournamentById.get(id);
@@ -258,7 +258,7 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/status', validateAdminKey, (req, res) => {
+router.post('/admin/:id/status', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -279,7 +279,7 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/winners', validateAdminKey, (req, res) => {
+router.post('/admin/:id/winners', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const { winner_1st, winner_2nd, winner_3rd } = req.body;
@@ -337,7 +337,7 @@ router.post('/admin/:id/winners', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
+router.post('/admin/:id/prize-status', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const { prize_status } = req.body;
@@ -358,7 +358,7 @@ router.post('/admin/:id/prize-status', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/edit', validateAdminKey, (req, res) => {
+router.post('/admin/:id/edit', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -405,7 +405,7 @@ router.post('/admin/:id/edit', validateAdminKey, (req, res) => {
   }
 });
 
-router.delete('/admin/:id', validateAdminKey, (req, res) => {
+router.delete('/admin/:id', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const tournament = statements.getTournamentById.get(id);
@@ -423,7 +423,7 @@ router.delete('/admin/:id', validateAdminKey, (req, res) => {
   }
 });
 
-router.delete('/admin/:id/registrations/:regId', validateAdminKey, (req, res) => {
+router.delete('/admin/:id/registrations/:regId', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id, regId } = req.params;
     const tournament = statements.getTournamentById.get(id);
@@ -452,7 +452,7 @@ router.delete('/admin/:id/registrations/:regId', validateAdminKey, (req, res) =>
   }
 });
 
-router.post('/admin/:id/registrations/:regId/edit', validateAdminKey, (req, res) => {
+router.post('/admin/:id/registrations/:regId/edit', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id, regId } = req.params;
     const { player_name, player_tag, tiktok_username } = req.body;
@@ -484,7 +484,7 @@ router.post('/admin/:id/registrations/:regId/edit', validateAdminKey, (req, res)
 });
 
 // Export tournament registrations as CSV
-router.get('/admin/:id/registrations/export', validateAdminKey, (req, res) => {
+router.get('/admin/:id/registrations/export', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const tournament = statements.getTournamentById.get(id);
@@ -510,7 +510,7 @@ router.get('/admin/:id/registrations/export', validateAdminKey, (req, res) => {
 });
 
 // Admin: get all registrations for a tournament
-router.get('/admin/:id/registrations', validateAdminKey, (req, res) => {
+router.get('/admin/:id/registrations', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const tournament = statements.getTournamentById.get(id);
@@ -534,7 +534,7 @@ router.get('/admin/:id/registrations', validateAdminKey, (req, res) => {
 });
 
 // Admin: bulk add registrations
-router.post('/admin/:id/registrations/bulk', validateAdminKey, (req, res) => {
+router.post('/admin/:id/registrations/bulk', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const { tags } = req.body;
@@ -591,7 +591,7 @@ router.post('/admin/:id/registrations/bulk', validateAdminKey, (req, res) => {
 });
 
 // Admin: bulk delete registrations
-router.post('/admin/:id/registrations/bulk-delete', validateAdminKey, (req, res) => {
+router.post('/admin/:id/registrations/bulk-delete', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const { ids } = req.body;
@@ -859,7 +859,7 @@ router.get('/:id/registrations', (req, res) => {
 });
 
 // Admin: promote waitlisted player to registered
-router.post('/admin/:id/waitlist/:regId/promote', validateAdminKey, (req, res) => {
+router.post('/admin/:id/waitlist/:regId/promote', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id, regId } = req.params;
     const tournament = statements.getTournamentById.get(id);
@@ -904,7 +904,7 @@ router.get('/:id/matches', (req, res) => {
 });
 
 // Admin: create a match
-router.post('/admin/:id/matches', validateAdminKey, (req, res) => {
+router.post('/admin/:id/matches', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id } = req.params;
     const { round = 1, match_number, player1_tag, player2_tag, player1_name, player2_name } = req.body;
@@ -947,7 +947,7 @@ router.post('/admin/:id/matches', validateAdminKey, (req, res) => {
 });
 
 // Admin: update match result
-router.post('/admin/:id/matches/:matchId/result', validateAdminKey, (req, res) => {
+router.post('/admin/:id/matches/:matchId/result', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id, matchId } = req.params;
     const { winner_tag, player1_score, player2_score } = req.body;
@@ -984,7 +984,7 @@ router.post('/admin/:id/matches/:matchId/result', validateAdminKey, (req, res) =
 });
 
 // Admin: edit match details (before result is set)
-router.post('/admin/:id/matches/:matchId', validateAdminKey, (req, res) => {
+router.post('/admin/:id/matches/:matchId', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id, matchId } = req.params;
     const { round, match_number, player1_tag, player2_tag, player1_name, player2_name } = req.body;
@@ -1022,7 +1022,7 @@ router.post('/admin/:id/matches/:matchId', validateAdminKey, (req, res) => {
 });
 
 // Admin: delete a match
-router.delete('/admin/:id/matches/:matchId', validateAdminKey, (req, res) => {
+router.delete('/admin/:id/matches/:matchId', validateAdminKey, requirePermission('tournaments'), (req, res) => {
   try {
     const { id, matchId } = req.params;
     const tournament = statements.getTournamentById.get(id);

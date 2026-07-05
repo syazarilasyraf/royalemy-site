@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
-import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
+import { validateAdminKey, requirePermission, sanitizeHtml } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -153,7 +153,7 @@ router.get('/votes/:voterId', (req, res) => {
 // ==================== ADMIN ROUTES ====================
 
 // List all features (including pending)
-router.get('/admin/features', validateAdminKey, (req, res) => {
+router.get('/admin/features', validateAdminKey, requirePermission('roadmap'), (req, res) => {
   try {
     const { search, status } = req.query;
     let features = statements.getAllFeatures.all();
@@ -177,7 +177,7 @@ router.get('/admin/features', validateAdminKey, (req, res) => {
 });
 
 // Bulk operations
-router.post('/admin/features/bulk', validateAdminKey, (req, res) => {
+router.post('/admin/features/bulk', validateAdminKey, requirePermission('roadmap'), (req, res) => {
   try {
     const { action, ids } = req.body;
     if (!action || !Array.isArray(ids) || ids.length === 0) {
@@ -235,7 +235,7 @@ router.post('/admin/features/bulk', validateAdminKey, (req, res) => {
 });
 
 // Approve a pending feature
-router.post('/admin/features/:id/approve', validateAdminKey, (req, res) => {
+router.post('/admin/features/:id/approve', validateAdminKey, requirePermission('roadmap'), (req, res) => {
   try {
     const { id } = req.params;
     const feature = statements.getFeatureById.get(id);
@@ -258,7 +258,7 @@ router.post('/admin/features/:id/approve', validateAdminKey, (req, res) => {
 });
 
 // Reject a feature
-router.post('/admin/features/:id/reject', validateAdminKey, (req, res) => {
+router.post('/admin/features/:id/reject', validateAdminKey, requirePermission('roadmap'), (req, res) => {
   try {
     const { id } = req.params;
     const feature = statements.getFeatureById.get(id);
@@ -278,7 +278,7 @@ router.post('/admin/features/:id/reject', validateAdminKey, (req, res) => {
 });
 
 // Update feature status (any status)
-router.post('/admin/features/:id/status', validateAdminKey, (req, res) => {
+router.post('/admin/features/:id/status', validateAdminKey, requirePermission('roadmap'), (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;

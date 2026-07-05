@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { statements } from '../db.js';
 import { log } from '../logger.js';
-import { validateAdminKey, sanitizeHtml } from '../middleware/auth.js';
+import { validateAdminKey, requirePermission, sanitizeHtml } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -68,7 +68,7 @@ const voteLimiter = rateLimit({
 
 // ==================== ADMIN ROUTES ====================
 
-router.get('/admin', validateAdminKey, (req, res) => {
+router.get('/admin', validateAdminKey, requirePermission('decks'), (req, res) => {
   try {
     const { search, status } = req.query;
     let decks = statements.getAllCommunityDecks.all();
@@ -97,7 +97,7 @@ router.get('/admin', validateAdminKey, (req, res) => {
 });
 
 // Bulk operations
-router.post('/admin/bulk', validateAdminKey, (req, res) => {
+router.post('/admin/bulk', validateAdminKey, requirePermission('decks'), (req, res) => {
   try {
     const { action, ids } = req.body;
     if (!action || !Array.isArray(ids) || ids.length === 0) {
@@ -153,7 +153,7 @@ router.post('/admin/bulk', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
+router.post('/admin/:id/approve', validateAdminKey, requirePermission('decks'), (req, res) => {
   try {
     const { id } = req.params;
     const deck = statements.getCommunityDeckById.get(id);
@@ -173,7 +173,7 @@ router.post('/admin/:id/approve', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
+router.post('/admin/:id/reject', validateAdminKey, requirePermission('decks'), (req, res) => {
   try {
     const { id } = req.params;
     const deck = statements.getCommunityDeckById.get(id);
@@ -190,7 +190,7 @@ router.post('/admin/:id/reject', validateAdminKey, (req, res) => {
   }
 });
 
-router.post('/admin/:id/status', validateAdminKey, (req, res) => {
+router.post('/admin/:id/status', validateAdminKey, requirePermission('decks'), (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -211,7 +211,7 @@ router.post('/admin/:id/status', validateAdminKey, (req, res) => {
   }
 });
 
-router.delete('/admin/:id', validateAdminKey, (req, res) => {
+router.delete('/admin/:id', validateAdminKey, requirePermission('decks'), (req, res) => {
   try {
     const { id } = req.params;
     const deck = statements.getCommunityDeckById.get(id);
