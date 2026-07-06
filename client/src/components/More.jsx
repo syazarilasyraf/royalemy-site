@@ -9,6 +9,7 @@ const MORE_TOOLS = [
   { id: 'clan', icon: '🏰', title: 'Clan Finder', desc: 'Find Malaysian clans' },
   { id: 'communitydecks', icon: '🌟', title: 'Deck Feed', desc: 'Browse & vote community decks' },
   { id: 'roadmap', icon: '🗺️', title: 'Roadmap', desc: 'Vote & suggest features' },
+  { id: 'team', icon: '🤝', title: 'Community Team', desc: 'Meet the people behind RoyaleMy' },
 ];
 
 const LINKS = [

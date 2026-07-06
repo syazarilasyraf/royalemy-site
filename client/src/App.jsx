@@ -19,6 +19,7 @@ const CommunityDeckFeed = lazy(() => import('./components/CommunityDeckFeed'));
 const MYRankings = lazy(() => import('./components/MYRankings'));
 const More = lazy(() => import('./components/More'));
 const Roadmap = lazy(() => import('./components/Roadmap'));
+const CommunityTeam = lazy(() => import('./components/CommunityTeam'));
 const AdminDashboard = lazy(() => import('./admin/AdminDashboard'));
 const AdminLogs = lazy(() => import('./admin/AdminLogs'));
 const AdminAuditTrail = lazy(() => import('./admin/AdminAuditTrail'));
@@ -116,6 +117,7 @@ function App() {
             <Route path="/rankings" element={<MYRankings />} />
             <Route path="/more" element={<More />} />
             <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/team" element={<CommunityTeam />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="tournaments" element={<AdminTournaments />} />
