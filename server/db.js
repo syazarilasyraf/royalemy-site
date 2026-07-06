@@ -267,12 +267,14 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     deck_link TEXT NOT NULL,
     card_ids TEXT NOT NULL,
+    title TEXT,
     author_name TEXT,
     description TEXT,
     avg_elixir REAL,
     tags TEXT,
     votes INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'pending',
+    is_admin_post INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -426,6 +428,21 @@ for (const col of tournamentCols) {
     db.exec(`ALTER TABLE community_tournaments ADD COLUMN ${col.name} ${col.type}`);
   }
 }
+
+// Migration: add deck title and admin-post flag
+const deckCols = [
+  { name: 'title', type: 'TEXT' },
+  { name: 'is_admin_post', type: 'INTEGER NOT NULL DEFAULT 0' },
+];
+
+for (const col of deckCols) {
+  if (!columnExists('community_decks', col.name)) {
+    db.exec(`ALTER TABLE community_decks ADD COLUMN ${col.name} ${col.type}`);
+  }
+}
+
+// Create admin-post index after migration ensures the column exists
+db.exec(`CREATE INDEX IF NOT EXISTS idx_community_decks_admin_post ON community_decks(is_admin_post)`);
 
 // Backfill winner names for existing completed tournaments from registrations
 // where the winner tag exists but the winner name column is still empty.
@@ -950,7 +967,7 @@ const statements = {
 
   // Community Decks
   insertCommunityDeck: db.prepare(
-    `INSERT INTO community_decks (deck_link, card_ids, author_name, description, avg_elixir, tags, votes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO community_decks (deck_link, card_ids, title, author_name, description, avg_elixir, tags, votes, status, is_admin_post) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ),
   getApprovedCommunityDecks: db.prepare(
     `SELECT * FROM community_decks WHERE status = 'approved' ORDER BY votes DESC, created_at DESC`
@@ -961,8 +978,14 @@ const statements = {
   getCommunityDeckById: db.prepare(
     `SELECT * FROM community_decks WHERE id = ?`
   ),
+  updateCommunityDeck: db.prepare(
+    `UPDATE community_decks SET deck_link = ?, title = ?, author_name = ?, description = ?, avg_elixir = ?, tags = ?, is_admin_post = ? WHERE id = ?`
+  ),
   updateCommunityDeckStatus: db.prepare(
     `UPDATE community_decks SET status = ? WHERE id = ?`
+  ),
+  updateCommunityDeckAdminPost: db.prepare(
+    `UPDATE community_decks SET is_admin_post = ? WHERE id = ?`
   ),
   deleteCommunityDeck: db.prepare(
     `DELETE FROM community_decks WHERE id = ?`

@@ -7,6 +7,47 @@ import { validateAdminKey, requirePermission, sanitizeHtml } from '../middleware
 const router = express.Router();
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
+const ADMIN_POST_FILTERS = ['all', 'admin', 'viewer'];
+
+// Minimal server-side deck link parser (keeps server independent of client utils)
+function extractDeckParam(url) {
+  try {
+    const urlObj = new URL(url.trim());
+    let deckParam = urlObj.searchParams.get('deck');
+    if (deckParam) return deckParam;
+    const fullQuery = urlObj.search;
+    if (fullQuery.includes('deck=')) {
+      const match = fullQuery.match(/deck=([^&]+)/);
+      if (match) return decodeURIComponent(match[1]);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isValidDeckLink(url) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const urlObj = new URL(url.trim());
+    if (!urlObj.hostname.includes('link.clashroyale.com')) return false;
+    const deckParam = extractDeckParam(url);
+    if (!deckParam) return false;
+    const cardIds = deckParam.split(';');
+    if (cardIds.length !== 8) return false;
+    return cardIds.every(id => /^\d+$/.test(id.trim()));
+  } catch {
+    return false;
+  }
+}
+
+function extractCardIds(url) {
+  if (!isValidDeckLink(url)) return null;
+  const deckParam = extractDeckParam(url);
+  if (!deckParam) return null;
+  const cardIds = deckParam.split(';').map(id => id.trim());
+  return cardIds.length === 8 ? cardIds : null;
+}
 
 function logAdminAction(req, action, resource, resourceId, details = null) {
   try {
@@ -70,15 +111,20 @@ const voteLimiter = rateLimit({
 
 router.get('/admin', validateAdminKey, requirePermission('decks'), (req, res) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, admin_post } = req.query;
     let decks = statements.getAllCommunityDecks.all();
 
     if (status && VALID_STATUSES.includes(status)) {
       decks = decks.filter(d => d.status === status);
     }
+    if (admin_post && ADMIN_POST_FILTERS.includes(admin_post)) {
+      if (admin_post === 'admin') decks = decks.filter(d => d.is_admin_post === 1);
+      if (admin_post === 'viewer') decks = decks.filter(d => d.is_admin_post === 0);
+    }
     if (search) {
       const q = search.toLowerCase();
       decks = decks.filter(d =>
+        (d.title && d.title.toLowerCase().includes(q)) ||
         (d.author_name && d.author_name.toLowerCase().includes(q)) ||
         (d.description && d.description.toLowerCase().includes(q))
       );
@@ -150,6 +196,123 @@ router.post('/admin/bulk', validateAdminKey, requirePermission('decks'), (req, r
   } catch (error) {
     log('error', `Bulk deck operation failed: ${error.message}`);
     res.status(500).json({ error: 'Bulk operation failed' });
+  }
+});
+
+
+
+router.post('/admin/:id/edit', validateAdminKey, requirePermission('decks'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const deck = statements.getCommunityDeckById.get(id);
+    if (!deck) {
+      return res.status(404).json({ error: 'Deck not found' });
+    }
+
+    const {
+      deck_link,
+      title,
+      author_name,
+      description,
+      avg_elixir,
+      tags,
+      is_admin_post
+    } = req.body;
+
+    const sanitizedTitle = title !== undefined ? (sanitizeHtml(title.trim()) || null) : deck.title;
+    const sanitizedAuthor = author_name !== undefined ? (sanitizeHtml(author_name.trim()) || 'Anonymous') : deck.author_name;
+    const sanitizedDescription = description !== undefined ? (sanitizeHtml(description.trim()) || '') : deck.description;
+    const sanitizedLink = deck_link !== undefined ? deck_link.trim() : deck.deck_link;
+    const finalAdminPost = is_admin_post === true || is_admin_post === 1 ? 1 : (is_admin_post === false || is_admin_post === 0 ? 0 : deck.is_admin_post);
+
+    if (!sanitizedLink) {
+      return res.status(400).json({ error: 'Deck link is required' });
+    }
+
+    if (sanitizedLink !== deck.deck_link) {
+      if (!isValidDeckLink(sanitizedLink)) {
+        return res.status(400).json({ error: 'Invalid deck link' });
+      }
+      const cardIds = extractCardIds(sanitizedLink);
+      if (!cardIds || cardIds.length !== 8) {
+        return res.status(400).json({ error: 'Deck link must contain exactly 8 cards' });
+      }
+    }
+
+    statements.updateCommunityDeck.run(
+      sanitizedLink,
+      sanitizedTitle,
+      sanitizedAuthor,
+      sanitizedDescription,
+      avg_elixir !== undefined ? avg_elixir : deck.avg_elixir,
+      tags !== undefined ? JSON.stringify(tags || []) : deck.tags,
+      finalAdminPost,
+      id
+    );
+
+    log('success', `Community deck ${id} updated by admin`);
+    logAdminAction(req, 'edit', 'deck', id, { title: sanitizedTitle, is_admin_post: finalAdminPost });
+    res.json({ message: 'Deck updated', id });
+  } catch (error) {
+    log('error', `Failed to update community deck: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update deck' });
+  }
+});
+
+router.post('/admin/:id/toggle-admin-post', validateAdminKey, requirePermission('decks'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_admin_post } = req.body;
+    const deck = statements.getCommunityDeckById.get(id);
+    if (!deck) {
+      return res.status(404).json({ error: 'Deck not found' });
+    }
+    const value = is_admin_post === true || is_admin_post === 1 ? 1 : 0;
+    statements.updateCommunityDeckAdminPost.run(value, id);
+    log('success', `Community deck ${id} admin post flag set to ${value}`);
+    logAdminAction(req, 'toggle-admin-post', 'deck', id, { is_admin_post: value });
+    res.json({ message: 'Admin post flag updated', id, is_admin_post: value });
+  } catch (error) {
+    log('error', `Failed to toggle admin post flag: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update admin post flag' });
+  }
+});
+
+router.post('/admin/create', validateAdminKey, requirePermission('decks'), (req, res) => {
+  try {
+    const { deck_link, title, author_name, description, avg_elixir, tags } = req.body;
+
+    if (!deck_link) {
+      return res.status(400).json({ error: 'Deck link is required' });
+    }
+
+    if (!isValidDeckLink(deck_link)) {
+      return res.status(400).json({ error: 'Invalid deck link' });
+    }
+    const cardIds = extractCardIds(deck_link.trim());
+    if (!cardIds || cardIds.length !== 8) {
+      return res.status(400).json({ error: 'Deck link must contain exactly 8 cards' });
+    }
+    const result = statements.insertCommunityDeck.run(
+      deck_link.trim(),
+      JSON.stringify(cardIds),
+      title ? sanitizeHtml(title.trim()) || null : null,
+      sanitizeHtml(author_name) || 'Admin',
+      sanitizeHtml(description) || '',
+      avg_elixir || null,
+      JSON.stringify(tags || []),
+      0,
+      'approved',
+      1
+    );
+
+    const createdTitle = title ? sanitizeHtml(title.trim()) || null : null;
+    log('success', `Admin created community deck (ID: ${result.lastInsertRowid})`);
+    logAdminAction(req, 'create', 'deck', result.lastInsertRowid, { title: createdTitle });
+    res.status(201).json({ id: result.lastInsertRowid, message: 'Deck created as admin post' });
+  } catch (error) {
+    log('error', `Failed to create admin community deck: ${error.message}`);
+    res.status(500).json({ error: 'Failed to create deck' });
   }
 });
 
@@ -390,7 +553,7 @@ router.post('/:id/vote', voteLimiter, (req, res) => {
 
 router.post('/', submitLimiter, (req, res) => {
   try {
-    const { deck_link, card_ids, author_name, description, avg_elixir, tags } = req.body;
+    const { deck_link, card_ids, title, author_name, description, avg_elixir, tags } = req.body;
 
     if (!deck_link || !card_ids || !Array.isArray(card_ids) || card_ids.length !== 8) {
       return res.status(400).json({ error: 'Valid deck link with 8 cards is required' });
@@ -402,15 +565,18 @@ router.post('/', submitLimiter, (req, res) => {
       return res.status(409).json({ error: 'This deck was already submitted within the last hour.' });
     }
 
+    const cardIds = card_ids;
     const result = statements.insertCommunityDeck.run(
       deck_link.trim(),
-      JSON.stringify(card_ids),
+      JSON.stringify(cardIds),
+      title ? sanitizeHtml(title.trim()) || null : null,
       sanitizeHtml(author_name) || 'Anonymous',
       sanitizeHtml(description) || '',
       avg_elixir || null,
       JSON.stringify(tags || []),
       0,
-      'approved'
+      'approved',
+      0
     );
 
     log('success', `Community deck submitted by ${author_name || 'Anonymous'} (ID: ${result.lastInsertRowid})`);

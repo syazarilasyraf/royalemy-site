@@ -645,6 +645,7 @@ export function getAdminCommunityDecks(key, params = {}) {
   const query = new URLSearchParams();
   if (params.status) query.append('status', params.status);
   if (params.search) query.append('search', params.search);
+  if (params.adminPost) query.append('admin_post', params.adminPost);
   return fetchAPI(`/community-decks/admin?${query.toString()}`, {
     headers: adminHeaders(key)
   });
@@ -676,6 +677,30 @@ export function deleteCommunityDeck(id, key) {
   return fetchAPI(`/community-decks/admin/${id}`, {
     method: 'DELETE',
     headers: adminHeaders(key)
+  });
+}
+
+export function updateCommunityDeck(id, data, key) {
+  return fetchAPI(`/community-decks/admin/${id}/edit`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
+  });
+}
+
+export function toggleCommunityDeckAdminPost(id, isAdminPost, key) {
+  return fetchAPI(`/community-decks/admin/${id}/toggle-admin-post`, {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify({ is_admin_post: isAdminPost ? 1 : 0 })
+  });
+}
+
+export function createCommunityDeckAsAdmin(data, key) {
+  return fetchAPI('/community-decks/admin/create', {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(data)
   });
 }
 

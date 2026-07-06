@@ -3,6 +3,7 @@ import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
 import { getCardById } from '../utils/cardMapping';
 import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck, getCommunityDeckShareUrl, getDeckComments, addDeckComment } from '../services/api';
 import { isChampionCard } from '../data/deckSources';
+import { generateDeckTitle } from '../utils/deckTitleGenerator';
 import DeckPreview from './DeckPreview';
 
 function calculateDynamicAvgElixir(cardIds) {
@@ -38,6 +39,7 @@ function CommunityDeckFeed() {
   const [error, setError] = useState('');
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [deckLink, setDeckLink] = useState('');
+  const [deckTitle, setDeckTitle] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [description, setDescription] = useState('');
   const [previewCards, setPreviewCards] = useState(null);
@@ -51,6 +53,8 @@ function CommunityDeckFeed() {
     try { return localStorage.getItem('cr_deck_sort') || 'top'; }
     catch { return 'top'; }
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [adminPostFilter, setAdminPostFilter] = useState('all');
   const [expandedDecks, setExpandedDecks] = useState({});
   const [deckComments, setDeckComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
@@ -86,7 +90,11 @@ function CommunityDeckFeed() {
       return;
     }
     if (isValidDeckLink(deckLink)) {
-      setPreviewCards(extractCardIds(deckLink));
+      const cardIds = extractCardIds(deckLink);
+      setPreviewCards(cardIds);
+      if (!deckTitle.trim()) {
+        setDeckTitle(generateDeckTitle(cardIds));
+      }
     } else {
       setPreviewCards(null);
     }
@@ -110,6 +118,22 @@ function CommunityDeckFeed() {
     catch { /* ignore */ }
   };
 
+  const filteredDecks = decks.filter((deck) => {
+    const matchesPostFilter =
+      adminPostFilter === 'all' ? true :
+      adminPostFilter === 'admin' ? deck.is_admin_post === 1 :
+      deck.is_admin_post === 0;
+
+    if (!searchQuery.trim()) return matchesPostFilter;
+
+    const q = searchQuery.toLowerCase();
+    const title = (deck.title || generateDeckTitle(deck.cardIds)).toLowerCase();
+    const desc = (deck.description || '').toLowerCase();
+    const author = (deck.author_name || '').toLowerCase();
+    const matchesSearch = title.includes(q) || desc.includes(q) || author.includes(q);
+    return matchesPostFilter && matchesSearch;
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitMessage('');
@@ -127,6 +151,7 @@ function CommunityDeckFeed() {
       await submitCommunityDeck({
         deck_link: deckLink.trim(),
         card_ids: cardIds,
+        title: deckTitle.trim() || generateDeckTitle(cardIds),
         author_name: authorName.trim(),
         description: description.trim(),
         avg_elixir: calculateDynamicAvgElixir(cardIds),
@@ -134,6 +159,7 @@ function CommunityDeckFeed() {
       });
       setSubmitMessage('✅ Deck submitted successfully! It is now live on the community feed.');
       setDeckLink('');
+      setDeckTitle('');
       setAuthorName('');
       setDescription('');
       setPreviewCards(null);
@@ -227,6 +253,27 @@ function CommunityDeckFeed() {
           <p className="feed-subtitle">Decks shared by the community. Vote for your favorites!</p>
         </div>
         <div className="feed-controls">
+          <div className="search-control">
+            <input
+              type="text"
+              placeholder="Search decks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="deck-search-input"
+            />
+          </div>
+          <div className="sort-control">
+            <label htmlFor="deck-post-filter">Show</label>
+            <select
+              id="deck-post-filter"
+              value={adminPostFilter}
+              onChange={(e) => setAdminPostFilter(e.target.value)}
+            >
+              <option value="all">All Posts</option>
+              <option value="admin">Admin Posts</option>
+              <option value="viewer">Viewer Posts</option>
+            </select>
+          </div>
           <div className="sort-control">
             <label htmlFor="deck-sort">Sort by</label>
             <select
@@ -259,6 +306,12 @@ function CommunityDeckFeed() {
               <DeckPreview cardIds={previewCards} compact />
             </div>
           )}
+          <input
+            type="text"
+            placeholder="Deck Title (optional - auto-generated if empty)"
+            value={deckTitle}
+            onChange={(e) => setDeckTitle(e.target.value)}
+          />
           <div className="form-row">
             <input
               type="text"
@@ -295,28 +348,40 @@ function CommunityDeckFeed() {
           <h3>Failed to load decks</h3>
           <p>{error}</p>
         </div>
-      ) : decks.length === 0 ? (
+      ) : filteredDecks.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🃏</div>
-          <h3>No community decks yet</h3>
-          <p>Be the first to share your deck with the community!</p>
+          <h3>{decks.length === 0 ? 'No community decks yet' : 'No decks match your filters'}</h3>
+          <p>{decks.length === 0 ? 'Be the first to share your deck with the community!' : 'Try adjusting your search or filter.'}</p>
         </div>
       ) : (
         <div className="community-decks-grid">
-          {decks.map((deck) => (
-            <div key={deck.id} id={`deck-${deck.id}`} className="community-deck-card">
+          {filteredDecks.map((deck) => (
+            <div
+              key={deck.id}
+              id={`deck-${deck.id}`}
+              className={`community-deck-card ${deck.is_admin_post ? 'admin-post-card' : 'viewer-post-card'}`}
+            >
               <div className="community-deck-header">
                 <div className="community-deck-meta">
+                  <span className="community-deck-title">{deck.title || generateDeckTitle(deck.cardIds)}</span>
                   <span className="community-deck-author">{deck.author_name || 'Anonymous'}</span>
                   <span className="community-deck-date">{new Date(deck.created_at).toLocaleDateString()}</span>
                 </div>
-                <button
-                  className={`vote-btn ${votedDecks.includes(deck.id) ? 'voted' : ''}`}
-                  onClick={() => handleVote(deck.id)}
-                  disabled={votedDecks.includes(deck.id)}
-                >
-                  ▲ {deck.votes || 0}
-                </button>
+                <div className="community-deck-badges">
+                  {deck.is_admin_post ? (
+                    <span className="deck-badge admin-badge">Admin Pick</span>
+                  ) : (
+                    <span className="deck-badge viewer-badge">Community</span>
+                  )}
+                  <button
+                    className={`vote-btn ${votedDecks.includes(deck.id) ? 'voted' : ''}`}
+                    onClick={() => handleVote(deck.id)}
+                    disabled={votedDecks.includes(deck.id)}
+                  >
+                    ▲ {deck.votes || 0}
+                  </button>
+                </div>
               </div>
               {deck.description && <p className="community-deck-desc">{deck.description}</p>}
               <DeckPreview cardIds={deck.cardIds} compact />
@@ -399,6 +464,19 @@ function CommunityDeckFeed() {
           align-items: center;
           gap: var(--spacing-md);
           flex-wrap: wrap;
+        }
+        .search-control {
+          display: flex;
+          align-items: center;
+        }
+        .deck-search-input {
+          padding: 8px 12px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--bg-tertiary);
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+          min-width: 180px;
         }
         .sort-control {
           display: flex;
@@ -508,6 +586,14 @@ function CommunityDeckFeed() {
           display: flex;
           flex-direction: column;
           gap: var(--spacing-sm);
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .admin-post-card {
+          border-color: rgba(255, 159, 28, 0.5);
+          box-shadow: 0 2px 8px rgba(255, 159, 28, 0.08);
+        }
+        .viewer-post-card {
+          border-color: var(--bg-tertiary);
         }
         .community-deck-header {
           display: flex;
@@ -519,10 +605,37 @@ function CommunityDeckFeed() {
           flex-direction: column;
           gap: 2px;
         }
-        .community-deck-author {
-          font-weight: 700;
-          font-size: 0.875rem;
+        .community-deck-title {
+          font-weight: 800;
+          font-size: 0.9375rem;
           color: var(--text-primary);
+        }
+        .community-deck-author {
+          font-weight: 600;
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+        }
+        .community-deck-badges {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+        .deck-badge {
+          font-size: 0.6875rem;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: var(--radius-md);
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          white-space: nowrap;
+        }
+        .admin-badge {
+          background: rgba(255, 159, 28, 0.15);
+          color: #ff9f1c;
+        }
+        .viewer-badge {
+          background: var(--bg-tertiary);
+          color: var(--text-muted);
         }
         .community-deck-date {
           font-size: 0.75rem;
