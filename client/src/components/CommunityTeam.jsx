@@ -2,8 +2,8 @@ import { memo } from 'react';
 
 const TEAM_MEMBERS = [
   {
-    id: 'achaap',
-    name: 'Achaap',
+    id: 'wan',
+    name: 'wan',
     role: 'Creator & Developer',
     description: 'Built RoyaleMy and maintains the platform.',
     avatar: '👑',
