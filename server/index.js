@@ -56,7 +56,7 @@ app.use(cors({
     callback(null, origin || true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'x-admin-key'],
   exposedHeaders: ['X-Request-Id'],
   optionsSuccessStatus: 204,

@@ -125,6 +125,33 @@ router.post('/sub-admins', validateAdminKey, requireSuperAdmin, (req, res) => {
   }
 });
 
+router.patch('/sub-admins/:id/rate-limit', validateAdminKey, requireSuperAdmin, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid sub-admin ID' });
+    }
+
+    const { rateLimitMax, rateLimitWindowMinutes } = req.body;
+    const result = updateAdminRateLimit(id, rateLimitMax, rateLimitWindowMinutes);
+
+    if (result.error) {
+      const status = result.error.includes('not found') ? 404 : 400;
+      return res.status(status).json({ error: result.error });
+    }
+
+    logAdminAction(req, 'update_admin_rate_limit', 'admin_key', id, {
+      rateLimitMax: result.rateLimitMax,
+      rateLimitWindowMinutes: result.rateLimitWindowMinutes,
+    });
+
+    res.json({ success: true, id });
+  } catch (error) {
+    log('error', `Admin: Failed to update admin rate limit: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update admin rate limit' });
+  }
+});
+
 router.patch('/sub-admins/:id', validateAdminKey, requireSuperAdmin, (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -378,33 +405,6 @@ router.post('/rate-limit-settings', validateAdminKey, requireSuperAdmin, (req, r
   } catch (error) {
     log('error', `Admin: Failed to update global rate limit: ${error.message}`);
     res.status(500).json({ error: 'Failed to update global rate limit' });
-  }
-});
-
-router.patch('/sub-admins/:id/rate-limit', validateAdminKey, requireSuperAdmin, (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid sub-admin ID' });
-    }
-
-    const { rateLimitMax, rateLimitWindowMinutes } = req.body;
-    const result = updateAdminRateLimit(id, rateLimitMax, rateLimitWindowMinutes);
-
-    if (result.error) {
-      const status = result.error.includes('not found') ? 404 : 400;
-      return res.status(status).json({ error: result.error });
-    }
-
-    logAdminAction(req, 'update_admin_rate_limit', 'admin_key', id, {
-      rateLimitMax: result.rateLimitMax,
-      rateLimitWindowMinutes: result.rateLimitWindowMinutes,
-    });
-
-    res.json({ success: true, id });
-  } catch (error) {
-    log('error', `Admin: Failed to update admin rate limit: ${error.message}`);
-    res.status(500).json({ error: 'Failed to update admin rate limit' });
   }
 });
 
