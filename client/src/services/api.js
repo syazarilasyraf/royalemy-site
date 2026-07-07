@@ -835,3 +835,25 @@ export function deleteSubAdmin(id, key) {
     headers: adminHeaders(key)
   });
 }
+
+export function getRateLimitSettings(key) {
+  return fetchAPI('/admin/rate-limit-settings', {
+    headers: adminHeaders(key)
+  });
+}
+
+export function updateRateLimitSettings(key, settings) {
+  return fetchAPI('/admin/rate-limit-settings', {
+    method: 'POST',
+    headers: adminHeaders(key),
+    body: JSON.stringify(settings)
+  });
+}
+
+export function updateSubAdminRateLimit(id, key, settings) {
+  return fetchAPI(`/admin/sub-admins/${id}/rate-limit`, {
+    method: 'PATCH',
+    headers: adminHeaders(key),
+    body: JSON.stringify(settings)
+  });
+}

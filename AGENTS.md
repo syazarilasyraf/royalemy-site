@@ -24,7 +24,7 @@ The admin area supports two roles:
 1. **Super Admin** — uses the `ROADMAP_ADMIN_KEY` env variable. Has unrestricted access to all admin pages, including `/admin/access-control`.
 2. **Limited Admin** — uses a key stored in the `admin_keys` table. Can see all pending counts on the dashboard, but can only access modules the super admin explicitly unlocks. Locked modules show a 🔒 icon.
 
-Super admins create and manage limited-admin keys from **Admin → Access Control**. The plaintext key is shown only once on creation; only its SHA-256 hash is stored in the database.
+Super admins create and manage limited-admin keys from **Admin → Access Control**. The plaintext key is shown only once on creation; only its SHA-256 hash is stored in the database. Super admins can also configure global and per-admin API rate limits from **Admin → Rate Limits**.
 
 | Permission | Controls access to |
 |------------|-------------------|
@@ -110,6 +110,8 @@ if (!columnExists('existing_table', 'new_column')) {
 | `server/index.js` | Express server, API routes, CORS, middleware | Medium |
 | `server/routes/communityTournaments.js` | Tournament API | Medium |
 | `server/routes/admin.js` | Admin dashboard, logs, audit trail, rate limits | Low |
+| `server/services/rateLimiter.js` | Dynamic global and per-admin rate limit engine | Medium |
+| `client/src/admin/AdminRateLimitSettings.jsx` | Super-admin rate limit configuration UI | Low |
 | `Dockerfile` | Docker image for JustRunMyApp | **HIGH** — affects deployment |
 | `client/src/services/api.js` | Frontend API client | Low |
 | `client/src/components/TournamentFinder.jsx` | Tournament UI | Low |

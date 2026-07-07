@@ -29,6 +29,7 @@ const AdminDecks = lazy(() => import('./admin/AdminDecks'));
 const AdminRoadmap = lazy(() => import('./admin/AdminRoadmap'));
 const AdminNotifications = lazy(() => import('./admin/AdminNotifications'));
 const AdminAccessControl = lazy(() => import('./admin/AdminAccessControl'));
+const AdminRateLimitSettings = lazy(() => import('./admin/AdminRateLimitSettings'));
 
 const NAV_ITEMS = [
   { id: '', label: 'Home', icon: '🏠' },
@@ -128,6 +129,7 @@ function App() {
               <Route path="logs" element={<AdminLogs />} />
               <Route path="audit" element={<AdminAuditTrail />} />
               <Route path="access-control" element={<AdminAccessControl />} />
+              <Route path="rate-limits" element={<AdminRateLimitSettings />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

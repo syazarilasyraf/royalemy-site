@@ -9,6 +9,14 @@ import {
   hashAdminKey,
   ALL_PERMISSIONS,
 } from '../middleware/auth.js';
+import {
+  adminOverrides,
+  globalRateLimit,
+  isAllowed,
+  hashAdminKey as rateLimitHashAdminKey,
+  updateGlobalRateLimit,
+  updateAdminRateLimit,
+} from '../services/rateLimiter.js';
 
 const router = express.Router();
 
@@ -21,6 +29,34 @@ function logAdminAction(req, action, resource, resourceId, details = null) {
     log('warn', `Failed to log admin action: ${e.message}`);
   }
 }
+
+// ==================== PER-ADMIN RATE LIMITING ====================
+
+function adminRateLimitMiddleware(req, res, next) {
+  const key = req.headers['x-admin-key'] || req.query.key;
+  if (!key) {
+    return next();
+  }
+
+  // Super admin bypasses per-admin limits
+  if (key === process.env.ROADMAP_ADMIN_KEY) {
+    return next();
+  }
+
+  const keyHash = rateLimitHashAdminKey(key);
+  const override = adminOverrides.get(keyHash);
+  const max = override?.max ?? globalRateLimit.max;
+  const windowMinutes = override?.windowMinutes ?? globalRateLimit.windowMinutes;
+
+  if (!isAllowed(`admin:${keyHash}`, max, windowMinutes)) {
+    log('warn', `Admin rate limit exceeded for key hash: ${keyHash}`);
+    return res.status(429).json({ error: 'Admin rate limit exceeded. Please try again later.' });
+  }
+
+  next();
+}
+
+router.use(adminRateLimitMiddleware);
 
 // ==================== PERMISSIONS ====================
 
@@ -291,6 +327,86 @@ router.get('/audit-trail', validateAdminKey, requirePermission('audit'), (req, r
 });
 
 // ==================== RATE LIMIT MONITORING ====================
+
+router.get('/rate-limit-settings', validateAdminKey, requireSuperAdmin, (req, res) => {
+  try {
+    const rows = statements.getAllAdminKeys.all();
+    const subAdmins = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      isActive: row.is_active === 1,
+      rateLimitMax: row.rate_limit_max,
+      rateLimitWindowMinutes: row.rate_limit_window_minutes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    res.json({
+      global: {
+        max: globalRateLimit.max,
+        windowMinutes: globalRateLimit.windowMinutes,
+      },
+      subAdmins,
+    });
+  } catch (error) {
+    log('error', `Admin: Failed to fetch rate limit settings: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch rate limit settings' });
+  }
+});
+
+router.post('/rate-limit-settings', validateAdminKey, requireSuperAdmin, (req, res) => {
+  try {
+    const { max, windowMinutes } = req.body;
+    const result = updateGlobalRateLimit(max, windowMinutes);
+
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    logAdminAction(req, 'update_rate_limit', 'app_settings', 'rate_limit_global', {
+      max: result.max,
+      windowMinutes: result.windowMinutes,
+    });
+
+    res.json({
+      success: true,
+      global: {
+        max: result.max,
+        windowMinutes: result.windowMinutes,
+      },
+    });
+  } catch (error) {
+    log('error', `Admin: Failed to update global rate limit: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update global rate limit' });
+  }
+});
+
+router.patch('/sub-admins/:id/rate-limit', validateAdminKey, requireSuperAdmin, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid sub-admin ID' });
+    }
+
+    const { rateLimitMax, rateLimitWindowMinutes } = req.body;
+    const result = updateAdminRateLimit(id, rateLimitMax, rateLimitWindowMinutes);
+
+    if (result.error) {
+      const status = result.error.includes('not found') ? 404 : 400;
+      return res.status(status).json({ error: result.error });
+    }
+
+    logAdminAction(req, 'update_admin_rate_limit', 'admin_key', id, {
+      rateLimitMax: result.rateLimitMax,
+      rateLimitWindowMinutes: result.rateLimitWindowMinutes,
+    });
+
+    res.json({ success: true, id });
+  } catch (error) {
+    log('error', `Admin: Failed to update admin rate limit: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update admin rate limit' });
+  }
+});
 
 router.get('/rate-limits', validateAdminKey, requirePermission('dashboard'), (req, res) => {
   try {

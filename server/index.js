@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -22,6 +21,7 @@ import { fetchMetaDecks, META_DECK_CACHE_KEY } from './services/metaDecks.js';
 import { createTournamentNotification, sendPushNotifications } from './services/notifications.js';
 import { setupLiveTournamentSync } from './services/tournamentLive.js';
 import { validateAdminKey, validateAdminKey as validateAdminKeyForEndpoint, requireSuperAdmin, sanitizeTag } from './middleware/auth.js';
+import { globalRateLimit, isAllowed } from './services/rateLimiter.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -78,23 +78,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting - 60 requests per minute per IP
-const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 60, // 60 requests per minute
-  message: {
-    error: 'Rate limit exceeded. Please try again later.',
-    retryAfter: 60
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res, next, options) => {
-    log('warn', `Rate limit exceeded for IP: ${req.ip}`);
-    res.status(429).json(options.message);
+// Rate limiting - dynamic global limit (configured by super admin)
+// Admin routes are handled by the per-admin limiter in routes/admin.js
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/admin')) {
+    return next();
   }
-});
 
-app.use('/api/', limiter);
+  const max = globalRateLimit.max;
+  const windowMinutes = globalRateLimit.windowMinutes;
+  const windowMs = windowMinutes * 60 * 1000;
+  const key = `ip:${req.ip}`;
+
+  if (!isAllowed(key, max, windowMinutes)) {
+    log('warn', `Rate limit exceeded for IP: ${req.ip}`);
+    return res.status(429).json({
+      error: 'Rate limit exceeded. Please try again later.',
+      retryAfter: Math.ceil(windowMs / 1000),
+    });
+  }
+
+  next();
+});
 
 // Disable HTTP caching for dynamic ranking/location data so browsers/PWAs always revalidate.
 function noStoreCache(req, res, next) {

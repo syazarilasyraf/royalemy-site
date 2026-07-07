@@ -212,6 +212,16 @@ function AdminLayout() {
               <span className="admin-nav-label">Access Control</span>
             </Link>
           )}
+          {permissionsState.isSuper && (
+            <Link
+              key="/admin/rate-limits"
+              to={makeLink('/admin/rate-limits')}
+              className={`admin-nav-link ${location.pathname === '/admin/rate-limits' ? 'active' : ''}`}
+            >
+              <span className="admin-nav-icon">⏱️</span>
+              <span className="admin-nav-label">Rate Limits</span>
+            </Link>
+          )}
         </nav>
       </aside>
 
@@ -266,6 +276,17 @@ function AdminLayout() {
                 >
                   <span className="admin-mobile-nav-icon">🗝️</span>
                   <span className="admin-mobile-nav-label">Access Control</span>
+                </Link>
+              )}
+              {permissionsState.isSuper && (
+                <Link
+                  key="/admin/rate-limits"
+                  to={makeLink('/admin/rate-limits')}
+                  className={`admin-mobile-nav-link ${location.pathname === '/admin/rate-limits' ? 'active' : ''}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <span className="admin-mobile-nav-icon">⏱️</span>
+                  <span className="admin-mobile-nav-label">Rate Limits</span>
                 </Link>
               )}
             </nav>

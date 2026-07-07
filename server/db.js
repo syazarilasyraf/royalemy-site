@@ -332,6 +332,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_admin_keys_hash ON admin_keys(key_hash);
   CREATE INDEX IF NOT EXISTS idx_admin_keys_active ON admin_keys(is_active);
 
+  -- Application settings (dynamic configuration)
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   -- Live tournament broadcast system
   CREATE TABLE IF NOT EXISTS tournament_battles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -426,6 +433,18 @@ const tournamentCols = [
 for (const col of tournamentCols) {
   if (!columnExists('community_tournaments', col.name)) {
     db.exec(`ALTER TABLE community_tournaments ADD COLUMN ${col.name} ${col.type}`);
+  }
+}
+
+// Migration: add rate-limit columns to admin keys
+const adminKeyCols = [
+  { name: 'rate_limit_max', type: 'INTEGER' },
+  { name: 'rate_limit_window_minutes', type: 'INTEGER' }
+];
+
+for (const col of adminKeyCols) {
+  if (!columnExists('admin_keys', col.name)) {
+    db.exec(`ALTER TABLE admin_keys ADD COLUMN ${col.name} ${col.type}`);
   }
 }
 
@@ -1011,16 +1030,27 @@ const statements = {
     `INSERT INTO admin_keys (name, key_hash, permissions, is_active) VALUES (?, ?, ?, ?)`
   ),
   getAdminKeyByHash: db.prepare(
-    `SELECT id, name, key_hash, permissions, is_active, created_at, updated_at FROM admin_keys WHERE key_hash = ? AND is_active = 1`
+    `SELECT id, name, key_hash, permissions, is_active, rate_limit_max, rate_limit_window_minutes, created_at, updated_at FROM admin_keys WHERE key_hash = ? AND is_active = 1`
   ),
   getAllAdminKeys: db.prepare(
-    `SELECT id, name, permissions, is_active, created_at, updated_at FROM admin_keys ORDER BY created_at DESC`
+    `SELECT id, name, permissions, is_active, rate_limit_max, rate_limit_window_minutes, created_at, updated_at FROM admin_keys ORDER BY created_at DESC`
   ),
   updateAdminKey: db.prepare(
     `UPDATE admin_keys SET name = ?, permissions = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
   ),
+  updateAdminKeyRateLimit: db.prepare(
+    `UPDATE admin_keys SET rate_limit_max = ?, rate_limit_window_minutes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+  ),
   deleteAdminKey: db.prepare(
     `DELETE FROM admin_keys WHERE id = ?`
+  ),
+
+  // App settings
+  getAppSetting: db.prepare(
+    `SELECT value FROM app_settings WHERE key = ?`
+  ),
+  setAppSetting: db.prepare(
+    `INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`
   ),
 
 };
@@ -1076,6 +1106,13 @@ if (pushSubscriptionsEnabled || globalPushSubscriptionsEnabled) {
   statements.getNotificationReadsByEndpoint = db.prepare(
     `SELECT notification_id FROM notification_reads WHERE endpoint = ?`
   );
+}
+
+// Seed default application settings
+try {
+  statements.setAppSetting.run('rate_limit_global', JSON.stringify({ max: 60, windowMinutes: 1 }));
+} catch (e) {
+  console.warn(`[DB] Failed to seed app_settings: ${e.message}`);
 }
 
 function getDbDiagnostics() {
