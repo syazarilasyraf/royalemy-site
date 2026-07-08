@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCommunityTournament } from '../services/api';
+import { getCommunityTournament, getTournamentShareUrl } from '../services/api';
 
 function formatDate(dateString) {
   if (!dateString) return '-';
@@ -81,6 +81,30 @@ export default function TournamentDetailPage() {
     }
   };
 
+  const handleShare = async () => {
+    if (!data?.tournament) return;
+    const tournament = data.tournament;
+    const shareUrl = getTournamentShareUrl(tournament.id);
+    const shareTitle = tournament.name || 'RoyaleMY Tournament';
+    const shareText = tournament.description
+      ? `${tournament.name} — ${tournament.description}`
+      : `Check out ${tournament.name} on RoyaleMY!`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Tournament link copied to clipboard!');
+      } else {
+        window.prompt('Copy this link:', shareUrl);
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Share failed:', err);
+      }
+    }
+  };
+
   return (
     <div className="page-container tournament-detail-page">
       <button className="back-btn" onClick={() => navigate('/tournaments')}>
@@ -104,7 +128,12 @@ export default function TournamentDetailPage() {
       ) : data?.tournament ? (
         <div className="tdp-card">
           <div className="tdp-header">
-            <span className="tdp-status">{data.tournament.status === 'completed' ? '🏁 Completed' : 'ℹ️ Details'}</span>
+            <div className="tdp-header-top">
+              <span className="tdp-status">{data.tournament.status === 'completed' ? '🏁 Completed' : 'ℹ️ Details'}</span>
+              <button className="tdp-share-btn" onClick={handleShare} title="Share tournament">
+                🔗 Share
+              </button>
+            </div>
             <h2 className="tdp-title">{data.tournament.name}</h2>
             <p className="tdp-host">Organized by {data.tournament.host_name}</p>
           </div>
@@ -274,7 +303,35 @@ export default function TournamentDetailPage() {
           letter-spacing: 0.05em;
           background: rgba(34, 197, 94, 0.15);
           color: #22c55e;
+        }
+
+        .tdp-header-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--spacing-sm);
           margin-bottom: var(--spacing-sm);
+        }
+
+        .tdp-share-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-sm) var(--spacing-md);
+          border: none;
+          border-radius: var(--radius-lg);
+          font-weight: 700;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+
+        .tdp-share-btn:hover {
+          background: var(--accent-primary);
+          color: white;
+          transform: translateY(-1px);
         }
 
         .tdp-title {

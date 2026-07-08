@@ -617,6 +617,12 @@ export function getCommunityDeckShareUrl(id) {
   return `${API_BASE}/community-decks/${id}/share`;
 }
 
+export function getTournamentShareUrl(id) {
+  // Direct public URL for a specific tournament. Works on Netlify custom domains.
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/tournaments/${id}`;
+}
+
 export function getDeckComments(id) {
   return fetchAPI(`/community-decks/${id}/comments`);
 }

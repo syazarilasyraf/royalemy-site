@@ -17,6 +17,7 @@ import {
   unsubscribeFromPush,
   exportTournamentRegistrations,
   promoteWaitlist,
+  getTournamentShareUrl,
 } from '../services/api';
 
 // ==================== CONSTANTS ====================
@@ -1424,6 +1425,31 @@ function TournamentFinder() {
     }
   };
 
+  const handleShareTournament = async (tournament, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    const shareUrl = getTournamentShareUrl(tournament.id);
+    const shareTitle = tournament.name || 'RoyaleMY Tournament';
+    const shareText = tournament.description
+      ? `${tournament.name} — ${tournament.description}`
+      : `Check out ${tournament.name} on RoyaleMY!`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Tournament link copied to clipboard!');
+      } else {
+        window.prompt('Copy this link:', shareUrl);
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Share failed:', err);
+      }
+    }
+  };
+
   const openRegisterModal = (tournament) => {
     setRegisteringTournament(tournament);
     setRegisterModalOpen(true);
@@ -1513,6 +1539,13 @@ function TournamentFinder() {
                         🎵 Watch Live
                       </a>
                     )}
+                    <button
+                      className="card-action-btn share-btn"
+                      onClick={(e) => handleShareTournament(t, e)}
+                      title="Share tournament"
+                    >
+                      🔗 Share
+                    </button>
                     {adminKey && (
                       <button className="card-action-btn edit-btn-sm" onClick={() => viewTournamentDetails(t)}>
                         ✏️ Edit
@@ -1594,6 +1627,13 @@ function TournamentFinder() {
                     {isFull && (
                       <span className="card-full-badge">🔒 Full</span>
                     )}
+                    <button
+                      className="card-action-btn share-btn"
+                      onClick={(e) => handleShareTournament(t, e)}
+                      title="Share tournament"
+                    >
+                      🔗 Share
+                    </button>
                     {adminKey && (
                       <button className="card-action-btn edit-btn-sm" onClick={() => viewTournamentDetails(t)}>
                         ✏️ Edit
@@ -1658,6 +1698,15 @@ function TournamentFinder() {
                     )}
                   </div>
                 )}
+                <div className="card-actions">
+                  <button
+                    className="card-action-btn share-btn"
+                    onClick={(e) => handleShareTournament(t, e)}
+                    title="Share tournament"
+                  >
+                    🔗 Share
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -2147,6 +2196,17 @@ function TournamentFinder() {
 
         .watch-btn:hover {
           background: #333;
+          transform: translateY(-1px);
+        }
+
+        .share-btn {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+
+        .share-btn:hover {
+          background: var(--accent-primary);
+          color: white;
           transform: translateY(-1px);
         }
 
