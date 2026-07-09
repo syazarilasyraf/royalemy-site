@@ -103,6 +103,20 @@ export function extractCardIds(url) {
 }
 
 /**
+ * Normalizes a Clash Royale deck link to a clean format without
+ * extra tracking parameters (slots, tt, ev, id, etc.)
+ * @param {string} url
+ * @returns {string}
+ */
+export function normalizeDeckLink(url) {
+  if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
+  const cardIds = extractCardIds(trimmed);
+  if (!cardIds || cardIds.length !== 8) return trimmed;
+  return `https://link.clashroyale.com/en?clashroyale://copyDeck?deck=${cardIds.join(';')}`;
+}
+
+/**
  * Gets the full deck link from card IDs (for reconstructing links)
  * Uses the new format that Clash Royale app recognizes
  * @param {array} cardIds 
@@ -114,10 +128,7 @@ export function buildDeckLink(cardIds) {
   }
   
   const deckString = cardIds.join(';');
-  // Use a fixed timestamp like RoyaleAPI - this ensures links work for copy/paste
-  // Clash Royale validates the timestamp format but doesn't check if it's recent
-  const timestamp = 159000000;
-  return `https://link.clashroyale.com/en?clashroyale://copyDeck?deck=${deckString}&tt=${timestamp}&l=Royals`;
+  return `https://link.clashroyale.com/en?clashroyale://copyDeck?deck=${deckString}`;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
+import { isValidDeckLink, extractCardIds, normalizeDeckLink } from '../utils/deckParser';
 import { getCardById } from '../utils/cardMapping';
 import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck, getCommunityDeckShareUrl, getDeckComments, addDeckComment } from '../services/api';
 import { isChampionCard } from '../data/deckSources';
@@ -146,10 +146,11 @@ function CommunityDeckFeed() {
       setSubmitMessage('Deck must contain exactly 8 cards');
       return;
     }
+    const cleanLink = normalizeDeckLink(deckLink);
     setSubmitLoading(true);
     try {
       await submitCommunityDeck({
-        deck_link: deckLink.trim(),
+        deck_link: cleanLink,
         card_ids: cardIds,
         title: deckTitle.trim() || generateDeckTitle(cardIds),
         author_name: authorName.trim(),

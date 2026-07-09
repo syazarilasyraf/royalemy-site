@@ -12,7 +12,7 @@ import {
   createCommunityDeckAsAdmin,
 } from '../services/api';
 import DeckPreview from '../components/DeckPreview';
-import { isValidDeckLink, extractCardIds } from '../utils/deckParser';
+import { isValidDeckLink, extractCardIds, normalizeDeckLink } from '../utils/deckParser';
 import { getCardById } from '../utils/cardMapping';
 import { generateDeckTitle, generateDeckDescription } from '../utils/deckTitleGenerator';
 import { calculateDynamicAvgElixir, isChampionCard } from '../data/deckSources';
@@ -236,7 +236,7 @@ export default function AdminDecks() {
     if (!editDeck) return;
     try {
       await updateCommunityDeck(editDeck.id, {
-        deck_link: editForm.deck_link.trim(),
+        deck_link: normalizeDeckLink(editForm.deck_link),
         title: editForm.title.trim(),
         author_name: editForm.author_name.trim(),
         description: editForm.description.trim(),
@@ -261,10 +261,11 @@ export default function AdminDecks() {
       setError('Deck must contain exactly 8 cards');
       return;
     }
+    const cleanLink = normalizeDeckLink(createForm.deck_link);
     setCreateLoading(true);
     try {
       await createCommunityDeckAsAdmin({
-        deck_link: createForm.deck_link.trim(),
+        deck_link: cleanLink,
         card_ids: cardIds,
         title: createForm.title.trim() || generateDeckTitle(cardIds),
         author_name: createForm.author_name.trim() || 'Admin',
@@ -338,6 +339,7 @@ export default function AdminDecks() {
           <span>{selectedIds.size} selected</span>
           <button className="btn btn-success btn-sm" onClick={() => handleBulk('approve')} disabled={loading}>Approve</button>
           <button className="btn btn-danger btn-sm" onClick={() => handleBulk('reject')} disabled={loading}>Reject</button>
+          <button className="btn btn-primary btn-sm" onClick={() => handleBulk('sanitize')} disabled={loading}>Sanitize Links</button>
           <button className="btn btn-secondary btn-sm" onClick={() => handleBulk('delete')} disabled={loading}>Delete</button>
         </div>
       )}

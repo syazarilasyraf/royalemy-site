@@ -1000,6 +1000,9 @@ const statements = {
   updateCommunityDeck: db.prepare(
     `UPDATE community_decks SET deck_link = ?, title = ?, author_name = ?, description = ?, avg_elixir = ?, tags = ?, is_admin_post = ? WHERE id = ?`
   ),
+  updateCommunityDeckLink: db.prepare(
+    `UPDATE community_decks SET deck_link = ? WHERE id = ?`
+  ),
   updateCommunityDeckStatus: db.prepare(
     `UPDATE community_decks SET status = ? WHERE id = ?`
   ),

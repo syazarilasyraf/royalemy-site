@@ -49,6 +49,14 @@ function extractCardIds(url) {
   return cardIds.length === 8 ? cardIds : null;
 }
 
+function normalizeDeckLink(url) {
+  if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
+  const cardIds = extractCardIds(trimmed);
+  if (!cardIds || cardIds.length !== 8) return trimmed;
+  return `https://link.clashroyale.com/en?clashroyale://copyDeck?deck=${cardIds.join(';')}`;
+}
+
 function logAdminAction(req, action, resource, resourceId, details = null) {
   try {
     const ip = req.ip || req.connection.remoteAddress;
@@ -183,6 +191,20 @@ router.post('/admin/bulk', validateAdminKey, requirePermission('decks'), (req, r
           statements.updateCommunityDeckStatus.run(req.body.status, id);
           log('success', `Community deck ${id} status updated to ${req.body.status} (bulk)`);
           results.push({ id, success: true });
+        } else if (action === 'sanitize') {
+          const normalizedLink = normalizeDeckLink(deck.deck_link);
+          if (normalizedLink === deck.deck_link) {
+            results.push({ id, success: true, unchanged: true });
+            continue;
+          }
+          if (!isValidDeckLink(normalizedLink)) {
+            results.push({ id, success: false, error: 'Normalized link invalid' });
+            continue;
+          }
+          statements.updateCommunityDeckLink.run(normalizedLink, id);
+          log('success', `Community deck ${id} link sanitized (bulk)`);
+          logAdminAction(req, 'sanitize', 'deck', id, { oldLink: deck.deck_link, newLink: normalizedLink });
+          results.push({ id, success: true });
         } else {
           results.push({ id, success: false, error: 'Unknown action' });
         }
@@ -222,7 +244,7 @@ router.post('/admin/:id/edit', validateAdminKey, requirePermission('decks'), (re
     const sanitizedTitle = title !== undefined ? (sanitizeHtml(title.trim()) || null) : deck.title;
     const sanitizedAuthor = author_name !== undefined ? (sanitizeHtml(author_name.trim()) || 'Anonymous') : deck.author_name;
     const sanitizedDescription = description !== undefined ? (sanitizeHtml(description.trim()) || '') : deck.description;
-    const sanitizedLink = deck_link !== undefined ? deck_link.trim() : deck.deck_link;
+    const sanitizedLink = deck_link !== undefined ? normalizeDeckLink(deck_link) : deck.deck_link;
     const finalAdminPost = is_admin_post === true || is_admin_post === 1 ? 1 : (is_admin_post === false || is_admin_post === 0 ? 0 : deck.is_admin_post);
 
     if (!sanitizedLink) {
@@ -286,15 +308,17 @@ router.post('/admin/create', validateAdminKey, requirePermission('decks'), (req,
       return res.status(400).json({ error: 'Deck link is required' });
     }
 
-    if (!isValidDeckLink(deck_link)) {
+    const normalizedLink = normalizeDeckLink(deck_link);
+
+    if (!isValidDeckLink(normalizedLink)) {
       return res.status(400).json({ error: 'Invalid deck link' });
     }
-    const cardIds = extractCardIds(deck_link.trim());
+    const cardIds = extractCardIds(normalizedLink);
     if (!cardIds || cardIds.length !== 8) {
       return res.status(400).json({ error: 'Deck link must contain exactly 8 cards' });
     }
     const result = statements.insertCommunityDeck.run(
-      deck_link.trim(),
+      normalizedLink,
       JSON.stringify(cardIds),
       title ? sanitizeHtml(title.trim()) || null : null,
       sanitizeHtml(author_name) || 'Admin',
@@ -559,15 +583,17 @@ router.post('/', submitLimiter, (req, res) => {
       return res.status(400).json({ error: 'Valid deck link with 8 cards is required' });
     }
 
+    const normalizedLink = normalizeDeckLink(deck_link);
+
     // Duplicate detection: same deck link within 1 hour
-    const duplicate = statements.checkDuplicateDeck.get(deck_link.trim());
+    const duplicate = statements.checkDuplicateDeck.get(normalizedLink);
     if (duplicate) {
       return res.status(409).json({ error: 'This deck was already submitted within the last hour.' });
     }
 
     const cardIds = card_ids;
     const result = statements.insertCommunityDeck.run(
-      deck_link.trim(),
+      normalizedLink,
       JSON.stringify(cardIds),
       title ? sanitizeHtml(title.trim()) || null : null,
       sanitizeHtml(author_name) || 'Anonymous',
