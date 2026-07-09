@@ -234,7 +234,8 @@
     "image": "/cards/26000026.webp",
     "elixir": 3,
     "rarity": "legendary",
-    "type": "spell"
+    "type": "spell",
+    "evolutionImage": "/cards/26000026_evo.webp"
   },
   "26000027": {
     "name": "Dark Prince",
@@ -722,6 +723,14 @@
     "rarity": "champion",
     "type": "spell"
   },
+  "26000106": {
+    "id": 26000106,
+    "name": "Ronin",
+    "image": "/cards/26000106.webp",
+    "elixir": 5,
+    "rarity": "legendary",
+    "type": "troop"
+  },
   "27000000": {
     "name": "Cannon",
     "id": 27000000,
@@ -803,7 +812,8 @@
     "image": "/cards/27000009.webp",
     "elixir": 3,
     "rarity": "rare",
-    "type": "building"
+    "type": "building",
+    "heroImage": "/cards/27000009_hero.webp"
   },
   "27000010": {
     "name": "Furnace",

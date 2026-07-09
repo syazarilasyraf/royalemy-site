@@ -120,6 +120,8 @@ if (!columnExists('existing_table', 'new_column')) {
 | `client/src/components/TournamentLiveOverlay.jsx` | Browser Source overlay for OBS/TikTok Live Studio | Low |
 | `client/public/_redirects` | Netlify SPA routing | Medium |
 | `client/public/sw.js` | Service worker (PWA cache) | Medium |
+| `scripts/download-cards.ps1` | PowerShell card downloader (requires CR_TOKEN) | Low |
+| `scripts/update-cards-royaleapi.mjs` | Node.js card downloader using RoyaleAPI CDN (no token) | Low |
 
 ---
 
