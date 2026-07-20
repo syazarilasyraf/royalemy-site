@@ -50,3 +50,4 @@ coverage
 
 # SQLite databases
 *.db
+.env.test
