@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { log } from '../logger.js';
 import { db, statements } from '../db.js';
+import { isAllowed } from '../services/rateLimiter.js';
 
 export const ALL_PERMISSIONS = {
   dashboard: true,
@@ -27,6 +28,20 @@ export function generateAdminKey() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function constantTimeCompare(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = crypto.createHash('sha256').update(a).digest();
+  const bufB = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+const ADMIN_AUTH_FAIL_MAX = 10;
+const ADMIN_AUTH_FAIL_WINDOW_MINUTES = 10;
+
+function recordFailedAdminAuth(ip) {
+  return isAllowed(`admin-auth-fail:${ip}`, ADMIN_AUTH_FAIL_MAX, ADMIN_AUTH_FAIL_WINDOW_MINUTES);
+}
+
 export function validateAdminKey(req, res, next) {
   const key = req.headers['x-admin-key'] || req.query.key;
   const adminKey = getAdminKey();
@@ -36,7 +51,7 @@ export function validateAdminKey(req, res, next) {
   }
 
   // Super admin always has full permissions
-  if (key === adminKey) {
+  if (constantTimeCompare(key, adminKey)) {
     req.admin = { isSuper: true, permissions: { ...ALL_PERMISSIONS } };
     return next();
   }
@@ -61,7 +76,16 @@ export function validateAdminKey(req, res, next) {
     }
   }
 
-  log('warn', `Invalid admin key attempt on ${req.path} from ${req.ip}`, { requestId: req.id });
+  const ip = req.ip || req.connection.remoteAddress;
+  if (!recordFailedAdminAuth(ip)) {
+    log('warn', `Admin auth failure rate limit exceeded for IP: ${ip}`, { requestId: req.id });
+    return res.status(429).json({
+      error: 'Too many failed admin key attempts. Please try again later.',
+      retryAfter: ADMIN_AUTH_FAIL_WINDOW_MINUTES * 60,
+    });
+  }
+
+  log('warn', `Invalid admin key attempt on ${req.path} from ${ip}`, { requestId: req.id });
   return res.status(403).json({ error: 'Invalid admin key' });
 }
 
