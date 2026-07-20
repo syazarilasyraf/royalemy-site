@@ -76,7 +76,7 @@ RoyaleMY/
 │   │   ├── services/api.js  # API client
 │   │   ├── utils/           # Deck parser, archetype analyzer, card mapping
 │   │   └── data/            # Static card data and deck recommendations
-│   ├── public/              # Static assets, PWA manifest, service worker
+│   ├── public/              # Static assets, PWA manifest, offline page
 │   └── dist/                # Build output (Netlify)
 ├── server/                  # Express backend
 │   ├── data/                # Local SQLite database (dev only)
@@ -234,7 +234,7 @@ RoyaleMY is a Progressive Web App. Users can install it on their home screen for
 - Offline fallback page: `offline.html`
 
 ### Updating
-When deploying new code, bump the cache version in `client/public/sw.js` (e.g., `royalemy-shell-v1` → `royalemy-shell-v2`) to force browsers to fetch updated assets. See `PWA.md` for full details.
+The service worker is built from `client/src/sw.js` using `vite-plugin-pwa` with `injectManifest`. Each build generates content-hashed precache entries, so browsers fetch updated assets automatically on the next visit. The custom `UpdatePrompt.jsx` still lets users refresh as soon as a new worker is waiting. See `PWA.md` for full details.
 
 ---
 

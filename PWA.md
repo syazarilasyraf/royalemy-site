@@ -42,23 +42,18 @@ iOS Safari does **not** support `beforeinstallprompt`. Users must manually add t
 
 ## How Caching Works
 
-The service worker (`/sw.js`) uses multiple cache layers:
+The service worker (`/sw.js`) is built from `client/src/sw.js` using Workbox
+via `vite-plugin-pwa` (`injectManifest`). It uses several runtime cache layers
+in addition to the Workbox precache for the app shell.
 
-### 1. App Shell Cache (`royalemy-shell-v6`)
+### 1. App Shell (Workbox Precache)
 
-**Contents:**
-- `/` (start_url)
-- `/index.html`
-- `/offline.html`
-- `/royalemy.png`
+The build step injects a content-hashed manifest of the build assets
+(`index.html`, JS/CSS chunks, `offline.html`, `royalemy.png`, etc.). Each
+deploy produces a new hash, so browsers automatically fetch the new app shell.
+There is no need to manually bump a cache version.
 
-**Strategy:** `network-first`
-- Always fetch the latest app shell from the network first.
-- Cache the response for offline fallback.
-- If offline, serve the cached shell or `offline.html`.
-- This ensures users see the latest deployment immediately, which is important because RoyaleMY is updated frequently.
-
-### 2. Image Cache (`royalemy-images-v6`)
+### 2. Image Cache (`images`)
 
 **Contents:**
 - Card images (`/cards/*.webp`)
@@ -68,7 +63,7 @@ The service worker (`/sw.js`) uses multiple cache layers:
 - Serve from cache if available.
 - Fetch from network if not cached, then store for offline use.
 
-### 3. Font Cache (`royalemy-fonts-v6`)
+### 3. Font Cache (`fonts`)
 
 **Contents:**
 - Google Fonts CSS (`fonts.googleapis.com`)
@@ -77,14 +72,14 @@ The service worker (`/sw.js`) uses multiple cache layers:
 **Strategy:** `cache-first`
 - Fonts rarely change; cache aggressively.
 
-### 4. API Cache (`royalemy-api-v6`)
+### 4. API Cache
 
 **Selective caching based on endpoint:**
 
 | Endpoint | Strategy | Reason |
 |----------|----------|--------|
 | `/api/cards` | Cache First | Card data changes very rarely (24h server TTL) |
-| `/api/locations` | Cache First | Location list is static (24h server TTL) |
+| `/api/locations` | Network First | Location list is mostly static but should refresh when online |
 | `/api/meta-decks` | Network First | Meta changes over time (30m server TTL) |
 | All other `/api/*` | Network Only | Player, clan, and ranking data must be fresh |
 
@@ -93,7 +88,6 @@ The service worker (`/sw.js`) uses multiple cache layers:
 **Strategy:** `network-first`
 - Always fetch the latest bundles from the network.
 - Cache for offline fallback only.
-- Combined with the app shell strategy, this prevents users from seeing stale JavaScript or CSS after a deployment.
 
 ### Offline Behavior
 
@@ -105,32 +99,24 @@ The service worker (`/sw.js`) uses multiple cache layers:
 
 ## How to Update the PWA
 
-When you deploy new code, the service worker will automatically detect the new `sw.js` file on the user's next visit and install it in the background.
+When you deploy new code, the service worker will automatically detect the new
+`sw.js` file on the user's next visit and install it in the background.
 
 ### Update Behavior
 
 1. The new service worker installs in the background on the user's next visit.
-2. It precaches the new app shell assets in a new cache (`v6`).
-3. On activation, it deletes the old cache (`v5`).
-4. The service worker calls `skipWaiting()`, so it activates immediately instead of waiting for all tabs to close.
-5. Because the app shell and JS/CSS use a **network-first** strategy, online users always fetch the latest code.
-6. If a new service worker is installed while the user is actively using the app, an **"A new version of RoyaleMY is available"** prompt appears with a **Refresh now** button.
-
-### When to Bump Cache Versions
-
-You generally do **not** need to manually bump cache versions for normal deployments because the network-first strategy fetches fresh assets automatically.
-
-Bump the version constants in `client/public/sw.js` only when:
-- You change the service worker caching logic itself.
-- You want to force a clean slate for images or fonts.
-
-```js
-// Before
-const SHELL_CACHE = 'royalemy-shell-v6';
-
-// After
-const SHELL_CACHE = 'royalemy-shell-v7';
-```
+2. `vite-plugin-pwa` injects a content-hashed precache manifest, so the new
+   worker caches the updated app shell and static assets automatically.
+3. `cleanupOutdatedCaches()` removes outdated Workbox precaches; the new
+   worker also deletes legacy `royalemy-*` caches from the old hand-rolled
+   service worker on activation.
+4. The service worker calls `skipWaiting()`, so it activates immediately
+   instead of waiting for all tabs to close.
+5. Because the app shell and JS/CSS use a **network-first** strategy, online
+   users always fetch the latest code.
+6. If a new service worker is installed while the user is actively using the
+   app, an **"A new version of RoyaleMY is available"** prompt appears with a
+   **Refresh now** button.
 
 ### Rebuild and Redeploy
 
@@ -148,7 +134,7 @@ cd client && npm run build
 | File | Purpose |
 |------|---------|
 | `client/public/manifest.webmanifest` | PWA manifest (name, icons, theme, display mode) |
-| `client/public/sw.js` | Service worker (caching, offline fallback) |
+| `client/src/sw.js` | Service worker source (caching, offline fallback, push notifications) |
 | `client/public/offline.html` | Offline page shown when no connection |
 | `client/public/icons/` | App icons (192, 512, maskable, Apple touch) |
 | `client/src/registerSW.js` | Service worker registration logic |
@@ -168,7 +154,7 @@ cd client && npm run build
 
 **Offline page not showing?**
 - Verify the service worker is registered in Application > Service Workers.
-- Check that `offline.html` is listed in the cache under `royalemy-shell-v6`.
+- Check that `offline.html` is listed in the Workbox precache under `workbox-precache-v2-...`.
 
 **Old assets after deploy?**
 - The app shell and JS/CSS use network-first, so online users should get the latest code immediately.
