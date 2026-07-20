@@ -712,6 +712,13 @@ try {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/health/detailed', validateAdminKeyForEndpoint, requireSuperAdmin, (req, res) => {
+  res.json({
+    status: 'ok',
     version: serverVersion,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
