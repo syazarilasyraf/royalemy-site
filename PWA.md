@@ -91,9 +91,23 @@ There is no need to manually bump a cache version.
 
 ### Offline Behavior
 
-- **Navigation:** If the user is offline and requests a page, the service worker serves `offline.html`.
+- **Navigation:** If the user is offline and requests a page, the service worker serves `offline.html` via `matchPrecache`.
 - **API calls:** If an API call fails while offline, the error propagates to the React app, which already handles loading/error states.
 - **Cached content:** Previously visited pages, card images, and fonts remain available offline.
+
+### Push Notifications
+
+The Workbox service worker still includes the custom `push` and `notificationclick` handlers from the legacy hand-rolled service worker. Push payloads are expected as JSON with `title`, `body`, `icon`, `scope`, `tournamentId`, `url`, and `tag`. Clicking a notification focuses an existing window or opens the payload URL.
+
+### Build Configuration
+
+`client/vite.config.js` uses `vite-plugin-pwa` with:
+
+- `strategies: 'injectManifest'`
+- `srcDir: 'src'` / `filename: 'sw.js'`
+- `injectRegister: false` (registration is handled by `client/src/registerSW.js`)
+- `manifest: false` (the existing `client/public/manifest.webmanifest` is left untouched)
+- `includeAssets: ['offline.html', 'royalemy.png']` to ensure they are precached
 
 ---
 
@@ -135,6 +149,7 @@ cd client && npm run build
 |------|---------|
 | `client/public/manifest.webmanifest` | PWA manifest (name, icons, theme, display mode) |
 | `client/src/sw.js` | Service worker source (caching, offline fallback, push notifications) |
+| `client/vite.config.js` | Vite + `vite-plugin-pwa` configuration |
 | `client/public/offline.html` | Offline page shown when no connection |
 | `client/public/icons/` | App icons (192, 512, maskable, Apple touch) |
 | `client/src/registerSW.js` | Service worker registration logic |

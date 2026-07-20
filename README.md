@@ -76,7 +76,7 @@ RoyaleMY/
 │   │   ├── services/api.js  # API client
 │   │   ├── utils/           # Deck parser, archetype analyzer, card mapping
 │   │   └── data/            # Static card data and deck recommendations
-│   ├── public/              # Static assets, PWA manifest, offline page
+│   ├── public/              # Static assets, PWA manifest, offline page, robots.txt, sitemap.xml
 │   └── dist/                # Build output (Netlify)
 ├── server/                  # Express backend
 │   ├── data/                # Local SQLite database (dev only)
@@ -125,7 +125,10 @@ npm run dev
 ### Health Check
 ```bash
 curl http://localhost:3001/api/health
+# => { "status": "ok", "timestamp": "..." }
 ```
+
+The public health endpoint returns only `{ status, timestamp }`. Detailed diagnostics (version, uptime, DB path, cache size, CR API configuration) are available at `GET /api/health/detailed` and require a super admin key.
 
 ---
 
@@ -148,7 +151,7 @@ curl http://localhost:3001/api/health
 | `VAPID_PUBLIC_KEY` | No* | Web Push public key | `BFCdK...` |
 | `VAPID_PRIVATE_KEY` | No* | Web Push private key | `vLRx7...` |
 | `VAPID_SUBJECT` | No | Contact email for push | `mailto:admin@royalemy.gg` |
-| `CORS_ORIGINS` | No | Additional CORS origins (comma-separated) | `https://deploy-preview-123--royalemy.netlify.app` |
+| `CORS_ORIGINS` | No | **Operationally important** for preview deploys and custom domains. Extra CORS-allowed origins in addition to `FRONTEND_URL` (comma-separated). | `https://deploy-preview-123--royalemy.netlify.app` |
 | `PORT` | No | Server port | `3001` |
 | `LIVE_TOURNAMENT_SYNC_INTERVAL_MS` | No | Live tournament battle sync interval | `30000` |
 | `LIVE_BATTLELOG_CACHE_TTL` | No | Live battle-log cache TTL (seconds) | `30` |
@@ -156,7 +159,44 @@ curl http://localhost:3001/api/health
 
 \* Required only if using browser push notifications for tournaments.
 
-> **Never commit `.env` files to git.** They are excluded by `.gitignore`.
+> **Never commit `.env` files to git.** They are excluded by `.gitignore`. `server/.env.test` was removed from the repo; use `server/.env.test.example` as a template for test environments.
+
+---
+
+## Security & CORS
+
+- **CORS allowlist:** The backend builds an explicit allowlist from `FRONTEND_URL` plus any origins in `CORS_ORIGINS` (comma-separated). Requests with no `Origin` header are still allowed (e.g., curl, server-to-server, health checks). Rejected origins are logged and blocked.
+- **Admin authentication:** Admin keys are compared with `crypto.timingSafeEqual` over SHA-256 digests. Limited-admin keys are stored as SHA-256 hashes.
+- **Failed-admin-auth rate limiting:** Failed admin key attempts are rate-limited per IP at 10 failures per 10 minutes (HTTP 429). Counters are stored in-memory per container instance, so the effective limit scales with the number of running instances.
+- **Public health:** `GET /api/health` returns only `{ status, timestamp }`. Detailed diagnostics are behind `GET /api/health/detailed`, which requires super admin access.
+
+---
+
+## SEO & Social Meta
+
+- `client/public/robots.txt` allows all crawlers, disallows `/admin` and `/live`, and points to the sitemap.
+- `client/public/sitemap.xml` lists public routes with change frequencies and priorities.
+- `react-helmet-async` plus the `PageMeta` component provide per-route `<title>`, `<meta name="description">`, canonical, Open Graph, and Twitter Card tags. `client/index.html` contains the baseline tags for the home page.
+
+---
+
+## Reliability, Accessibility & UX
+
+- **API retries:** `fetchAPI` in `client/src/services/api.js` retries idempotent methods (`GET`, `HEAD`, `OPTIONS`) up to 2 times with exponential backoff and honors the `Retry-After` header on 429 responses.
+- **Retry UI:** `CommunityDeckFeed` and `TournamentFinder` show a **Retry** button when loading fails.
+- **Accessibility:** The main app viewport no longer disables zoom. Card images in `PlayerLookup`, `DeckStats`, `DeckPreview`, and `ArenaDeckRecommender` include `alt` text.
+
+---
+
+## Analytics
+
+RoyaleMY uses [Umami](https://umami.is) for privacy-friendly, production-only analytics.
+
+- The Umami script is injected only in production builds and only when served from `royalemy.com` (`client/src/utils/analytics.js`).
+- Page views are tracked automatically via the History API.
+- Custom events tracked in the UI: `player-lookup`, `deck-share`, `deck-submit`, `tournament-register`, and `install-click`.
+- `/admin` and `/live` routes are excluded from custom event tracking.
+- After each production deploy, verify events appear on the Umami Realtime dashboard.
 
 ---
 
@@ -215,6 +255,7 @@ Before every deployment, verify:
 - [ ] Server logs show: `[DB] Database directory: /data`
 - [ ] You have a fresh backup of `roadmap.db`
 - [ ] `.db-shm` and `.db-wal` are not tracked in git
+- [ ] Umami Realtime dashboard shows events after the deploy
 
 ---
 
@@ -228,13 +269,20 @@ RoyaleMY is a Progressive Web App. Users can install it on their home screen for
 - **Desktop (Chrome/Edge):** Address bar install icon
 
 ### Offline Support
-- App shell is cached with a stale-while-revalidate strategy.
-- Card images and fonts are cached with a cache-first strategy.
-- Static card/location data is cached; live player/clan data is network-only.
-- Offline fallback page: `offline.html`
+- The service worker is built from `client/src/sw.js` using `vite-plugin-pwa` with Workbox `injectManifest`. The precache manifest is content-hashed automatically; there is no manual cache version to bump.
+- Runtime cache strategies (matched by pathname because the API is cross-origin):
+  - `/api/cards` — cache-first (24h expiration)
+  - `/api/locations/*` and `/api/meta-decks` — network-first
+  - All other `/api/*` — network-only
+  - Google Fonts — cache-first
+  - Images — cache-first (max 200 entries)
+  - JS/CSS/documents — network-first
+- Offline fallback page: `client/public/offline.html`.
+- The legacy push notification and notification-click handlers from the old hand-rolled service worker are preserved inside the Workbox SW.
+- On activation, the worker cleans up outdated Workbox precaches and deletes legacy `royalemy-*` caches from the previous hand-rolled service worker.
 
 ### Updating
-The service worker is built from `client/src/sw.js` using `vite-plugin-pwa` with `injectManifest`. Each build generates content-hashed precache entries, so browsers fetch updated assets automatically on the next visit. The custom `UpdatePrompt.jsx` still lets users refresh as soon as a new worker is waiting. See `PWA.md` for full details.
+A new service worker installs in the background on the next visit. The custom `registerSW.js` registration dispatches `pwa-update-available`, so `UpdatePrompt.jsx` can prompt users to refresh as soon as a new worker is waiting. See `PWA.md` for full details.
 
 ---
 
@@ -321,7 +369,7 @@ Engineering improvements to increase reliability, performance, and maintainabili
 - **Caching** — Replace the FIFO in-memory cache with `lru-cache` and expose hit/miss metrics.
 - **Testing** — Add a test suite for services and route integration; run it in CI.
 
-**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations/push subscriptions/submissions, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard and area, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production, admin key in `X-Admin-Key` header, bulk admin operations, admin search and filter, tournament waitlist with auto-promotion, admin audit trail, automated tournament reminders with push, automated tournament status transitions, tournament match tracker / brackets, Docker multi-stage build + healthcheck, CI pre-deploy verification, deck trending sort, deck comments, deck share links with Open Graph previews, **live tournament broadcast overlay** with battle validation, ranking engine, and OBS/TikTok Live Studio Browser Source support (`/live/tournament/:id`).
+**Recently completed:** `helmet` security headers, authenticated cache clear, rate limiting on votes/registrations/push subscriptions/submissions, route-level code splitting, composite DB indexes, duplicate detection, admin CSV export, unified admin dashboard and area, capped in-memory cache (500 entries), async log trimming, XSS input sanitization, reduced DB upload limit (10MB), graceful shutdown, dropped unused indexes, `React.memo` on all heavy components, `useMemo` for expensive computations, SW cache size limits, request correlation IDs, NDJSON logging in production, admin key in `X-Admin-Key` header, bulk admin operations, admin search and filter, tournament waitlist with auto-promotion, admin audit trail, automated tournament reminders with push, automated tournament status transitions, tournament match tracker / brackets, Docker multi-stage build + healthcheck, CI pre-deploy verification, deck trending sort, deck comments, deck share links with Open Graph previews, **live tournament broadcast overlay** with battle validation, ranking engine, and OBS/TikTok Live Studio Browser Source support (`/live/tournament/:id`), CORS allowlist hardening, timing-safe admin-key comparison with IP-based failed-auth rate limiting, minimized public health endpoint, `robots.txt`/`sitemap.xml`, per-route SEO meta via `react-helmet-async`, API retries with exponential backoff and `Retry-After` support, accessibility improvements, Umami analytics, and Workbox-based PWA service worker migration.
 
 See `docs/FUTURE_ROADMAP.md` for the complete audit and ranked recommendations.
 

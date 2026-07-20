@@ -119,7 +119,8 @@ if (!columnExists('existing_table', 'new_column')) {
 | `server/routes/tournamentLive.js` | Public live tournament API endpoints | Low |
 | `client/src/components/TournamentLiveOverlay.jsx` | Browser Source overlay for OBS/TikTok Live Studio | Low |
 | `client/public/_redirects` | Netlify SPA routing | Medium |
-| `client/public/sw.js` | Service worker (PWA cache) | Medium |
+| `client/src/sw.js` | Service worker source (Workbox `injectManifest`) | Medium |
+| `client/vite.config.js` | Vite + `vite-plugin-pwa` build config | Low |
 | `scripts/download-cards.ps1` | PowerShell card downloader (requires CR_TOKEN) | Low |
 | `scripts/update-cards-royaleapi.mjs` | Node.js card downloader using RoyaleAPI CDN (no token) | Low |
 
@@ -258,6 +259,7 @@ console.log('DB path:', db.name);
 |-----|----------|---------|
 | `CR_API_TOKEN` | Yes | JWT from CR developer portal |
 | `FRONTEND_URL` | Yes | `https://royalemy.netlify.app` |
+| `CORS_ORIGINS` | No | Comma-separated additional CORS origins for preview deploys / custom domains (e.g. `https://deploy-preview-123--royalemy.netlify.app`) |
 | `ROADMAP_ADMIN_KEY` | Yes | Random secret string |
 | `DB_DIR` | Yes (prod) | `/data` |
 | `VAPID_PUBLIC_KEY` | No* | Web Push public key |

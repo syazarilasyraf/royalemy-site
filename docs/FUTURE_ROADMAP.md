@@ -2,7 +2,7 @@
 
 This document tracks what is actually built, what is half-built, and what should come next for RoyaleMY. It is written as a decision-making aid: each section ends with a concrete recommendation for the next sprint.
 
-> **Last audited:** 2026-06-14  
+> **Last audited:** 2026-07-20  
 > **Scope:** Frontend (React/Vite), Backend (Express/SQLite), Deployment (Docker/JustRunMyApp/Netlify)
 
 ---
@@ -25,6 +25,17 @@ State rankings and clan war history are valuable but should wait until the core 
 ## 1. What Is Actually Shipped
 
 A reality-checked changelog. Items marked ⚠️ are "shipped but flawed"; items marked ❌ are still missing despite earlier claims.
+
+### Recently Completed (2026-07-20)
+
+- ✅ **CORS allowlist hardening** — explicit allowlist built from `FRONTEND_URL` + `CORS_ORIGINS`; no longer reflects any origin.
+- ✅ **Admin key hardening** — timing-safe SHA-256 comparison (`crypto.timingSafeEqual`) and per-IP failed-auth rate limiting (10 failures / 10 minutes, HTTP 429).
+- ✅ **Health endpoint minimized** — `GET /api/health` returns only `{ status, timestamp }`; detailed diagnostics moved to `GET /api/health/detailed` (super admin only).
+- ✅ **SEO foundations** — `robots.txt`, `sitemap.xml`, `react-helmet-async` per-route titles/descriptions/canonical/OG/Twitter, and baseline tags in `index.html`.
+- ✅ **API reliability** — `fetchAPI` retries idempotent methods up to 2 times with exponential backoff and honors `Retry-After` on 429; retry buttons in `CommunityDeckFeed` and `TournamentFinder`.
+- ✅ **Accessibility improvements** — main viewport no longer disables zoom; card images include `alt` text.
+- ✅ **Umami analytics** — production-only, hostname-gated to `royalemy.com`, with custom events for `player-lookup`, `deck-share`, `deck-submit`, `tournament-register`, and `install-click`.
+- ✅ **Workbox PWA migration** — service worker rebuilt with `vite-plugin-pwa` `injectManifest` from `client/src/sw.js`; content-hashed precache, preserved runtime strategies, and legacy `royalemy-*` cache cleanup.
 
 ### Recently Completed (2026-06-13)
 
@@ -158,6 +169,7 @@ Invisible to users but worth scheduling between feature sprints.
 |-------|----------|-----|
 | Admin key in URL query params | `AdminLayout.jsx`, `validateAdminKey`, CSV export | Move key to `sessionStorage` + context; remove query fallback; fetch CSV with header |
 | Audit trail lacks admin identity | `admin_actions` inserts across routes | Populate `admin_key_hash` |
+| CORS rejection returns 500 instead of a clean response | `server/index.js` CORS error handler | Return a clean CORS error response before the global 500 handler |
 | `push_subscriptions` migration drops table | `server/db.js` | Use `ALTER TABLE ADD COLUMN` |
 
 ### 4.2 Performance & Reliability
@@ -165,6 +177,7 @@ Invisible to users but worth scheduling between feature sprints.
 | Issue | Location | Fix |
 |-------|----------|-----|
 | In-memory cache is FIFO, not LRU | `services/crApi.js` | Switch to `lru-cache`; expose hit/miss metrics |
+| Rate-limit counters are per-instance | `services/rateLimiter.js` | Use Redis-backed counters when running multiple instances |
 | No input schema validation | All route files | Adopt `zod` for request bodies |
 | Reminder timezone bug | `server/index.js` | Store and compare datetimes in UTC |
 | Waitlist count bug | `communityTournaments.js` | Exclude waitlisted players from `participant_count` |
@@ -190,10 +203,10 @@ Invisible to users but worth scheduling between feature sprints.
 
 | Document | Issue | Fix |
 |----------|-------|-----|
-| `README.md` | Still lists old public-page admin URLs (`/tournaments?admin=KEY`) | Update to `/admin/*?admin=KEY` or remove query param docs once header-only |
-| `README.md` | Says tournament reminders have no automated logic | Remove; logic exists |
-| `PWA.md` | References cache names `v1` while code uses `v5` | Update to current cache names |
-| `AGENTS.md` | Says `tournament_notifications` is a related table | Update to `notifications` |
+| `README.md` | Security, SEO, analytics, PWA, and deployment sections were stale | Updated; keep an eye on admin-key-in-URL examples until query params are removed |
+| `PWA.md` | Still referenced manual cache-bump workflow and old `public/sw.js` | Updated to Workbox `injectManifest` model |
+| `AGENTS.md` | Referenced old `public/sw.js` and omitted `CORS_ORIGINS` | Updated |
+| `docs/FUTURE_ROADMAP.md` | Last audited date and completed-items list were stale | Updated |
 
 ---
 
