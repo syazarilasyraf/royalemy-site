@@ -1369,6 +1369,7 @@ function CalendarView({ tournaments, onViewDetails, onRegister, adminKey }) {
 function TournamentFinder() {
   const [communityTournaments, setCommunityTournaments] = useState([]);
   const [loadingCommunity, setLoadingCommunity] = useState(false);
+  const [communityError, setCommunityError] = useState('');
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [selectedTournamentFull, setSelectedTournamentFull] = useState(null);
   const [view, setView] = useState('list'); // list, detail
@@ -1401,11 +1402,13 @@ function TournamentFinder() {
 
   const loadCommunityTournaments = async () => {
     setLoadingCommunity(true);
+    setCommunityError('');
     try {
       const data = await getCommunityTournaments();
       setCommunityTournaments(data.tournaments || []);
     } catch (err) {
       console.error('Failed to load community tournaments:', err);
+      setCommunityError(err.message || 'Failed to load tournaments');
       setCommunityTournaments([]);
     } finally {
       setLoadingCommunity(false);
@@ -1501,8 +1504,17 @@ function TournamentFinder() {
         </div>
       </div>
 
+      {communityError && !loadingCommunity && (
+        <div className="error-state-box">
+          <div className="empty-icon">⚠️</div>
+          <h3>Failed to load tournaments</h3>
+          <p>{communityError}</p>
+          <button className="retry-btn" onClick={loadCommunityTournaments}>Retry</button>
+        </div>
+      )}
+
       {/* Live Tournaments */}
-      {liveTournaments.length > 0 && (
+      {!communityError && liveTournaments.length > 0 && (
         <section className="live-section">
           <h3>🔴 Live Now</h3>
           <div className="live-tournament-list">
@@ -1560,7 +1572,7 @@ function TournamentFinder() {
       )}
 
       {/* Upcoming Tournaments */}
-      <section className="community-section">
+      {!communityError && <section className="community-section">
         <div className="section-header">
           <div>
             <h3>📅 Upcoming Tournaments</h3>
@@ -1652,7 +1664,7 @@ function TournamentFinder() {
             <p className="empty-helper">Be the first to submit a tournament!</p>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Completed Tournaments */}
       {completedTournaments.length > 0 && (
@@ -3756,6 +3768,36 @@ function TournamentFinder() {
         .notification-time {
           font-size: 0.75rem;
           color: var(--text-muted);
+        }
+
+        .error-state-box {
+          text-align: center;
+          padding: var(--spacing-xl);
+          background: var(--bg-secondary);
+          border-radius: var(--radius-xl);
+          border: 2px dashed var(--bg-tertiary);
+          color: var(--accent-danger);
+          margin-bottom: var(--spacing-xl);
+        }
+        .error-state-box .empty-icon {
+          font-size: 3rem;
+          margin-bottom: var(--spacing-md);
+          opacity: 0.5;
+        }
+        .retry-btn {
+          margin-top: var(--spacing-md);
+          padding: 8px 16px;
+          background: var(--accent-primary);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .retry-btn:hover {
+          opacity: 0.9;
         }
       `}</style>
     </div>

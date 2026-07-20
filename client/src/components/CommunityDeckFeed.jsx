@@ -348,6 +348,7 @@ function CommunityDeckFeed() {
           <div className="empty-icon">⚠️</div>
           <h3>Failed to load decks</h3>
           <p>{error}</p>
+          <button className="retry-btn" onClick={loadDecks}>Retry</button>
         </div>
       ) : filteredDecks.length === 0 ? (
         <div className="empty-state">
@@ -827,6 +828,21 @@ function CommunityDeckFeed() {
           text-align: center;
           padding: var(--spacing-xl);
           color: var(--accent-danger);
+        }
+        .retry-btn {
+          margin-top: var(--spacing-md);
+          padding: 8px 16px;
+          background: var(--accent-primary);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .retry-btn:hover {
+          opacity: 0.9;
         }
         @media (max-width: 640px) {
           .community-deck-feed-page {

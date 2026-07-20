@@ -5,19 +5,56 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableMethod(method) {
+  return !method || method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+}
+
+function parseRetryAfter(header) {
+  if (!header) return null;
+  const seconds = parseInt(header, 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null;
+}
+
 async function fetchAPI(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const maxRetries = 2;
+  let attempt = 0;
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
+  while (true) {
+    let response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+    } catch (error) {
+      if (error.name === 'TypeError' && attempt < maxRetries && isRetryableMethod(options.method)) {
+        console.warn(`API retry (${endpoint}) after network error, attempt ${attempt + 1}/${maxRetries}`);
+        await sleep(1000 * 2 ** attempt);
+        attempt++;
+        continue;
       }
-    });
+      console.error(`API Error (${endpoint}):`, error.message);
+      throw new Error('Cannot connect to server. The backend may be restarting or a CORS issue occurred.');
+    }
 
     if (!response.ok) {
+      if (response.status === 429 && attempt < maxRetries && isRetryableMethod(options.method)) {
+        const retryAfter = parseRetryAfter(response.headers.get('retry-after'));
+        const delay = retryAfter || (1000 * 2 ** attempt);
+        console.warn(`API retry (${endpoint}) after 429, attempt ${attempt + 1}/${maxRetries}, delay ${delay}ms`);
+        await sleep(delay);
+        attempt++;
+        continue;
+      }
+
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const error = await response.json().catch(() => ({ error: `Server error (${response.status})` }));
@@ -31,14 +68,6 @@ async function fetchAPI(endpoint, options = {}) {
     }
 
     return await response.json();
-  } catch (error) {
-    // Network/CORS errors throw TypeError in all browsers
-    if (error.name === 'TypeError') {
-      console.error(`API Error (${endpoint}):`, error.message);
-      throw new Error('Cannot connect to server. The backend may be restarting or a CORS issue occurred.');
-    }
-    console.error(`API Error (${endpoint}):`, error);
-    throw error;
   }
 }
 
