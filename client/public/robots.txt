@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /live
+
+Sitemap: https://royalemy.com/sitemap.xml
