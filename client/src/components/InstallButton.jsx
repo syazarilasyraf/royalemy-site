@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { trackEvent } from '../utils/analytics';
 
 function InstallButton() {
   const [isVisible, setIsVisible] = useState(false);
@@ -36,6 +37,7 @@ function InstallButton() {
   }, []);
 
   const handleInstallClick = useCallback(async () => {
+    trackEvent('install-click');
     if (!deferredPrompt.current) return;
 
     deferredPrompt.current.prompt();

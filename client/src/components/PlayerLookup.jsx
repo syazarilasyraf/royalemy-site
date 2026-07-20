@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, memo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getPlayer, getPlayerBattleLog } from '../services/api';
 import { getCardById } from '../utils/cardMapping';
+import { trackEvent } from '../utils/analytics';
 import { buildDeckLink } from '../utils/deckParser';
 import SkeletonLoader from './SkeletonLoader';
 
@@ -42,6 +43,7 @@ function PlayerLookup() {
     try {
       const data = await getPlayer(tag);
       setPlayerData(data);
+      trackEvent('player-lookup');
       
       // Fetch battle log
       fetchBattleLog(tag);

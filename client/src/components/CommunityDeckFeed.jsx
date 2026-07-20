@@ -4,6 +4,7 @@ import { getCardById } from '../utils/cardMapping';
 import { getCommunityDecks, submitCommunityDeck, voteCommunityDeck, getCommunityDeckShareUrl, getDeckComments, addDeckComment } from '../services/api';
 import { isChampionCard } from '../data/deckSources';
 import { generateDeckTitle } from '../utils/deckTitleGenerator';
+import { trackEvent } from '../utils/analytics';
 import DeckPreview from './DeckPreview';
 
 function calculateDynamicAvgElixir(cardIds) {
@@ -159,6 +160,7 @@ function CommunityDeckFeed() {
         tags: generateDeckTags(cardIds)
       });
       setSubmitMessage('✅ Deck submitted successfully! It is now live on the community feed.');
+      trackEvent('deck-submit');
       setDeckLink('');
       setDeckTitle('');
       setAuthorName('');
@@ -227,6 +229,7 @@ function CommunityDeckFeed() {
       } else {
         window.prompt('Copy this link:', shareUrl);
       }
+      trackEvent('deck-share');
     } catch (err) {
       // User cancelled share or clipboard failed
       console.error('Share failed:', err);

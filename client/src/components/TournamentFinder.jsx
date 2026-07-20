@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import TournamentBracket from './TournamentBracket';
+import { trackEvent } from '../utils/analytics';
 import {
   getCommunityTournaments,
   getCommunityTournament,
@@ -1083,6 +1084,7 @@ function RegisterModal({ tournament, onClose, onSuccess }) {
       setSuccess(true);
       setForm({ player_tag: '', tiktok_username: '' });
       onSuccess();
+      trackEvent('tournament-register');
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {

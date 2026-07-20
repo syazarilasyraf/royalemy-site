@@ -5,8 +5,10 @@ import { HelmetProvider } from 'react-helmet-async'
 import App from './App.jsx'
 import './styles/index.css'
 import { registerSW } from './registerSW.js'
+import { initAnalytics } from './utils/analytics.js'
 
 registerSW()
+initAnalytics()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
