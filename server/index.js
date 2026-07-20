@@ -47,13 +47,33 @@ const CR_API_TOKEN = process.env.CR_API_TOKEN;
 
 // ==================== MIDDLEWARE ====================
 
-// CORS - Allow configured frontend origin(s)
-// Note: we mirror the request origin so admin requests work from any valid frontend
-// (Netlify production, deploy previews, mobile browsers, etc.). The actual security
-// is enforced by the admin key, not the origin.
+// CORS - Explicit allowlist of origins allowed to use credentials
+function buildCorsAllowlist() {
+  const list = new Set();
+  if (process.env.FRONTEND_URL) {
+    list.add(process.env.FRONTEND_URL.trim());
+  }
+  if (process.env.CORS_ORIGINS) {
+    process.env.CORS_ORIGINS.split(',').forEach((origin) => {
+      const trimmed = origin.trim();
+      if (trimmed) list.add(trimmed);
+    });
+  }
+  return list;
+}
+const corsAllowlist = buildCorsAllowlist();
+
 app.use(cors({
   origin: function (origin, callback) {
-    callback(null, origin || true);
+    // Allow requests with no Origin header (server-to-server, curl, health checks)
+    if (!origin) {
+      return callback(null, true);
+    }
+    if (corsAllowlist.has(origin)) {
+      return callback(null, origin);
+    }
+    log('warn', `CORS rejected origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -880,7 +900,7 @@ const server = app.listen(PORT, () => {
   console.log(`💾 Cache: Enabled with TTL (max ${MAX_CACHE_SIZE} entries)`);
   console.log('');
   console.log(`Frontend should point to: ${FRONTEND_URL}`);
-  console.log(`CORS mode: mirror request origin (maxAge: 0)`);
+  console.log(`CORS mode: allowlist (${corsAllowlist.size} origin(s), maxAge: 0)`);
   console.log('');
   console.log('Ready for viewers! 👥');
   console.log('');
