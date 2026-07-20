@@ -6,6 +6,7 @@ import InstallButton from './components/InstallButton';
 import InstallBanner from './components/InstallBanner';
 import UpdatePrompt from './components/UpdatePrompt';
 import AdminLayout from './admin/AdminLayout';
+import PageMeta from './components/PageMeta';
 
 const DeckStats = lazy(() => import('./components/DeckStats'));
 const PlayerLookup = lazy(() => import('./components/PlayerLookup'));
@@ -100,6 +101,7 @@ function App() {
       className={`app ${isAdmin ? 'app-admin' : ''} ${isLiveOverlay ? 'app-live-overlay' : ''}`}
       style={isLiveOverlay ? { background: 'transparent' } : undefined}
     >
+      <PageMeta />
       {!isLiveOverlay && <Header />}
       
       <main className={`main-content ${isLiveOverlay ? 'main-content-overlay' : ''}`}>
