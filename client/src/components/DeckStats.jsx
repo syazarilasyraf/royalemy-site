@@ -377,7 +377,7 @@ function DeckStats() {
                   <div className="dcard-img-wrap" style={{ borderColor: getRarityColor(card.rarity) }}>
                     <img 
                       src={card.image || `/cards/${card.id}.webp`}
-                      alt={card.name}
+                      alt={card?.name || ''}
                       onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
                     />
                     <span className="dcard-elixir">{card.elixir || '?'}</span>

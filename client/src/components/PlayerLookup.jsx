@@ -126,7 +126,7 @@ function PlayerLookup() {
                 <div key={cardIndex} className="battle-deck-card">
                   <img 
                     src={card.iconUrls?.medium || `/cards/${card.id}.webp`}
-                    alt={card.name}
+                    alt={card?.name || ''}
                     onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
                   />
                 </div>
@@ -274,7 +274,7 @@ function PlayerLookup() {
                       <div key={index} className="deck-card-small">
                         <img 
                           src={card.iconUrls?.medium || `/cards/${cardId}.webp`}
-                          alt={card.name}
+                          alt={card?.name || ''}
                           onError={(e) => { e.target.src = '/cards/placeholder.webp'; }}
                         />
                         <span className="card-level">Lvl {card.level}</span>

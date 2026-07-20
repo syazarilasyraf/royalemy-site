@@ -48,7 +48,7 @@ function DeckPreview({ cardIds, showElixir = true, compact = false, variant = 'b
             <div
               key={`${cardId}-${index}`}
               className="deck-preview__card"
-              title={card.name}
+              title={card?.name || ''}
               style={{
                 '--rarity-color': rarityColors[card.rarity] || rarityColors.default
               }}
@@ -56,7 +56,7 @@ function DeckPreview({ cardIds, showElixir = true, compact = false, variant = 'b
               <div className="deck-preview__card-inner">
                 <img
                   src={imageUrl}
-                  alt={card.name}
+                  alt={card?.name || ''}
                   className="deck-preview__card-image"
                   loading="lazy"
                   onError={() => handleImageError(cardId)}
