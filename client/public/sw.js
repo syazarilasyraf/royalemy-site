@@ -1,7 +1,7 @@
-const SHELL_CACHE = 'royalemy-shell-v6';
-const IMAGE_CACHE = 'royalemy-images-v6';
-const FONT_CACHE = 'royalemy-fonts-v6';
-const API_CACHE = 'royalemy-api-v6';
+const SHELL_CACHE = 'royalemy-shell-v7';
+const IMAGE_CACHE = 'royalemy-images-v7';
+const FONT_CACHE = 'royalemy-fonts-v7';
+const API_CACHE = 'royalemy-api-v7';
 
 const SHELL_ASSETS = [
   '/',
